@@ -1,7 +1,7 @@
 const CACHE_NAME = 'rep-counter-cache-v1';
 const urlsToCache = [
     './',
-    './rep-counter.html',
+    './index.html',
     './manifest.json',
     './icons/icon-192x192.png',
     './icons/icon-512x512.png'
