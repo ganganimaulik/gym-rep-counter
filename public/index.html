@@ -438,23 +438,24 @@
                 startBtn.classList.add('col-span-2');
                 
                 let restCount = restSeconds;
+                const day = isBetweenExercises ? workoutDays.find(d => d.id === activeWorkout.dayId) : null;
+                const nextExercise = isBetweenExercises ? day.exercises[activeWorkout.exerciseIndex] : null;
 
-                if (isBetweenExercises) {
-                    const day = workoutDays.find(d => d.id === activeWorkout.dayId);
-                    const nextExercise = day.exercises[activeWorkout.exerciseIndex];
-                    statusText.textContent = `Next: ${nextExercise.name}`;
-                    speak(`Next exercise: ${nextExercise.name}. Rest for ${restSeconds} seconds.`);
-                } else {
-                    statusText.textContent = `Rest: ${restCount}s`;
-                    speak(`Set ${currentSet - 1} complete. Rest for ${restSeconds} seconds.`);
-                }
+                const updateRestText = () => {
+                    if (isBetweenExercises && nextExercise) {
+                        statusText.textContent = `Next: ${nextExercise.name} (${restCount}s)`;
+                    } else {
+                        statusText.textContent = `Rest: ${restCount}s`;
+                    }
+                };
+
+                updateRestText(); // Set initial text
+                speak(isBetweenExercises && nextExercise ? `Next exercise: ${nextExercise.name}. Rest for ${restSeconds} seconds.` : `Set ${currentSet - 1} complete. Rest for ${restSeconds} seconds.`);
                 updateDisplay();
 
                 restIntervalId = setInterval(() => {
                     restCount--;
-                    if (!isBetweenExercises) {
-                        statusText.textContent = `Rest: ${restCount}s`;
-                    }
+                    updateRestText(); // Update text every second
 
                     if (restCount <= 3 && restCount > 0) {
                         playBeep(660, 100);
