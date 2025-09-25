@@ -449,6 +449,11 @@
                     }
                 };
 
+                if (isBetweenExercises) {
+                    currentRep = 0;
+                    currentSet = 1;
+                }
+
                 updateRestText(); // Set initial text
                 speak(isBetweenExercises && nextExercise ? `Next exercise: ${nextExercise.name}. Rest for ${restSeconds} seconds.` : `Set ${currentSet - 1} complete. Rest for ${restSeconds} seconds.`);
                 updateDisplay();
