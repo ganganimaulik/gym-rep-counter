@@ -329,10 +329,9 @@
             };
 
             const speak = (text, rate = 1.0, voice = null) => {
-                // The synth.speaking check is removed to allow for interruption,
-                // which is necessary for the countdowns to work correctly.
-                // Callers are responsible for calling synth.cancel() if they
-                // want to interrupt previous speech.
+                // Cancel any ongoing speech to ensure the new one plays immediately.
+                // This is crucial for the countdowns to correctly interrupt other announcements.
+                synth.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.volume = volume;
                 utterance.rate = rate;
@@ -413,7 +412,7 @@
                              if (eccentricCountdownEnabled && currentIntegerSecond > lastSpokenSecond && currentPhaseTime < eccentricSeconds) {
                                  const numberToSpeak = Math.ceil(eccentricSeconds - currentPhaseTime);
                                  if (numberToSpeak > 0) {
-                                     synth.cancel(); 
+                                     // synth.cancel() is no longer needed here as speak() now handles it.
                                      speak(numberToSpeak, 1.5, femaleVoice);
                                  }
                                  lastSpokenSecond = currentIntegerSecond;
