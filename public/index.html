@@ -1001,6 +1001,13 @@
 
         const startWorkout = (startRep = 0) => {
           if (isRunning) return;
+
+          // If workout was complete, reset it.
+          if (statusText.textContent === "Workout Complete!") {
+            currentExerciseIndex = 0;
+            updateExerciseDisplay();
+          }
+
           isResting = false;
           stopAllIntervals();
 
