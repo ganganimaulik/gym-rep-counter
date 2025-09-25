@@ -329,9 +329,10 @@
             };
 
             const speak = (text, rate = 1.0, voice = null) => {
-                if (synth.speaking) {
-                    return;
-                }
+                // The synth.speaking check is removed to allow for interruption,
+                // which is necessary for the countdowns to work correctly.
+                // Callers are responsible for calling synth.cancel() if they
+                // want to interrupt previous speech.
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.volume = volume;
                 utterance.rate = rate;
