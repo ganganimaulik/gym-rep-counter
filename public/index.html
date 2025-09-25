@@ -72,9 +72,10 @@
             </div>
         </div>
 
-        <!-- Settings Toggle -->
-        <div class="text-center">
+        <!-- View Toggles -->
+        <div class="flex justify-center space-x-4">
             <button id="settings-toggle" class="text-blue-400 hover:text-blue-300">Settings</button>
+            <button id="workouts-toggle" class="text-blue-400 hover:text-blue-300">Workouts</button>
         </div>
 
         <!-- Settings Panel -->
@@ -123,6 +124,21 @@
                  <button id="save-settings-btn" class="py-2 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-all duration-200 transform active:scale-95">Save</button>
             </div>
         </div>
+
+        <!-- Workout Management Panel -->
+        <div id="workout-panel" class="hidden space-y-4 pt-4 border-t border-gray-700">
+            <div class="flex justify-between items-center px-1">
+                <h2 class="text-xl font-semibold">Workout Days</h2>
+                 <button id="back-to-counter-btn" class="text-sm text-blue-400 hover:text-blue-300">Back to Counter &rarr;</button>
+            </div>
+            <div id="workout-days-container" class="space-y-3">
+                <!-- Workout days will be dynamically inserted here -->
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <input type="text" id="new-day-name" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Push, Pull, Legs...">
+                <button id="add-day-btn" class="py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-transform transform active:scale-95">+</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -141,6 +157,15 @@
             const settingsPanel = document.getElementById('settings-panel');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
             const setDisplay = document.getElementById('set-display');
+            const mainUI = document.querySelector('.w-full.max-w-md.mx-auto > div:not(#settings-panel):not(#workout-panel)');
+
+            // Workout UI elements
+            const workoutsToggle = document.getElementById('workouts-toggle');
+            const workoutPanel = document.getElementById('workout-panel');
+            const backToCounterBtn = document.getElementById('back-to-counter-btn');
+            const workoutDaysContainer = document.getElementById('workout-days-container');
+            const newDayNameInput = document.getElementById('new-day-name');
+            const addDayBtn = document.getElementById('add-day-btn');
 
             // Settings Inputs
             const countdownInput = document.getElementById('countdown-seconds');
@@ -176,6 +201,9 @@
             let wakeLock = null;
             let noSleep = null; // For iOS fallback
             let femaleVoice = null; // For eccentric countdown voice
+            let workouts = {}; // { 'dayId': { name: 'Push', exercises: [] } }
+            let currentWorkout = null; // { dayId: '', exerciseIndex: 0 }
+
 
             const synth = window.speechSynthesis;
 
@@ -190,6 +218,75 @@
                 }
                 console.log('Selected female voice:', femaleVoice ? `${femaleVoice.name} (${femaleVoice.lang})` : 'Default voice will be used');
             };
+
+            // --- Workout Management ---
+
+            const saveWorkouts = () => {
+                localStorage.setItem('workouts', JSON.stringify(workouts));
+            };
+
+            const loadWorkouts = () => {
+                const storedWorkouts = localStorage.getItem('workouts');
+                if (storedWorkouts) {
+                    workouts = JSON.parse(storedWorkouts);
+                }
+                renderWorkoutDays();
+            };
+
+            const renderWorkoutDays = () => {
+                workoutDaysContainer.innerHTML = '';
+                if (Object.keys(workouts).length === 0) {
+                    workoutDaysContainer.innerHTML = `<p class="text-center text-gray-500">No workout days created yet.</p>`;
+                    return;
+                }
+
+                for (const dayId in workouts) {
+                    const day = workouts[dayId];
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'bg-gray-700 p-4 rounded-lg';
+                    dayElement.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold">${day.name}</h3>
+                            <div class="flex space-x-2">
+                                <button class="start-workout-btn text-sm py-1 px-3 bg-green-600 hover:bg-green-700 rounded-md" data-day-id="${dayId}">Start</button>
+                                <button class="delete-day-btn text-sm py-1 px-2 bg-red-600 hover:bg-red-700 rounded-md" data-day-id="${dayId}">X</button>
+                            </div>
+                        </div>
+                        <div class="mt-3 space-y-2">
+                            <div class="exercises-list space-y-2" data-day-id="${dayId}">
+                                <!-- Exercises will be rendered here -->
+                            </div>
+                            <div class="flex space-x-2">
+                                <input type="text" class="new-exercise-name w-full bg-gray-600 border border-gray-500 rounded-md p-1 text-sm text-white" placeholder="New Exercise...">
+                                <button class="add-exercise-btn py-1 px-3 bg-blue-600 hover:bg-blue-700 rounded-md text-sm" data-day-id="${dayId}">+</button>
+                            </div>
+                        </div>
+                    `;
+                    workoutDaysContainer.appendChild(dayElement);
+                    renderExercises(dayId);
+                }
+            };
+
+            const renderExercises = (dayId) => {
+                const exercisesListContainer = workoutDaysContainer.querySelector(`.exercises-list[data-day-id="${dayId}"]`);
+                const day = workouts[dayId];
+                exercisesListContainer.innerHTML = '';
+
+                if (day.exercises.length === 0) {
+                    exercisesListContainer.innerHTML = `<p class="text-xs text-gray-400 pl-1">No exercises yet.</p>`;
+                } else {
+                    day.exercises.forEach((exercise, index) => {
+                        const exerciseElement = document.createElement('div');
+                        exerciseElement.className = 'flex justify-between items-center bg-gray-800 p-2 rounded-md';
+                        exerciseElement.innerHTML = `
+                            <span class="text-sm">${exercise.name}</span>
+                            <button class="delete-exercise-btn text-xs py-1 px-2 text-red-400 hover:text-red-300" data-day-id="${dayId}" data-exercise-index="${index}">&times;</button>
+                        `;
+                        exercisesListContainer.appendChild(exerciseElement);
+                    });
+                }
+            };
+
 
             // --- Core Functions ---
 
@@ -283,6 +380,9 @@
             };
 
             const updateDisplay = () => {
+                const currentExercise = getCurrentExercise();
+                statusText.textContent = currentExercise ? `${currentExercise.name}` : 'Press Start';
+
                 repDisplay.textContent = currentRep;
                 setDisplay.textContent = currentSet;
                 document.querySelectorAll('.btn-number').forEach(btn => {
@@ -309,14 +409,28 @@
                 stopAllIntervals();
                 isRunning = false;
 
-                currentSet++;
-                if (currentSet > maxSets) {
-                    stopWorkout();
-                    speak("Workout complete. Well done!");
-                    statusText.textContent = "Workout Complete!";
+                if (currentWorkout) {
+                    currentWorkout.exerciseIndex++;
+                    const nextExercise = getCurrentExercise();
+                    if (nextExercise) {
+                        currentSet = 1;
+                        currentRep = 0;
+                        startRestTimer();
+                    } else {
+                        stopWorkout();
+                        speak("Workout complete. Well done!");
+                        statusText.textContent = "Workout Complete!";
+                    }
                 } else {
-                    currentRep = 0;
-                    startRestTimer();
+                     currentSet++;
+                    if (currentSet > maxSets) {
+                        stopWorkout();
+                        speak("Workout complete. Well done!");
+                        statusText.textContent = "Workout Complete!";
+                    } else {
+                        currentRep = 0;
+                        startRestTimer();
+                    }
                 }
             };
 
@@ -381,8 +495,10 @@
                 startBtn.classList.add('col-span-2');
                 
                 let restCount = restSeconds;
-                statusText.textContent = `Rest: ${restCount}s`;
-                speak(`Set ${currentSet - 1} complete. Rest for ${restSeconds} seconds.`);
+                const nextExercise = getCurrentExercise();
+                const statusMessage = nextExercise ? `Next: ${nextExercise.name}` : `Rest: ${restCount}s`;
+                statusText.textContent = statusMessage;
+                speak(`Rest for ${restSeconds} seconds. Next up: ${nextExercise ? nextExercise.name : 'another set'}.`);
                 updateDisplay();
 
                 restIntervalId = setInterval(() => {
@@ -408,6 +524,9 @@
                 isRunning = true;
                 isPaused = false;
 
+                const currentExercise = getCurrentExercise();
+                statusText.textContent = currentExercise ? currentExercise.name : 'In Progress';
+
                 startBtn.classList.add('hidden');
                 pauseBtn.classList.remove('hidden');
                 endSetBtn.classList.remove('hidden');
@@ -421,13 +540,15 @@
             const startCountdown = (callback) => {
                 stopAllIntervals();
                 let count = countdownSeconds;
-                statusText.textContent = `Get Ready... ${count}`;
-                speak(`Get ready. ${count}`);
+                const currentExercise = getCurrentExercise();
+                const initialMessage = currentExercise ? `${currentExercise.name}` : `Get Ready...`;
+                statusText.textContent = `${initialMessage} ${count}`;
+                speak(`${currentExercise ? currentExercise.name : 'Get ready.'}. ${count}`);
 
                 countdownIntervalId = setInterval(() => {
                     count--;
                     if (count > 0) {
-                        statusText.textContent = `Get Ready... ${count}`;
+                        statusText.textContent = `${initialMessage} ${count}`;
                         speak(count);
                     } else if (count === 0) {
                          statusText.textContent = "Go!";
@@ -435,7 +556,7 @@
                          playBeep(880, 200);
                     } else {
                         clearInterval(countdownIntervalId);
-                        statusText.textContent = "In Progress";
+                         statusText.textContent = currentExercise ? currentExercise.name : "In Progress";
                         callback();
                     }
                 }, 1000);
@@ -446,12 +567,17 @@
                 isResting = false;
                 stopAllIntervals();
 
-                if (startRep === 0) {
+                if (currentWorkout) {
+                    currentSet = 1;
                     currentRep = 0;
-                    currentSet = 1;
                 } else {
-                    currentRep = startRep - 1;
-                    currentSet = 1;
+                    if (startRep === 0) {
+                        currentRep = 0;
+                        currentSet = 1;
+                    } else {
+                        currentRep = startRep - 1;
+                        currentSet = 1;
+                    }
                 }
                 
                 isRunning = true;
@@ -504,6 +630,7 @@
                 isResting = false;
                 currentRep = 0;
                 currentSet = 1;
+                currentWorkout = null;
                 startBtn.classList.remove('hidden');
                 pauseBtn.classList.add('hidden');
                 endSetBtn.classList.add('hidden');
@@ -632,9 +759,45 @@
             pauseBtn.addEventListener('click', pauseWorkout);
             stopBtn.addEventListener('click', stopWorkout);
             endSetBtn.addEventListener('click', endSet);
+            const toggleWorkoutPanel = (show) => {
+                workoutPanel.classList.toggle('hidden', !show);
+                settingsPanel.classList.add('hidden'); // Ensure settings is hidden
+                 // Hide all main UI elements except the toggle buttons
+                document.querySelectorAll('.w-full.max-w-md.mx-auto > div:not(#settings-panel):not(#workout-panel):not(.flex.justify-center.space-x-4)').forEach(el => {
+                    el.classList.toggle('hidden', show);
+                });
+            };
+
+            const toggleSettingsPanel = (show) => {
+                settingsPanel.classList.toggle('hidden', !show);
+                workoutPanel.classList.add('hidden'); // Ensure workouts is hidden
+                // Hide all main UI elements except the toggle buttons
+                document.querySelectorAll('.w-full.max-w-md.mx-auto > div:not(#settings-panel):not(#workout-panel):not(.flex.justify-center.space-x-4)').forEach(el => {
+                    el.classList.toggle('hidden', show);
+                });
+            };
+
+
             settingsToggle.addEventListener('click', () => {
-                settingsPanel.classList.toggle('hidden');
+                const isHidden = settingsPanel.classList.contains('hidden');
+                toggleSettingsPanel(isHidden);
+                 if (isHidden) {
+                    toggleWorkoutPanel(false);
+                }
             });
+
+            workoutsToggle.addEventListener('click', () => {
+                const isHidden = workoutPanel.classList.contains('hidden');
+                toggleWorkoutPanel(isHidden);
+                 if (isHidden) {
+                    toggleSettingsPanel(false);
+                }
+            });
+
+            backToCounterBtn.addEventListener('click', () => {
+                toggleWorkoutPanel(false);
+            });
+
             saveSettingsBtn.addEventListener('click', saveSettings);
 
             volumeSlider.addEventListener('input', () => {
@@ -649,8 +812,81 @@
 
             document.addEventListener('visibilitychange', handleVisibilityChange);
 
+            const handleWorkoutDaysKeyPress = (e) => {
+                if (e.key === 'Enter' && e.target.classList.contains('new-exercise-name')) {
+                    e.target.nextElementSibling.click(); // Click the '+' button
+                }
+            };
+
+            const getCurrentExercise = () => {
+                if (!currentWorkout) return null;
+                const day = workouts[currentWorkout.dayId];
+                if (!day || !day.exercises[currentWorkout.exerciseIndex]) return null;
+                return day.exercises[currentWorkout.exerciseIndex];
+            };
+
+            const handleWorkoutDaysClick = (e) => {
+                const target = e.target;
+
+                if (target.classList.contains('start-workout-btn')) {
+                    const dayId = target.dataset.dayId;
+                    if (workouts[dayId] && workouts[dayId].exercises.length > 0) {
+                        currentWorkout = { dayId: dayId, exerciseIndex: 0 };
+                        toggleWorkoutPanel(false);
+                        startWorkout();
+                    } else {
+                        alert('Add some exercises to this day before starting!');
+                    }
+                } else if (target.classList.contains('delete-day-btn')) {
+                    const dayId = target.dataset.dayId;
+                    if (confirm(`Are you sure you want to delete the workout day "${workouts[dayId].name}"?`)) {
+                        delete workouts[dayId];
+                        saveWorkouts();
+                        renderWorkoutDays();
+                    }
+                } else if (target.classList.contains('add-exercise-btn')) {
+                    const dayId = target.dataset.dayId;
+                    const input = target.previousElementSibling;
+                    const exerciseName = input.value.trim();
+                    if (exerciseName) {
+                        workouts[dayId].exercises.push({ name: exerciseName });
+                        saveWorkouts();
+                        renderExercises(dayId);
+                        input.value = '';
+                    }
+                } else if (target.classList.contains('delete-exercise-btn')) {
+                    const dayId = target.dataset.dayId;
+                    const exerciseIndex = parseInt(target.dataset.exerciseIndex);
+                    workouts[dayId].exercises.splice(exerciseIndex, 1);
+                    saveWorkouts();
+                    renderExercises(dayId);
+                }
+            };
+
+            addDayBtn.addEventListener('click', () => {
+                const dayName = newDayNameInput.value.trim();
+                if (dayName) {
+                    const dayId = `day_${new Date().getTime()}`;
+                    workouts[dayId] = { name: dayName, exercises: [] };
+                    saveWorkouts();
+                    renderWorkoutDays();
+                    newDayNameInput.value = '';
+                }
+            });
+
+            newDayNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addDayBtn.click();
+                }
+            });
+
+            workoutDaysContainer.addEventListener('click', handleWorkoutDaysClick);
+            workoutDaysContainer.addEventListener('keypress', handleWorkoutDaysKeyPress);
+
+
             // --- Initialisation ---
             loadSettings();
+            loadWorkouts();
             generateNumberButtons();
             updateDisplay();
 
