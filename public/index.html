@@ -49,11 +49,12 @@
       <div class="bg-gray-700 rounded-lg p-4 space-y-3">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-semibold">Current Workout</h3>
-          <button
-            id="manage-workouts-btn"
-            class="text-blue-400 hover:text-blue-300 text-sm"
-          >
-            Manage
+          <button id="manage-workouts-btn" class="flex items-center space-x-2 rounded-lg bg-gray-600 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            <span>Manage</span>
           </button>
         </div>
         <select
@@ -339,7 +340,7 @@
       <div
         class="bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
       >
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex justify-between items-center pb-4 mb-4 border-b border-gray-700">
           <h2 class="text-2xl font-bold">Manage Workouts</h2>
           <button id="close-modal-btn" class="text-gray-400 hover:text-white">
             <svg
@@ -371,9 +372,10 @@
             />
             <button
               id="add-workout-btn"
-              class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg font-semibold"
+              class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg font-semibold flex items-center justify-center space-x-2"
             >
-              Add Workout
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Add Workout</span>
             </button>
           </div>
         </div>
@@ -526,6 +528,11 @@
 
         const renderWorkoutsList = () => {
           workoutsList.innerHTML = "";
+          if (workouts.length === 0) {
+            workoutsList.innerHTML = `<p class="text-center text-gray-400 py-8">No workouts created yet. Add one above!</p>`;
+            return;
+          }
+
           workouts.forEach((workout) => {
             const workoutDiv = document.createElement("div");
             workoutDiv.className = "bg-gray-700 rounded-lg p-4 space-y-3";
@@ -534,44 +541,49 @@
                             <h3 class="text-lg font-semibold">${
                               workout.name
                             }</h3>
-                            <button class="delete-workout text-red-400 hover:text-red-300" data-id="${
+                            <button class="delete-workout p-1 rounded-md text-red-400 hover:text-red-300 hover:bg-gray-600" data-id="${
                               workout.id
                             }">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                             </button>
                         </div>
                         <div class="space-y-2">
-                            <div class="exercises-list" data-workout-id="${
+                            <div class="exercises-list space-y-2" data-workout-id="${
                               workout.id
                             }">
                                 ${workout.exercises
                                   .map(
                                     (exercise, index) => `
-                                    <div class="flex items-center justify-between py-1">
-                                        <span class="text-sm">${index + 1}. ${
-                                      exercise.name
-                                    }</span>
-                                        <span class="text-xs text-gray-400">${
-                                          exercise.sets
-                                        }×${exercise.reps}</span>
-                                        <button class="delete-exercise text-red-400 hover:text-red-300 ml-2" data-workout-id="${
-                                          workout.id
-                                        }" data-exercise-id="${
-                                      exercise.id
-                                    }">×</button>
+                                    <div class="flex items-center justify-between bg-gray-600/50 p-2 rounded-md">
+                                        <span class="text-sm font-medium">${
+                                          index + 1
+                                        }. ${exercise.name}</span>
+                                        <div class="flex items-center space-x-3">
+                                          <span class="text-xs text-gray-400 font-mono">${
+                                            exercise.sets
+                                          }×${exercise.reps}</span>
+                                          <button class="delete-exercise p-1 rounded-md text-red-400 hover:text-red-300 hover:bg-gray-500" data-workout-id="${
+                                            workout.id
+                                          }" data-exercise-id="${exercise.id}">
+                                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                          </button>
+                                        </div>
                                     </div>
                                 `
                                   )
                                   .join("")}
                             </div>
-                            <div class="add-exercise-form space-y-2">
-                                <div class="grid grid-cols-6 gap-2">
-                                    <input type="text" placeholder="Exercise name" class="exercise-name col-span-3 bg-gray-600 border border-gray-500 rounded-md p-1 text-sm text-white">
-                                    <input type="number" placeholder="Sets" class="exercise-sets col-span-1 bg-gray-600 border border-gray-500 rounded-md p-1 text-sm text-white" min="1" value="3">
-                                    <input type="number" placeholder="Reps" class="exercise-reps col-span-1 bg-gray-600 border border-gray-500 rounded-md p-1 text-sm text-white" min="1" value="12">
-                                    <button class="add-exercise-btn col-span-1 bg-green-600 hover:bg-green-700 rounded text-sm" data-workout-id="${
+                            <div class="add-exercise-form pt-2">
+                                <div class="grid grid-cols-12 gap-2">
+                                    <input type="text" placeholder="New Exercise" class="exercise-name col-span-5 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white focus:ring-blue-500 focus:border-blue-500">
+                                    <input type="number" placeholder="Sets" class="exercise-sets col-span-2 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white" min="1" value="3">
+                                    <input type="number" placeholder="Reps" class="exercise-reps col-span-2 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white" min="1" value="12">
+                                    <button class="add-exercise-btn col-span-3 bg-green-600 hover:bg-green-700 rounded-md text-sm font-semibold flex items-center justify-center space-x-1" data-workout-id="${
                                       workout.id
-                                    }">Add</button>
+                                    }">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                      <span>Add</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
