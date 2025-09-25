@@ -83,21 +83,16 @@
         <div id="workout-plans-panel" class="hidden space-y-4 pt-4 border-t border-gray-700">
             <div id="day-list-view">
                 <h2 class="text-xl font-semibold text-center">Workout Days</h2>
-                <div id="day-list" class="space-y-2 mt-4">
-                    <!-- Day items will be injected here -->
-                </div>
-                <div class.="mt-4 flex space-x-2">
+                <div id="day-list" class="space-y-2 mt-4"></div>
+                <div class="mt-4 flex space-x-2">
                     <input type="text" id="new-day-name" class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" placeholder="New Day Name (e.g., Push)">
                     <button id="add-day-btn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold">Add</button>
                 </div>
             </div>
-            <!-- Exercise view will be added later -->
             <div id="exercise-view" class="hidden space-y-4">
                 <button id="back-to-days-btn" class="text-blue-400 hover:text-blue-300">&larr; Back to Days</button>
                 <h2 id="exercise-day-name" class="text-xl font-semibold text-center"></h2>
-                <div id="exercise-list" class="space-y-2">
-                    <!-- Exercise items will be injected here -->
-                </div>
+                <div id="exercise-list" class="space-y-2"></div>
                 <div class="space-y-2 pt-4 border-t border-gray-600">
                     <h3 class="text-lg font-semibold">Add/Edit Exercise</h3>
                     <input type="hidden" id="exercise-id">
@@ -203,89 +198,60 @@
             let isRunning = false;
             let isPaused = false;
             let isResting = false;
+            let isProcessingEndSet = false;
             let intervalId = null;
             let countdownIntervalId = null;
             let restIntervalId = null;
             let currentPhaseTime = 0;
-            let currentPhase = ''; // 'concentric' or 'eccentric'
-            let audioCtx; // For beeps
+            let currentPhase = '';
+            let audioCtx;
             let wakeLock = null;
-            let noSleep = null; // For iOS fallback
-            let femaleVoice = null; // For eccentric countdown voice
+            let noSleep = null;
+            let femaleVoice = null;
 
             // Workout Plan State
             let workoutDays = [];
             let currentEditingDayId = null;
-            let activeWorkout = null; // { dayId, exerciseIndex }
+            let activeWorkout = null;
+
             const synth = window.speechSynthesis;
 
             const loadVoices = () => {
                 const voices = synth.getVoices();
                 femaleVoice = voices.find(voice => /female/i.test(voice.name) && /en-US/i.test(voice.lang) && voice.localService);
-                if (!femaleVoice) {
-                    femaleVoice = voices.find(voice => /female/i.test(voice.name) && /en/i.test(voice.lang));
-                }
-                if (!femaleVoice) {
-                    femaleVoice = voices.find(voice => /zira|samantha|susan|female/i.test(voice.name));
-                }
-                console.log('Selected female voice:', femaleVoice ? `${femaleVoice.name} (${femaleVoice.lang})` : 'Default voice will be used');
+                if (!femaleVoice) femaleVoice = voices.find(voice => /female/i.test(voice.name) && /en/i.test(voice.lang));
+                if (!femaleVoice) femaleVoice = voices.find(voice => /zira|samantha|susan|female/i.test(voice.name));
             };
 
-            // --- Core Functions ---
-
             const requestWakeLock = async () => {
-              // Modern Screen Wake Lock API
               if ('wakeLock' in navigator) {
                 try {
                   wakeLock = await navigator.wakeLock.request('screen');
-                  wakeLock.addEventListener('release', () => {
-                    console.log('Screen Wake Lock was released');
-                    wakeLock = null;
-                  });
-                  console.log('Screen Wake Lock is active');
-                  return; // Exit if successful
+                  wakeLock.addEventListener('release', () => { wakeLock = null; });
                 } catch (err) {
-                  console.warn(`Could not acquire screen wake lock, falling back: ${err.name}, ${err.message}`);
+                  console.warn(`Wake lock failed: ${err.name}, ${err.message}`);
                 }
-              }
-        
-              // Fallback for iOS and older browsers using NoSleep.js
-              try {
-                if (!noSleep) {
-                  noSleep = new NoSleep();
+              } else {
+                if (!noSleep) noSleep = new NoSleep();
+                try {
+                  await noSleep.enable();
+                } catch (err) {
+                  console.error(`NoSleep.js failed: ${err.message}`);
                 }
-                // Must be enabled inside a user interaction event
-                await noSleep.enable();
-                console.log('NoSleep.js is active as a fallback');
-              } catch (err) {
-                console.error(`NoSleep.js failed to enable: ${err.message}`);
               }
             };
 
             const releaseWakeLock = async () => {
-                if (wakeLock !== null) {
-                    try {
-                        await wakeLock.release();
-                        wakeLock = null;
-                        console.log('Screen Wake Lock released');
-                    } catch(err) {
-                        console.error('WakeLock release failed:', err);
-                    }
-                }
-                if (noSleep && noSleep.isEnabled) {
-                    noSleep.disable();
-                    console.log('NoSleep.js disabled');
-                }
+                if (wakeLock) await wakeLock.release();
+                if (noSleep && noSleep.isEnabled) noSleep.disable();
             };
 
-
             const initAudio = () => {
-                // Audio must be initialized after a user gesture on some browsers
                 if (!audioCtx) {
                     try {
                          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     } catch(e) {
-                        console.error("Web Audio API is not supported in this browser");
+                        console.error("Web Audio API is not supported");
                     }
                 }
             };
@@ -294,31 +260,23 @@
                 if (!audioCtx) return;
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
-
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-
                 gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
                 gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.01);
-
                 oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
                 oscillator.type = 'sine';
-
                 oscillator.start(audioCtx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration / 1000);
                 oscillator.stop(audioCtx.currentTime + duration / 1000);
             };
 
             const speak = (text, rate = 1.0, voice = null) => {
-                if (synth.speaking) {
-                    return;
-                }
+                if (synth.speaking) return;
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.volume = volume;
                 utterance.rate = rate;
-                if (voice) {
-                    utterance.voice = voice;
-                }
+                if (voice) utterance.voice = voice;
                 synth.speak(utterance);
             };
 
@@ -326,15 +284,9 @@
                 repDisplay.textContent = currentRep;
                 setDisplay.textContent = currentSet;
                 document.querySelectorAll('.btn-number').forEach(btn => {
-                    if (parseInt(btn.dataset.rep) === currentRep) {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
+                    btn.classList.toggle('active', parseInt(btn.dataset.rep) === currentRep);
                 });
-
                 if (currentRep > 0 && isRunning && !isPaused) {
-                     const repDuration = concentricSeconds + eccentricSeconds;
                      const progress = (currentPhaseTime / (currentPhase === 'concentric' ? concentricSeconds : eccentricSeconds)) * 100;
                      progressBar.style.width = `${progress}%`;
                      phaseDisplay.textContent = currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1);
@@ -345,31 +297,24 @@
             };
             
             const endSet = () => {
-                if (!isRunning) return;
+                if (!isRunning || isProcessingEndSet) return;
+                isProcessingEndSet = true;
                 stopAllIntervals();
                 isRunning = false;
 
-                // Check if the exercise is complete
                 if (currentSet >= maxSets) {
-                    // If in an active workout, move to the next exercise
                     if (activeWorkout) {
                         activeWorkout.exerciseIndex++;
                         const day = workoutDays.find(d => d.id === activeWorkout.dayId);
                         if (day && day.exercises[activeWorkout.exerciseIndex]) {
-                            startRestTimer(true); // true indicates it's a rest between exercises
+                            startRestTimer(true);
                         } else {
-                            stopWorkout(true); // true indicates workout is fully complete
-                            speak("Workout complete. Well done!");
-                            statusText.textContent = "Workout Complete!";
+                            stopWorkout(true);
                         }
                     } else {
-                        // Standalone set finished
                         stopWorkout();
-                        speak("Workout finished. Well done!");
-                        statusText.textContent = "Workout Finished!";
                     }
                 } else {
-                    // If the exercise is not finished, increment the set and start the rest period
                     currentSet++;
                     currentRep = 0;
                     startRestTimer(false);
@@ -377,17 +322,16 @@
             };
 
             const startRepCycle = () => {
+                isProcessingEndSet = false;
                 clearInterval(intervalId);
                 currentRep++;
                 if (currentRep > maxReps) {
                     endSet();
                     return;
                 }
-
                 updateDisplay();
                 speak(currentRep);
                 
-                // Concentric phase
                 currentPhase = 'concentric';
                 currentPhaseTime = 0;
                 updateDisplay();
@@ -395,7 +339,6 @@
                 intervalId = setInterval(() => {
                     currentPhaseTime += 0.1;
                     if (currentPhaseTime >= concentricSeconds) {
-                        // Switch to Eccentric phase
                         clearInterval(intervalId);
                         currentPhase = 'eccentric';
                         currentPhaseTime = 0;
@@ -404,7 +347,6 @@
 
                         intervalId = setInterval(() => {
                              currentPhaseTime += 0.1;
-                             
                              const currentIntegerSecond = Math.floor(currentPhaseTime);
                              if (eccentricCountdownEnabled && currentIntegerSecond > lastSpokenSecond && currentPhaseTime < eccentricSeconds) {
                                  const numberToSpeak = Math.ceil(eccentricSeconds - currentPhaseTime);
@@ -414,8 +356,7 @@
                                  }
                                  lastSpokenSecond = currentIntegerSecond;
                              }
-
-                             if(currentPhaseTime >= eccentricSeconds) {
+                             if (currentPhaseTime >= eccentricSeconds) {
                                  clearInterval(intervalId);
                                  startRepCycle();
                              }
@@ -430,7 +371,6 @@
                 stopAllIntervals();
                 isResting = true;
                 isRunning = false;
-
                 startBtn.classList.remove('hidden');
                 pauseBtn.classList.add('hidden');
                 endSetBtn.classList.add('hidden');
@@ -450,21 +390,17 @@
 
                 if (isBetweenExercises) {
                     currentRep = 0;
-                    currentSet = 0; // Reset to 0 to show a clear stop
+                    currentSet = 0;
                 }
 
-                updateRestText(); // Set initial text
+                updateRestText();
                 speak(isBetweenExercises && nextExercise ? `Next exercise: ${nextExercise.name}. Rest for ${restSeconds} seconds.` : `Set ${currentSet - 1} complete. Rest for ${restSeconds} seconds.`);
                 updateDisplay();
 
                 restIntervalId = setInterval(() => {
                     restCount--;
-                    updateRestText(); // Update text every second
-
-                    if (restCount <= 3 && restCount > 0) {
-                        playBeep(660, 100);
-                    }
-
+                    updateRestText();
+                    if (restCount <= 3 && restCount > 0) playBeep(660, 100);
                     if (restCount <= 0) {
                         clearInterval(restIntervalId);
                         if (isBetweenExercises) {
@@ -483,13 +419,11 @@
                 isResting = false;
                 isRunning = true;
                 isPaused = false;
-
                 startBtn.classList.add('hidden');
                 pauseBtn.classList.remove('hidden');
                 endSetBtn.classList.remove('hidden');
                 startBtn.classList.remove('col-span-2');
                 pauseBtn.textContent = 'Pause';
-                
                 requestWakeLock();
                 startCountdown(startRepCycle);
             }
@@ -499,7 +433,6 @@
                 let count = countdownSeconds;
                 statusText.textContent = `Get Ready... ${count}`;
                 speak(`Get ready. ${count}`);
-
                 countdownIntervalId = setInterval(() => {
                     count--;
                     if (count > 0) {
@@ -521,7 +454,6 @@
                 if (isRunning) return;
                 isResting = false;
                 stopAllIntervals();
-
                 if (startRep === 0) {
                     currentRep = 0;
                     currentSet = 1;
@@ -529,39 +461,27 @@
                     currentRep = startRep - 1;
                     currentSet = 1;
                 }
-                
                 isRunning = true;
                 isPaused = false;
                 startBtn.classList.add('hidden');
                 pauseBtn.classList.remove('hidden');
                 endSetBtn.classList.remove('hidden');
                 startBtn.classList.remove('col-span-2');
-
                 pauseBtn.textContent = 'Pause';
-                
                 requestWakeLock();
-                
-                startCountdown(() => {
-                    startRepCycle();
-                });
+                startCountdown(startRepCycle);
             };
 
             const pauseWorkout = () => {
                 if (!isRunning) return;
-
-                if (isPaused) { // Resuming
+                if (isPaused) {
                     isPaused = false;
                     pauseBtn.textContent = 'Pause';
                     endSetBtn.classList.remove('hidden');
                     requestWakeLock();
-                    
-                    if (currentRep > 0) {
-                        currentRep--;
-                    }
-                    
+                    if (currentRep > 0) currentRep--;
                     startCountdown(startRepCycle);
-
-                } else { // Pausing
+                } else {
                     isPaused = true;
                     releaseWakeLock();
                     stopAllIntervals();
@@ -584,15 +504,13 @@
                 pauseBtn.classList.add('hidden');
                 endSetBtn.classList.add('hidden');
                 startBtn.classList.add('col-span-2');
-
                 if (!isCompleted) {
                     statusText.textContent = 'Workout Stopped';
-                    speak("Workout stopped.");
+                } else {
+                    statusText.textContent = 'Workout Complete!';
+                    speak("Workout complete. Well done!");
                 }
-
-                if (activeWorkout) {
-                    document.getElementById('current-exercise-display').textContent = '';
-                }
+                if (activeWorkout) document.getElementById('current-exercise-display').textContent = '';
                 activeWorkout = null;
                 updateDisplay();
                 synth.cancel();
@@ -605,48 +523,31 @@
                 isPaused = false;
                 isResting = false;
                 currentRep = repNumber - 1;
-                if (currentSet < 1) {
-                    currentSet = 1;
-                }
+                if (currentSet < 1) currentSet = 1;
                 startBtn.classList.add('hidden');
                 pauseBtn.classList.remove('hidden');
                 endSetBtn.classList.remove('hidden');
                 startBtn.classList.remove('col-span-2');
                 pauseBtn.textContent = 'Pause';
-                
                 requestWakeLock();
-                
-                startCountdown(() => {
-                    startRepCycle();
-                });
+                startCountdown(startRepCycle);
             }
 
             const stopAllIntervals = () => {
                 clearInterval(intervalId);
                 clearInterval(countdownIntervalId);
                 clearInterval(restIntervalId);
-                intervalId = null;
-                countdownIntervalId = null;
-                restIntervalId = null;
+                intervalId = countdownIntervalId = restIntervalId = null;
             }
 
-            // --- Settings ---
-            
             const saveSettings = () => {
                 const settings = {
-                    countdownSeconds: parseInt(countdownInput.value),
-                    maxReps: parseInt(maxRepsInput.value),
-                    maxSets: parseInt(maxSetsInput.value),
-                    restSeconds: parseInt(restSecondsInput.value),
-                    concentricSeconds: parseFloat(concentricInput.value),
-                    eccentricSeconds: parseFloat(eccentricInput.value),
-                    eccentricCountdownEnabled: eccentricCountdownToggle.checked,
-                    volume: parseFloat(volumeSlider.value)
+                    countdownSeconds: parseInt(countdownInput.value), maxReps: parseInt(maxRepsInput.value), maxSets: parseInt(maxSetsInput.value), restSeconds: parseInt(restSecondsInput.value),
+                    concentricSeconds: parseFloat(concentricInput.value), eccentricSeconds: parseFloat(eccentricInput.value), eccentricCountdownEnabled: eccentricCountdownToggle.checked, volume: parseFloat(volumeSlider.value)
                 };
                 localStorage.setItem('repCounterSettings', JSON.stringify(settings));
                 loadSettings();
                 generateNumberButtons();
-
                 const originalText = saveSettingsBtn.textContent;
                 saveSettingsBtn.textContent = 'Saved!';
                 saveSettingsBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
@@ -661,25 +562,12 @@
             const loadSettings = () => {
                 const settings = JSON.parse(localStorage.getItem('repCounterSettings'));
                 if (settings) {
-                    countdownSeconds = settings.countdownSeconds || 5;
-                    maxReps = settings.maxReps || 15;
-                    maxSets = settings.maxSets || 3;
-                    restSeconds = settings.restSeconds || 60;
-                    concentricSeconds = settings.concentricSeconds || 1;
-                    eccentricSeconds = settings.eccentricSeconds || 4;
-                    eccentricCountdownEnabled = settings.eccentricCountdownEnabled ?? true;
-                    volume = settings.volume ?? 1.0;
+                    countdownSeconds = settings.countdownSeconds || 5; maxReps = settings.maxReps || 15; maxSets = settings.maxSets || 3; restSeconds = settings.restSeconds || 60;
+                    concentricSeconds = settings.concentricSeconds || 1; eccentricSeconds = settings.eccentricSeconds || 4; eccentricCountdownEnabled = settings.eccentricCountdownEnabled ?? true; volume = settings.volume ?? 1.0;
                 }
-                
-                countdownInput.value = countdownSeconds;
-                maxRepsInput.value = maxReps;
-                maxSetsInput.value = maxSets;
-                restSecondsInput.value = restSeconds;
-                concentricInput.value = concentricSeconds;
-                eccentricInput.value = eccentricSeconds;
-                eccentricCountdownToggle.checked = eccentricCountdownEnabled;
-                volumeSlider.value = volume;
-                volumeValue.textContent = `${Math.round(volume * 100)}%`;
+                countdownInput.value = countdownSeconds; maxRepsInput.value = maxReps; maxSetsInput.value = maxSets; restSecondsInput.value = restSeconds;
+                concentricInput.value = concentricSeconds; eccentricInput.value = eccentricSeconds; eccentricCountdownToggle.checked = eccentricCountdownEnabled;
+                volumeSlider.value = volume; volumeValue.textContent = `${Math.round(volume * 100)}%`;
             };
 
             const generateNumberButtons = () => {
@@ -689,17 +577,13 @@
                     button.textContent = i;
                     button.dataset.rep = i;
                     button.className = 'btn-number p-2 border-2 border-gray-600 rounded-md text-center hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center';
-                    button.addEventListener('click', () => {
-                        initAudio();
-                        jumpToRep(i)
-                    });
+                    button.addEventListener('click', () => { initAudio(); jumpToRep(i); });
                     numberButtonsContainer.appendChild(button);
                 }
             }
 
             const handleVisibilityChange = async () => {
               if (wakeLock === null && document.visibilityState === 'visible' && isRunning && !isPaused) {
-                console.log('Re-acquiring wake lock on visibility change');
                 await requestWakeLock();
               }
             };
@@ -707,38 +591,22 @@
             const startNextExercise = () => {
                 const day = workoutDays.find(d => d.id === activeWorkout.dayId);
                 const exercise = day.exercises[activeWorkout.exerciseIndex];
-
                 if (!exercise) {
-                    stopWorkout(true); // Should be handled by endSet, but as a fallback
+                    stopWorkout(true);
                     return;
                 }
-
-                // Set up for the new exercise
-                maxReps = exercise.reps;
-                maxSets = exercise.sets;
-                maxRepsInput.value = maxReps;
-                maxSetsInput.value = maxSets;
+                maxReps = exercise.reps; maxSets = exercise.sets; maxRepsInput.value = maxReps; maxSetsInput.value = maxSets;
                 generateNumberButtons();
-
-                currentRep = 0;
-                currentSet = 1;
-
+                currentRep = 0; currentSet = 1;
                 document.getElementById('current-exercise-display').textContent = exercise.name;
-
                 runNextSet();
             };
 
-            // --- Workout Plan Functions ---
-
-            const saveWorkoutDays = () => {
-                localStorage.setItem('workoutDays', JSON.stringify(workoutDays));
-            };
+            const saveWorkoutDays = () => localStorage.setItem('workoutDays', JSON.stringify(workoutDays));
 
             const loadWorkoutDays = () => {
                 const savedDays = localStorage.getItem('workoutDays');
-                if (savedDays) {
-                    workoutDays = JSON.parse(savedDays);
-                }
+                if (savedDays) workoutDays = JSON.parse(savedDays);
                 renderDayList();
             };
 
@@ -750,10 +618,8 @@
                     saveWorkoutDays();
                     renderDayList();
                     newDayNameInput.value = '';
-                } else if (!dayName) {
-                    alert('Please enter a name for the day.');
                 } else {
-                    alert('A day with this name already exists.');
+                    alert(dayName ? 'A day with this name already exists.' : 'Please enter a name for the day.');
                 }
             };
 
@@ -784,7 +650,6 @@
             const saveExercise = () => {
                 const day = workoutDays.find(d => d.id === currentEditingDayId);
                 if (!day) return;
-
                 const exerciseId = document.getElementById('exercise-id').value;
                 const name = document.getElementById('exercise-name').value.trim();
                 const sets = parseInt(document.getElementById('exercise-sets').value);
@@ -794,21 +659,16 @@
                     alert('Please fill in all fields with valid numbers.');
                     return;
                 }
-
-                if (exerciseId) { // Editing existing exercise
+                if (exerciseId) {
                     const exercise = day.exercises.find(ex => ex.id == exerciseId);
                     if (exercise) {
-                        exercise.name = name;
-                        exercise.sets = sets;
-                        exercise.reps = reps;
+                        exercise.name = name; exercise.sets = sets; exercise.reps = reps;
                     }
-                } else { // Adding new exercise
+                } else {
                     day.exercises.push({ id: Date.now(), name, sets, reps });
                 }
-
                 saveWorkoutDays();
                 renderExerciseList();
-                // Clear form
                 document.getElementById('exercise-id').value = '';
                 document.getElementById('exercise-name').value = '';
                 document.getElementById('exercise-sets').value = '';
@@ -839,12 +699,10 @@
                 const day = workoutDays.find(d => d.id === currentEditingDayId);
                 const exerciseListContainer = document.getElementById('exercise-list');
                 exerciseListContainer.innerHTML = '';
-
                 if (!day || day.exercises.length === 0) {
                     exerciseListContainer.innerHTML = `<p class="text-center text-gray-500">No exercises added yet.</p>`;
                     return;
                 }
-
                 day.exercises.forEach(ex => {
                     const exElement = document.createElement('div');
                     exElement.className = 'flex items-center justify-between bg-gray-600 p-3 rounded-lg';
@@ -860,23 +718,10 @@
                     `;
                     exerciseListContainer.appendChild(exElement);
                 });
-
-                // Attach event listeners
-                document.querySelectorAll('.edit-exercise-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const exerciseId = parseInt(e.target.getAttribute('data-exercise-id'));
-                        editExercise(exerciseId);
-                    });
-                });
-
-                document.querySelectorAll('.delete-exercise-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const exerciseId = parseInt(e.target.getAttribute('data-exercise-id'));
-                        if (confirm('Are you sure you want to delete this exercise?')) {
-                            deleteExercise(exerciseId);
-                        }
-                    });
-                });
+                document.querySelectorAll('.edit-exercise-btn').forEach(b => b.addEventListener('click', e => editExercise(parseInt(e.target.dataset.exerciseId))));
+                document.querySelectorAll('.delete-exercise-btn').forEach(b => b.addEventListener('click', e => {
+                    if (confirm('Are you sure?')) deleteExercise(parseInt(e.target.dataset.exerciseId));
+                }));
             };
 
             const renderDayList = () => {
@@ -886,7 +731,6 @@
                     dayListContainer.innerHTML = `<p class="text-center text-gray-500">No workout days created yet.</p>`;
                     return;
                 }
-
                 workoutDays.forEach(day => {
                     const dayElement = document.createElement('div');
                     dayElement.className = 'flex items-center justify-between bg-gray-700 p-3 rounded-lg';
@@ -900,100 +744,71 @@
                     `;
                     dayListContainer.appendChild(dayElement);
                 });
-
-                // Attach event listeners
-                document.querySelectorAll('.delete-day-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const dayId = parseInt(e.target.getAttribute('data-day-id'));
-                        if (confirm('Are you sure you want to delete this day and all its exercises?')) {
-                            deleteDay(dayId);
-                        }
-                    });
-                });
-
-                document.querySelectorAll('.edit-day-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const dayId = parseInt(e.target.getAttribute('data-day-id'));
-                        showExerciseView(dayId);
-                    });
-                });
-
-                document.querySelectorAll('.start-day-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const dayId = parseInt(e.target.getAttribute('data-day-id'));
-                        const day = workoutDays.find(d => d.id === dayId);
-                        if (day && day.exercises.length > 0) {
-                            activeWorkout = { dayId: dayId, exerciseIndex: 0 };
-                            workoutPlansPanel.classList.add('hidden');
-                            startNextExercise();
-                        } else {
-                            alert('This day has no exercises. Please add some first.');
-                        }
-                    });
-                });
+                document.querySelectorAll('.delete-day-btn').forEach(b => b.addEventListener('click', e => {
+                    if (confirm('Are you sure?')) deleteDay(parseInt(e.target.dataset.dayId));
+                }));
+                document.querySelectorAll('.edit-day-btn').forEach(b => b.addEventListener('click', e => showExerciseView(parseInt(e.target.dataset.dayId))));
+                document.querySelectorAll('.start-day-btn').forEach(b => b.addEventListener('click', e => {
+                    const dayId = parseInt(e.target.dataset.dayId);
+                    const day = workoutDays.find(d => d.id === dayId);
+                    if (day && day.exercises.length > 0) {
+                        activeWorkout = { dayId: dayId, exerciseIndex: 0 };
+                        const firstExercise = day.exercises[0];
+                        maxReps = firstExercise.reps; maxSets = firstExercise.sets; maxRepsInput.value = maxReps; maxSetsInput.value = maxSets;
+                        generateNumberButtons();
+                        currentRep = 0; currentSet = 1;
+                        document.getElementById('current-exercise-display').textContent = firstExercise.name;
+                        workoutPlansPanel.classList.add('hidden');
+                        statusText.textContent = "Press Start";
+                        updateDisplay();
+                    } else {
+                        alert('This day has no exercises. Please add some first.');
+                    }
+                }));
             };
 
-
-            // --- Event Listeners ---
             startBtn.addEventListener('click', () => {
                 initAudio();
-                if (isResting) {
-                    runNextSet();
-                } else {
-                    startWorkout();
-                }
+                if (isResting) runNextSet(); else startWorkout();
             });
             pauseBtn.addEventListener('click', pauseWorkout);
             stopBtn.addEventListener('click', stopWorkout);
             endSetBtn.addEventListener('click', endSet);
             settingsToggle.addEventListener('click', () => {
                 settingsPanel.classList.toggle('hidden');
-                workoutPlansPanel.classList.add('hidden'); // Hide other panel
+                workoutPlansPanel.classList.add('hidden');
             });
-
             workoutPlansToggle.addEventListener('click', () => {
                 workoutPlansPanel.classList.toggle('hidden');
-                settingsPanel.classList.add('hidden'); // Hide other panel
-                renderDayList(); // Re-render when opening
+                settingsPanel.classList.add('hidden');
+                renderDayList();
             });
-
             document.getElementById('add-day-btn').addEventListener('click', addDay);
             document.getElementById('back-to-days-btn').addEventListener('click', showDayListView);
             document.getElementById('save-exercise-btn').addEventListener('click', saveExercise);
-
             saveSettingsBtn.addEventListener('click', saveSettings);
-
             volumeSlider.addEventListener('input', () => {
                 volume = parseFloat(volumeSlider.value);
                 volumeValue.textContent = `${Math.round(volume * 100)}%`;
             });
-            
             volumeSlider.addEventListener('change', () => {
                 initAudio();
                 playBeep(660, 50);
             });
-
             document.addEventListener('visibilitychange', handleVisibilityChange);
 
-            // --- Initialisation ---
             loadSettings();
             generateNumberButtons();
             updateDisplay();
             loadWorkoutDays();
-
             loadVoices();
             if (speechSynthesis.onvoiceschanged !== undefined) {
                 speechSynthesis.onvoiceschanged = loadVoices;
             }
-
-            // PWA Service Worker Registration
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('./sw.js').then(reg => {
-                        console.log('Service Worker registered.', reg);
-                    }).catch(err => {
-                        console.log('Service Worker registration failed: ', err);
-                    });
+                    navigator.serviceWorker.register('./sw.js').then(reg => console.log('Service Worker registered.', reg))
+                    .catch(err => console.log('Service Worker registration failed: ', err));
                 });
             }
         });
@@ -1001,4 +816,3 @@
 
 </body>
 </html>
-
