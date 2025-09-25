@@ -35,6 +35,22 @@
 <body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6">
+        <!-- Workout Selection -->
+        <div class="bg-gray-700 rounded-lg p-4 space-y-3">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Current Workout</h3>
+                <button id="manage-workouts-btn" class="text-blue-400 hover:text-blue-300 text-sm">Manage</button>
+            </div>
+            <select id="workout-select" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Select a workout...</option>
+            </select>
+            <div id="current-exercise-info" class="hidden">
+                <div class="text-sm text-gray-400">Current Exercise:</div>
+                <div id="current-exercise-name" class="text-lg font-medium"></div>
+                <div id="exercise-progress" class="text-sm text-gray-400 mt-1"></div>
+            </div>
+        </div>
+
         <!-- Main Display -->
         <div class="text-center">
             <p id="status-text" class="text-2xl font-medium text-blue-400 mb-2">Press Start</p>
@@ -62,6 +78,12 @@
             <button id="pause-btn" class="py-3 px-4 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 hidden">Pause</button>
             <button id="end-set-btn" class="py-3 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 hidden">End Set</button>
             <button id="stop-btn" class="py-3 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95">Stop</button>
+        </div>
+
+        <!-- Exercise Navigation -->
+        <div id="exercise-nav" class="hidden grid grid-cols-2 gap-4">
+            <button id="prev-exercise-btn" class="py-2 px-4 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-transform transform active:scale-95">← Previous</button>
+            <button id="next-exercise-btn" class="py-2 px-4 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-transform transform active:scale-95">Next →</button>
         </div>
 
         <!-- Number Jump Buttons -->
@@ -93,11 +115,11 @@
                     <label for="max-reps" class="block text-sm font-medium text-gray-300">Max Reps</label>
                     <input type="number" id="max-reps" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="1">
                 </div>
-                 <div>
+                <div>
                     <label for="max-sets" class="block text-sm font-medium text-gray-300">Max Sets</label>
                     <input type="number" id="max-sets" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="1">
                 </div>
-                 <div>
+                <div>
                     <label for="concentric-seconds" class="block text-sm font-medium text-gray-300">Concentric (s)</label>
                     <input type="number" id="concentric-seconds" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="0.1" step="0.1">
                 </div>
@@ -125,6 +147,32 @@
         </div>
     </div>
 
+    <!-- Workout Management Modal -->
+    <div id="workout-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Manage Workouts</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <!-- Add New Workout -->
+            <div class="mb-6 bg-gray-700 rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-3">Add New Workout</h3>
+                <div class="space-y-3">
+                    <input type="text" id="new-workout-name" placeholder="Workout name (e.g., Push Day)" class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 text-white">
+                    <button id="add-workout-btn" class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg font-semibold">Add Workout</button>
+                </div>
+            </div>
+
+            <!-- Existing Workouts -->
+            <div id="workouts-list" class="space-y-4">
+                <!-- Workout items will be generated here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // DOM Elements
@@ -141,6 +189,21 @@
             const settingsPanel = document.getElementById('settings-panel');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
             const setDisplay = document.getElementById('set-display');
+
+            // Workout Management Elements
+            const manageWorkoutsBtn = document.getElementById('manage-workouts-btn');
+            const workoutModal = document.getElementById('workout-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const workoutSelect = document.getElementById('workout-select');
+            const newWorkoutName = document.getElementById('new-workout-name');
+            const addWorkoutBtn = document.getElementById('add-workout-btn');
+            const workoutsList = document.getElementById('workouts-list');
+            const currentExerciseInfo = document.getElementById('current-exercise-info');
+            const currentExerciseName = document.getElementById('current-exercise-name');
+            const exerciseProgress = document.getElementById('exercise-progress');
+            const exerciseNav = document.getElementById('exercise-nav');
+            const prevExerciseBtn = document.getElementById('prev-exercise-btn');
+            const nextExerciseBtn = document.getElementById('next-exercise-btn');
 
             // Settings Inputs
             const countdownInput = document.getElementById('countdown-seconds');
@@ -177,6 +240,11 @@
             let noSleep = null; // For iOS fallback
             let femaleVoice = null; // For eccentric countdown voice
 
+            // Workout State
+            let workouts = [];
+            let currentWorkout = null;
+            let currentExerciseIndex = 0;
+
             const synth = window.speechSynthesis;
 
             const loadVoices = () => {
@@ -189,6 +257,169 @@
                     femaleVoice = voices.find(voice => /zira|samantha|susan|female/i.test(voice.name));
                 }
                 console.log('Selected female voice:', femaleVoice ? `${femaleVoice.name} (${femaleVoice.lang})` : 'Default voice will be used');
+            };
+
+            // --- Workout Management Functions ---
+
+            const generateId = () => {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            };
+
+            const saveWorkouts = () => {
+                localStorage.setItem('workouts', JSON.stringify(workouts));
+            };
+
+            const loadWorkouts = () => {
+                const saved = localStorage.getItem('workouts');
+                if (saved) {
+                    workouts = JSON.parse(saved);
+                }
+                updateWorkoutSelect();
+                renderWorkoutsList();
+            };
+
+            const updateWorkoutSelect = () => {
+                workoutSelect.innerHTML = '<option value="">Select a workout...</option>';
+                workouts.forEach(workout => {
+                    const option = document.createElement('option');
+                    option.value = workout.id;
+                    option.textContent = workout.name;
+                    workoutSelect.appendChild(option);
+                });
+            };
+
+            const renderWorkoutsList = () => {
+                workoutsList.innerHTML = '';
+                workouts.forEach(workout => {
+                    const workoutDiv = document.createElement('div');
+                    workoutDiv.className = 'bg-gray-700 rounded-lg p-4 space-y-3';
+                    workoutDiv.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold">${workout.name}</h3>
+                            <button class="delete-workout text-red-400 hover:text-red-300" data-id="${workout.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="exercises-list" data-workout-id="${workout.id}">
+                                ${workout.exercises.map((exercise, index) => `
+                                    <div class="flex items-center justify-between py-1">
+                                        <span class="text-sm">${index + 1}. ${exercise.name}</span>
+                                        <span class="text-xs text-gray-400">${exercise.sets}×${exercise.reps}</span>
+                                        <button class="delete-exercise text-red-400 hover:text-red-300 ml-2" data-workout-id="${workout.id}" data-exercise-id="${exercise.id}">×</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="add-exercise-form space-y-2">
+                                <div class="grid grid-cols-6 gap-2">
+                                    <input type="text" placeholder="Exercise name" class="exercise-name col-span-3 bg-gray-600 border border-gray-500 rounded-md p-1 text-sm text-white">
+                                    <input type="number" placeholder="Sets" class="exercise-sets col-span-1 bg-gray-600 border border-gray-500 rounded-md p-1 text-sm text-white" min="1" value="3">
+                                    <input type="number" placeholder="Reps" class="exercise-reps col-span-1 bg-gray-600 border border-gray-500 rounded-md p-1 text-sm text-white" min="1" value="12">
+                                    <button class="add-exercise-btn col-span-1 bg-green-600 hover:bg-green-700 rounded text-sm" data-workout-id="${workout.id}">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    workoutsList.appendChild(workoutDiv);
+                });
+
+                // Add event listeners
+                document.querySelectorAll('.delete-workout').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        workouts = workouts.filter(w => w.id !== id);
+                        saveWorkouts();
+                        loadWorkouts();
+                    });
+                });
+
+                document.querySelectorAll('.delete-exercise').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const workoutId = e.currentTarget.dataset.workoutId;
+                        const exerciseId = e.currentTarget.dataset.exerciseId;
+                        const workout = workouts.find(w => w.id === workoutId);
+                        if (workout) {
+                            workout.exercises = workout.exercises.filter(ex => ex.id !== exerciseId);
+                            saveWorkouts();
+                            loadWorkouts();
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.add-exercise-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const workoutId = e.currentTarget.dataset.workoutId;
+                        const parent = e.currentTarget.closest('.add-exercise-form');
+                        const name = parent.querySelector('.exercise-name').value.trim();
+                        const sets = parseInt(parent.querySelector('.exercise-sets').value) || 3;
+                        const reps = parseInt(parent.querySelector('.exercise-reps').value) || 12;
+
+                        if (name) {
+                            const workout = workouts.find(w => w.id === workoutId);
+                            if (workout) {
+                                workout.exercises.push({
+                                    id: generateId(),
+                                    name: name,
+                                    sets: sets,
+                                    reps: reps
+                                });
+                                saveWorkouts();
+                                loadWorkouts();
+                            }
+                        }
+                    });
+                });
+            };
+
+            const selectWorkout = (workoutId) => {
+                currentWorkout = workouts.find(w => w.id === workoutId);
+                currentExerciseIndex = 0;
+                
+                if (currentWorkout && currentWorkout.exercises.length > 0) {
+                    currentExerciseInfo.classList.remove('hidden');
+                    exerciseNav.classList.remove('hidden');
+                    updateExerciseDisplay();
+                } else {
+                    currentExerciseInfo.classList.add('hidden');
+                    exerciseNav.classList.add('hidden');
+                }
+            };
+
+            const updateExerciseDisplay = () => {
+                if (currentWorkout && currentWorkout.exercises.length > 0) {
+                    const exercise = currentWorkout.exercises[currentExerciseIndex];
+                    currentExerciseName.textContent = exercise.name;
+                    exerciseProgress.textContent = `Exercise ${currentExerciseIndex + 1} of ${currentWorkout.exercises.length}`;
+                    
+                    // Update max sets and reps for current exercise
+                    maxSets = exercise.sets;
+                    maxReps = exercise.reps;
+                    maxSetsInput.value = maxSets;
+                    maxRepsInput.value = maxReps;
+                    generateNumberButtons();
+                    
+                    // Update navigation buttons
+                    prevExerciseBtn.disabled = currentExerciseIndex === 0;
+                    nextExerciseBtn.disabled = currentExerciseIndex === currentWorkout.exercises.length - 1;
+                }
+            };
+
+            const nextExercise = () => {
+                if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
+                    stopWorkout();
+                    currentExerciseIndex++;
+                    updateExerciseDisplay();
+                    speak(`Next exercise: ${currentWorkout.exercises[currentExerciseIndex].name}`);
+                }
+            };
+
+            const previousExercise = () => {
+                if (currentWorkout && currentExerciseIndex > 0) {
+                    stopWorkout();
+                    currentExerciseIndex--;
+                    updateExerciseDisplay();
+                    speak(`Previous exercise: ${currentWorkout.exercises[currentExerciseIndex].name}`);
+                }
             };
 
             // --- Core Functions ---
@@ -237,7 +468,6 @@
                     console.log('NoSleep.js disabled');
                 }
             };
-
 
             const initAudio = () => {
                 // Audio must be initialized after a user gesture on some browsers
@@ -311,9 +541,19 @@
 
                 currentSet++;
                 if (currentSet > maxSets) {
-                    stopWorkout();
-                    speak("Workout complete. Well done!");
-                    statusText.textContent = "Workout Complete!";
+                    // Exercise complete
+                    speak(`${currentWorkout && currentWorkout.exercises[currentExerciseIndex] ? currentWorkout.exercises[currentExerciseIndex].name : 'Exercise'} complete!`);
+                    
+                    if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
+                        // Auto-advance to next exercise
+                        currentSet = 1;
+                        nextExercise();
+                        statusText.textContent = `Press Start for ${currentWorkout.exercises[currentExerciseIndex].name}`;
+                    } else {
+                        stopWorkout();
+                        statusText.textContent = "Workout Complete!";
+                        speak("Workout complete. Well done!");
+                    }
                 } else {
                     currentRep = 0;
                     startRestTimer();
@@ -647,12 +887,49 @@
                 playBeep(660, 50);
             });
 
+            // Workout Management Event Listeners
+            manageWorkoutsBtn.addEventListener('click', () => {
+                workoutModal.classList.remove('hidden');
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                workoutModal.classList.add('hidden');
+            });
+
+            workoutModal.addEventListener('click', (e) => {
+                if (e.target === workoutModal) {
+                    workoutModal.classList.add('hidden');
+                }
+            });
+
+            addWorkoutBtn.addEventListener('click', () => {
+                const name = newWorkoutName.value.trim();
+                if (name) {
+                    workouts.push({
+                        id: generateId(),
+                        name: name,
+                        exercises: []
+                    });
+                    saveWorkouts();
+                    loadWorkouts();
+                    newWorkoutName.value = '';
+                }
+            });
+
+            workoutSelect.addEventListener('change', (e) => {
+                selectWorkout(e.target.value);
+            });
+
+            prevExerciseBtn.addEventListener('click', previousExercise);
+            nextExerciseBtn.addEventListener('click', nextExercise);
+
             document.addEventListener('visibilitychange', handleVisibilityChange);
 
             // --- Initialisation ---
             loadSettings();
             generateNumberButtons();
             updateDisplay();
+            loadWorkouts();
 
             loadVoices();
             if (speechSynthesis.onvoiceschanged !== undefined) {
@@ -674,4 +951,3 @@
 
 </body>
 </html>
-
