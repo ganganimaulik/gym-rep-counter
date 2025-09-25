@@ -349,17 +349,15 @@
                 stopAllIntervals();
                 isRunning = false;
 
-                currentSet++;
-                if (currentSet > maxSets) {
+                // Check if the exercise is complete
+                if (currentSet >= maxSets) {
                     // If in an active workout, move to the next exercise
                     if (activeWorkout) {
                         activeWorkout.exerciseIndex++;
                         const day = workoutDays.find(d => d.id === activeWorkout.dayId);
                         if (day && day.exercises[activeWorkout.exerciseIndex]) {
-                            // Start next exercise after a rest period
                             startRestTimer(true); // true indicates it's a rest between exercises
                         } else {
-                            // Workout day finished
                             stopWorkout(true); // true indicates workout is fully complete
                             speak("Workout complete. Well done!");
                             statusText.textContent = "Workout Complete!";
@@ -371,7 +369,8 @@
                         statusText.textContent = "Workout Finished!";
                     }
                 } else {
-                    // Start rest for the next set of the same exercise
+                    // If the exercise is not finished, increment the set and start the rest period
+                    currentSet++;
                     currentRep = 0;
                     startRestTimer(false);
                 }
