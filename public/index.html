@@ -1,677 +1,1347 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Exercise Rep Counter</title>
 
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#1f2937"> <!-- bg-gray-800 -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Rep Counter">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <meta name="theme-color" content="#1f2937" />
+    <!-- bg-gray-800 -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Rep Counter" />
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <!-- Screen Wake Lock Fallback for iOS -->
     <script src="https://unpkg.com/nosleep.js/dist/NoSleep.min.js"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn-number.active {
-            background-color: #2563eb;
-            color: white;
-            border-color: #2563eb;
-        }
-        .progress-bar-inner {
-            transition: width 0.1s linear;
-        }
+      body {
+        font-family: "Inter", sans-serif;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .btn-number.active {
+        background-color: #2563eb;
+        color: white;
+        border-color: #2563eb;
+      }
+      .progress-bar-inner {
+        transition: width 0.1s linear;
+      }
     </style>
-</head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
+  </head>
+  <body
+    class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4"
+  >
+    <div
+      class="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6"
+    >
+      <!-- Workout Selection -->
+      <div class="bg-gray-700 rounded-lg p-4 space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold">Current Workout</h3>
+          <button id="manage-workouts-btn" class="flex items-center space-x-2 rounded-lg bg-gray-600 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-500 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            <span>Manage</span>
+          </button>
+        </div>
+        <select
+          id="workout-select"
+          class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="">Select a workout...</option>
+        </select>
+        <div id="current-exercise-info" class="hidden">
+          <div class="text-sm text-gray-400">Current Exercise:</div>
+          <div id="current-exercise-name" class="text-lg font-medium"></div>
+          <div id="exercise-progress" class="text-sm text-gray-400 mt-1"></div>
+        </div>
+      </div>
 
-    <div class="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6">
-        <!-- Main Display -->
+      <!-- Main Display -->
+      <div class="text-center">
+        <p id="status-text" class="text-2xl font-medium text-blue-400 mb-2">
+          Press Start
+        </p>
+        <div class="flex justify-center items-end space-x-6">
+          <div>
+            <h1
+              id="rep-display"
+              class="text-8xl font-bold tracking-tight leading-none"
+            >
+              0
+            </h1>
+            <p class="text-lg text-gray-400">REP</p>
+          </div>
+          <div class="pb-2">
+            <h1
+              id="set-display"
+              class="text-6xl font-bold tracking-tight leading-none"
+            >
+              1
+            </h1>
+            <p class="text-lg text-gray-400">SET</p>
+          </div>
+        </div>
+        <p id="phase-display" class="text-xl text-gray-400 mt-2">&nbsp;</p>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+        <div
+          id="progress-bar"
+          class="bg-blue-500 h-4 rounded-full progress-bar-inner"
+          style="width: 0%"
+        ></div>
+      </div>
+
+      <!-- Main Controls -->
+      <div class="grid grid-cols-3 gap-4">
+        <button
+          id="start-btn"
+          class="py-3 px-4 bg-green-600 hover:bg-green-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 col-span-2"
+        >
+          Start
+        </button>
+        <button
+          id="pause-btn"
+          class="py-3 px-4 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 hidden"
+        >
+          Pause
+        </button>
+        <button
+          id="end-set-btn"
+          class="py-3 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 hidden"
+        >
+          End Set
+        </button>
+        <button
+          id="stop-btn"
+          class="py-3 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95"
+        >
+          Stop
+        </button>
+      </div>
+
+      <!-- Exercise Navigation -->
+      <div id="exercise-nav" class="hidden grid grid-cols-2 gap-4">
+        <button
+          id="prev-exercise-btn"
+          class="py-2 px-4 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-transform transform active:scale-95"
+        >
+          ← Previous
+        </button>
+        <button
+          id="next-exercise-btn"
+          class="py-2 px-4 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-transform transform active:scale-95"
+        >
+          Next →
+        </button>
+      </div>
+
+      <!-- Number Jump Buttons -->
+      <div>
+        <h3 class="text-sm font-medium text-gray-400 mb-2 text-center">
+          Jump to Rep
+        </h3>
+        <div id="number-buttons" class="grid grid-cols-5 sm:grid-cols-10 gap-2">
+          <!-- Number buttons will be generated here -->
+        </div>
+      </div>
+
+      <!-- Settings Toggle -->
+      <div class="text-center">
+        <button id="settings-toggle" class="text-blue-400 hover:text-blue-300">
+          Settings
+        </button>
+      </div>
+
+      <!-- Settings Panel -->
+      <div
+        id="settings-panel"
+        class="hidden space-y-4 pt-4 border-t border-gray-700"
+      >
+        <h2 class="text-xl font-semibold text-center">Configuration</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label
+              for="countdown-seconds"
+              class="block text-sm font-medium text-gray-300"
+              >Countdown (s)</label
+            >
+            <input
+              type="number"
+              id="countdown-seconds"
+              class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500"
+              min="1"
+            />
+          </div>
+          <div>
+            <label
+              for="rest-seconds"
+              class="block text-sm font-medium text-gray-300"
+              >Rest (s)</label
+            >
+            <input
+              type="number"
+              id="rest-seconds"
+              class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500"
+              min="0"
+            />
+          </div>
+          <div>
+            <label
+              for="max-reps"
+              class="block text-sm font-medium text-gray-300"
+              >Max Reps</label
+            >
+            <input
+              type="number"
+              id="max-reps"
+              class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500"
+              min="1"
+            />
+          </div>
+          <div>
+            <label
+              for="max-sets"
+              class="block text-sm font-medium text-gray-300"
+              >Max Sets</label
+            >
+            <input
+              type="number"
+              id="max-sets"
+              class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500"
+              min="1"
+            />
+          </div>
+          <div>
+            <label
+              for="concentric-seconds"
+              class="block text-sm font-medium text-gray-300"
+              >Concentric (s)</label
+            >
+            <input
+              type="number"
+              id="concentric-seconds"
+              class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500"
+              min="0.1"
+              step="0.1"
+            />
+          </div>
+          <div>
+            <label
+              for="eccentric-seconds"
+              class="block text-sm font-medium text-gray-300"
+              >Eccentric (s)</label
+            >
+            <input
+              type="number"
+              id="eccentric-seconds"
+              class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500"
+              min="0.1"
+              step="0.1"
+            />
+          </div>
+          <div class="col-span-2 flex items-center justify-center pt-2">
+            <label
+              for="eccentric-countdown-toggle"
+              class="mr-3 text-sm font-medium text-gray-300"
+              >Eccentric Countdown</label
+            >
+            <input
+              type="checkbox"
+              id="eccentric-countdown-toggle"
+              class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+            />
+          </div>
+          <div class="col-span-2 pt-2">
+            <label
+              for="volume-slider"
+              class="block text-sm font-medium text-gray-300 mb-1"
+              >Volume</label
+            >
+            <div class="flex items-center space-x-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="text-gray-400"
+              >
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              </svg>
+              <input
+                type="range"
+                id="volume-slider"
+                class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                min="0"
+                max="1"
+                step="0.05"
+              />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="text-gray-400"
+              >
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path
+                  d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"
+                ></path>
+              </svg>
+              <span
+                id="volume-value"
+                class="text-sm font-medium w-12 text-right text-gray-300"
+                >100%</span
+              >
+            </div>
+          </div>
+        </div>
         <div class="text-center">
-            <p id="status-text" class="text-2xl font-medium text-blue-400 mb-2">Press Start</p>
-            <div class="flex justify-center items-end space-x-6">
-                <div>
-                    <h1 id="rep-display" class="text-8xl font-bold tracking-tight leading-none">0</h1>
-                    <p class="text-lg text-gray-400">REP</p>
-                </div>
-                <div class="pb-2">
-                    <h1 id="set-display" class="text-6xl font-bold tracking-tight leading-none">1</h1>
-                    <p class="text-lg text-gray-400">SET</p>
-                </div>
-            </div>
-            <p id="phase-display" class="text-xl text-gray-400 mt-2">&nbsp;</p>
+          <button
+            id="save-settings-btn"
+            class="py-2 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-all duration-200 transform active:scale-95"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workout Management Modal -->
+    <div
+      id="workout-modal"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+    >
+      <div
+        class="bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+      >
+        <div class="flex justify-between items-center pb-4 mb-4 border-b border-gray-700">
+          <h2 class="text-2xl font-bold">Manage Workouts</h2>
+          <button id="close-modal-btn" class="text-gray-400 hover:text-white">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
-        <!-- Progress Bar -->
-        <div class="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
-            <div id="progress-bar" class="bg-blue-500 h-4 rounded-full progress-bar-inner" style="width: 0%"></div>
+        <!-- Add New Workout -->
+        <div class="mb-6 bg-gray-700 rounded-lg p-4">
+          <h3 class="text-lg font-semibold mb-3">Add New Workout</h3>
+          <div class="space-y-3">
+            <input
+              type="text"
+              id="new-workout-name"
+              placeholder="Workout name (e.g., Push Day)"
+              class="w-full bg-gray-600 border border-gray-500 rounded-md p-2 text-white"
+            />
+            <button
+              id="add-workout-btn"
+              class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 rounded-lg font-semibold flex items-center justify-center space-x-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Add Workout</span>
+            </button>
+          </div>
         </div>
 
-        <!-- Main Controls -->
-        <div class="grid grid-cols-3 gap-4">
-            <button id="start-btn" class="py-3 px-4 bg-green-600 hover:bg-green-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 col-span-2">Start</button>
-            <button id="pause-btn" class="py-3 px-4 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 hidden">Pause</button>
-            <button id="end-set-btn" class="py-3 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95 hidden">End Set</button>
-            <button id="stop-btn" class="py-3 px-4 bg-red-600 hover:bg-red-700 rounded-lg text-lg font-semibold transition-transform transform active:scale-95">Stop</button>
+        <!-- Existing Workouts -->
+        <div id="workouts-list" class="space-y-4">
+          <!-- Workout items will be generated here -->
         </div>
-
-        <!-- Number Jump Buttons -->
-        <div>
-            <h3 class="text-sm font-medium text-gray-400 mb-2 text-center">Jump to Rep</h3>
-            <div id="number-buttons" class="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                <!-- Number buttons will be generated here -->
-            </div>
-        </div>
-
-        <!-- Settings Toggle -->
-        <div class="text-center">
-            <button id="settings-toggle" class="text-blue-400 hover:text-blue-300">Settings</button>
-        </div>
-
-        <!-- Settings Panel -->
-        <div id="settings-panel" class="hidden space-y-4 pt-4 border-t border-gray-700">
-            <h2 class="text-xl font-semibold text-center">Configuration</h2>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label for="countdown-seconds" class="block text-sm font-medium text-gray-300">Countdown (s)</label>
-                    <input type="number" id="countdown-seconds" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="1">
-                </div>
-                <div>
-                    <label for="rest-seconds" class="block text-sm font-medium text-gray-300">Rest (s)</label>
-                    <input type="number" id="rest-seconds" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="0">
-                </div>
-                <div>
-                    <label for="max-reps" class="block text-sm font-medium text-gray-300">Max Reps</label>
-                    <input type="number" id="max-reps" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="1">
-                </div>
-                 <div>
-                    <label for="max-sets" class="block text-sm font-medium text-gray-300">Max Sets</label>
-                    <input type="number" id="max-sets" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="1">
-                </div>
-                 <div>
-                    <label for="concentric-seconds" class="block text-sm font-medium text-gray-300">Concentric (s)</label>
-                    <input type="number" id="concentric-seconds" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="0.1" step="0.1">
-                </div>
-                <div>
-                    <label for="eccentric-seconds" class="block text-sm font-medium text-gray-300">Eccentric (s)</label>
-                    <input type="number" id="eccentric-seconds" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white focus:ring-blue-500 focus:border-blue-500" min="0.1" step="0.1">
-                </div>
-                <div class="col-span-2 flex items-center justify-center pt-2">
-                    <label for="eccentric-countdown-toggle" class="mr-3 text-sm font-medium text-gray-300">Eccentric Countdown</label>
-                    <input type="checkbox" id="eccentric-countdown-toggle" class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500">
-                </div>
-                <div class="col-span-2 pt-2">
-                    <label for="volume-slider" class="block text-sm font-medium text-gray-300 mb-1">Volume</label>
-                    <div class="flex items-center space-x-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon></svg>
-                        <input type="range" id="volume-slider" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" min="0" max="1" step="0.05">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                        <span id="volume-value" class="text-sm font-medium w-12 text-right text-gray-300">100%</span>
-                    </div>
-                </div>
-            </div>
-            <div class="text-center">
-                 <button id="save-settings-btn" class="py-2 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-all duration-200 transform active:scale-95">Save</button>
-            </div>
-        </div>
+      </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // DOM Elements
-            const startBtn = document.getElementById('start-btn');
-            const pauseBtn = document.getElementById('pause-btn');
-            const stopBtn = document.getElementById('stop-btn');
-            const endSetBtn = document.getElementById('end-set-btn');
-            const repDisplay = document.getElementById('rep-display');
-            const statusText = document.getElementById('status-text');
-            const phaseDisplay = document.getElementById('phase-display');
-            const progressBar = document.getElementById('progress-bar');
-            const numberButtonsContainer = document.getElementById('number-buttons');
-            const settingsToggle = document.getElementById('settings-toggle');
-            const settingsPanel = document.getElementById('settings-panel');
-            const saveSettingsBtn = document.getElementById('save-settings-btn');
-            const setDisplay = document.getElementById('set-display');
+      document.addEventListener("DOMContentLoaded", () => {
+        // DOM Elements
+        const startBtn = document.getElementById("start-btn");
+        const pauseBtn = document.getElementById("pause-btn");
+        const stopBtn = document.getElementById("stop-btn");
+        const endSetBtn = document.getElementById("end-set-btn");
+        const repDisplay = document.getElementById("rep-display");
+        const statusText = document.getElementById("status-text");
+        const phaseDisplay = document.getElementById("phase-display");
+        const progressBar = document.getElementById("progress-bar");
+        const numberButtonsContainer =
+          document.getElementById("number-buttons");
+        const settingsToggle = document.getElementById("settings-toggle");
+        const settingsPanel = document.getElementById("settings-panel");
+        const saveSettingsBtn = document.getElementById("save-settings-btn");
+        const setDisplay = document.getElementById("set-display");
 
-            // Settings Inputs
-            const countdownInput = document.getElementById('countdown-seconds');
-            const maxRepsInput = document.getElementById('max-reps');
-            const concentricInput = document.getElementById('concentric-seconds');
-            const eccentricInput = document.getElementById('eccentric-seconds');
-            const eccentricCountdownToggle = document.getElementById('eccentric-countdown-toggle');
-            const volumeSlider = document.getElementById('volume-slider');
-            const volumeValue = document.getElementById('volume-value');
-            const maxSetsInput = document.getElementById('max-sets');
-            const restSecondsInput = document.getElementById('rest-seconds');
-            
-            // State
-            let currentRep = 0;
-            let currentSet = 1;
-            let maxReps = 15;
-            let maxSets = 3;
-            let countdownSeconds = 5;
-            let restSeconds = 60;
-            let concentricSeconds = 1;
-            let eccentricSeconds = 4;
-            let eccentricCountdownEnabled = true;
-            let volume = 1.0;
-            let isRunning = false;
-            let isPaused = false;
-            let isResting = false;
-            let intervalId = null;
-            let countdownIntervalId = null;
-            let restIntervalId = null;
-            let currentPhaseTime = 0;
-            let currentPhase = ''; // 'concentric' or 'eccentric'
-            let audioCtx; // For beeps
-            let wakeLock = null;
-            let noSleep = null; // For iOS fallback
-            let femaleVoice = null; // For eccentric countdown voice
+        // Workout Management Elements
+        const manageWorkoutsBtn = document.getElementById(
+          "manage-workouts-btn"
+        );
+        const workoutModal = document.getElementById("workout-modal");
+        const closeModalBtn = document.getElementById("close-modal-btn");
+        const workoutSelect = document.getElementById("workout-select");
+        const newWorkoutName = document.getElementById("new-workout-name");
+        const addWorkoutBtn = document.getElementById("add-workout-btn");
+        const workoutsList = document.getElementById("workouts-list");
+        const currentExerciseInfo = document.getElementById(
+          "current-exercise-info"
+        );
+        const currentExerciseName = document.getElementById(
+          "current-exercise-name"
+        );
+        const exerciseProgress = document.getElementById("exercise-progress");
+        const exerciseNav = document.getElementById("exercise-nav");
+        const prevExerciseBtn = document.getElementById("prev-exercise-btn");
+        const nextExerciseBtn = document.getElementById("next-exercise-btn");
 
-            const synth = window.speechSynthesis;
+        // Settings Inputs
+        const countdownInput = document.getElementById("countdown-seconds");
+        const maxRepsInput = document.getElementById("max-reps");
+        const concentricInput = document.getElementById("concentric-seconds");
+        const eccentricInput = document.getElementById("eccentric-seconds");
+        const eccentricCountdownToggle = document.getElementById(
+          "eccentric-countdown-toggle"
+        );
+        const volumeSlider = document.getElementById("volume-slider");
+        const volumeValue = document.getElementById("volume-value");
+        const maxSetsInput = document.getElementById("max-sets");
+        const restSecondsInput = document.getElementById("rest-seconds");
 
-            const loadVoices = () => {
-                const voices = synth.getVoices();
-                femaleVoice = voices.find(voice => /female/i.test(voice.name) && /en-US/i.test(voice.lang) && voice.localService);
-                if (!femaleVoice) {
-                    femaleVoice = voices.find(voice => /female/i.test(voice.name) && /en/i.test(voice.lang));
-                }
-                if (!femaleVoice) {
-                    femaleVoice = voices.find(voice => /zira|samantha|susan|female/i.test(voice.name));
-                }
-                console.log('Selected female voice:', femaleVoice ? `${femaleVoice.name} (${femaleVoice.lang})` : 'Default voice will be used');
-            };
+        // State
+        let currentRep = 0;
+        let currentSet = 1;
+        let maxReps = 15;
+        let maxSets = 3;
+        let countdownSeconds = 5;
+        let restSeconds = 60;
+        let concentricSeconds = 1;
+        let eccentricSeconds = 4;
+        let eccentricCountdownEnabled = true;
+        let volume = 1.0;
+        let isRunning = false;
+        let isPaused = false;
+        let isResting = false;
+        let intervalId = null;
+        let countdownIntervalId = null;
+        let restIntervalId = null;
+        let currentPhaseTime = 0;
+        let currentPhase = ""; // 'concentric' or 'eccentric'
+        let audioCtx; // For beeps
+        let wakeLock = null;
+        let noSleep = null; // For iOS fallback
+        let femaleVoice = null; // For eccentric countdown voice
 
-            // --- Core Functions ---
+        // Workout State
+        let workouts = [];
+        let currentWorkout = null;
+        let currentExerciseIndex = 0;
 
-            const requestWakeLock = async () => {
-              // Modern Screen Wake Lock API
-              if ('wakeLock' in navigator) {
-                try {
-                  wakeLock = await navigator.wakeLock.request('screen');
-                  wakeLock.addEventListener('release', () => {
-                    console.log('Screen Wake Lock was released');
-                    wakeLock = null;
+        const synth = window.speechSynthesis;
+
+        const loadVoices = () => {
+          const voices = synth.getVoices();
+          femaleVoice = voices.find(
+            (voice) =>
+              /female/i.test(voice.name) &&
+              /en-US/i.test(voice.lang) &&
+              voice.localService
+          );
+          if (!femaleVoice) {
+            femaleVoice = voices.find(
+              (voice) => /female/i.test(voice.name) && /en/i.test(voice.lang)
+            );
+          }
+          if (!femaleVoice) {
+            femaleVoice = voices.find((voice) =>
+              /zira|samantha|susan|female/i.test(voice.name)
+            );
+          }
+          console.log(
+            "Selected female voice:",
+            femaleVoice
+              ? `${femaleVoice.name} (${femaleVoice.lang})`
+              : "Default voice will be used"
+          );
+        };
+
+        // --- Workout Management Functions ---
+
+        const generateId = () => {
+          return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        };
+
+        const getDefaultWorkouts = () => {
+          return [
+            {
+              id: generateId(),
+              name: "Day 1 (Lower)",
+              exercises: [
+                { id: generateId(), name: "Leg Press", sets: 4, reps: 10 },
+                { id: generateId(), name: "RDL", sets: 4, reps: 10 },
+                { id: generateId(), name: "Leg Curl of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Calves of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Leg Extensions of Choice", sets: 3, reps: 15 },
+              ],
+            },
+            {
+              id: generateId(),
+              name: "Day 2 (Upper)",
+              exercises: [
+                { id: generateId(), name: "Horizontal Press of Choice", sets: 4, reps: 10 },
+                { id: generateId(), name: "Horizontal Row of Choice", sets: 4, reps: 12 },
+                { id: generateId(), name: "Vertical Press of Choice", sets: 4, reps: 10 },
+                { id: generateId(), name: "Vertical Pull of Choice", sets: 4, reps: 12 },
+                { id: generateId(), name: "Triceps Extension of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Biceps of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Lateral Raise of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Rear Delt of Choice", sets: 3, reps: 15 },
+              ],
+            },
+            {
+              id: generateId(),
+              name: "Day 3 (Lower)",
+              exercises: [
+                { id: generateId(), name: "Squat Type Movement of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Hip Hinge Type Movement of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Leg Curl of Choice", sets: 2, reps: 20 },
+                { id: generateId(), name: "Calves of Choice", sets: 2, reps: 20 },
+                { id: generateId(), name: "Leg Extensions of Choice", sets: 2, reps: 20 },
+              ],
+            },
+            {
+              id: generateId(),
+              name: "Day 4 (Upper)",
+              exercises: [
+                { id: generateId(), name: "Horizontal Press of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Horizontal Row of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Vertical Press of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Vertical Pull of Choice", sets: 3, reps: 15 },
+                { id: generateId(), name: "Triceps Extension of Choice", sets: 2, reps: 20 },
+                { id: generateId(), name: "Biceps of Choice", sets: 2, reps: 20 },
+                { id: generateId(), name: "Lateral Raise of Choice", sets: 2, reps: 20 },
+                { id: generateId(), name: "Rear Delt of Choice", sets: 2, reps: 20 },
+              ],
+            },
+          ];
+        };
+
+        const saveWorkouts = () => {
+          localStorage.setItem("workouts", JSON.stringify(workouts));
+        };
+
+        const loadWorkouts = () => {
+          const saved = localStorage.getItem("workouts");
+          if (saved && JSON.parse(saved).length > 0) {
+            workouts = JSON.parse(saved);
+          } else {
+            workouts = getDefaultWorkouts();
+            saveWorkouts();
+          }
+          updateWorkoutSelect();
+          renderWorkoutsList();
+        };
+
+        const updateWorkoutSelect = () => {
+          workoutSelect.innerHTML =
+            '<option value="">Select a workout...</option>';
+          workouts.forEach((workout) => {
+            const option = document.createElement("option");
+            option.value = workout.id;
+            option.textContent = workout.name;
+            workoutSelect.appendChild(option);
+          });
+        };
+
+        const renderWorkoutsList = () => {
+          workoutsList.innerHTML = "";
+          if (workouts.length === 0) {
+            workoutsList.innerHTML = `<p class="text-center text-gray-400 py-8">No workouts created yet. Add one above!</p>`;
+            return;
+          }
+
+          workouts.forEach((workout) => {
+            const workoutDiv = document.createElement("div");
+            workoutDiv.className = "bg-gray-700 rounded-lg p-4 space-y-3";
+            workoutDiv.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold">${
+                              workout.name
+                            }</h3>
+                            <button class="delete-workout p-1 rounded-md text-red-400 hover:text-red-300 hover:bg-gray-600" data-id="${
+                              workout.id
+                            }">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="exercises-list space-y-2" data-workout-id="${
+                              workout.id
+                            }">
+                                ${workout.exercises
+                                  .map(
+                                    (exercise, index) => `
+                                    <div class="flex items-center justify-between bg-gray-600/50 p-2 rounded-md">
+                                        <span class="text-sm font-medium">${
+                                          index + 1
+                                        }. ${exercise.name}</span>
+                                        <div class="flex items-center space-x-3">
+                                          <span class="text-xs text-gray-400 font-mono">${
+                                            exercise.sets
+                                          }×${exercise.reps}</span>
+                                          <button class="delete-exercise p-1 rounded-md text-red-400 hover:text-red-300 hover:bg-gray-500" data-workout-id="${
+                                            workout.id
+                                          }" data-exercise-id="${exercise.id}">
+                                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                          </button>
+                                        </div>
+                                    </div>
+                                `
+                                  )
+                                  .join("")}
+                            </div>
+                            <div class="add-exercise-form pt-2">
+                                <div class="grid grid-cols-12 gap-2">
+                                    <input type="text" placeholder="New Exercise" class="exercise-name col-span-5 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white focus:ring-blue-500 focus:border-blue-500">
+                                    <input type="number" placeholder="Sets" class="exercise-sets col-span-2 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white" min="1" value="3">
+                                    <input type="number" placeholder="Reps" class="exercise-reps col-span-2 bg-gray-600 border border-gray-500 rounded-md p-2 text-sm text-white" min="1" value="12">
+                                    <button class="add-exercise-btn col-span-3 bg-green-600 hover:bg-green-700 rounded-md text-sm font-semibold flex items-center justify-center space-x-1" data-workout-id="${
+                                      workout.id
+                                    }">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                      <span>Add</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+            workoutsList.appendChild(workoutDiv);
+          });
+
+          // Add event listeners
+          document.querySelectorAll(".delete-workout").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              const id = e.currentTarget.dataset.id;
+              workouts = workouts.filter((w) => w.id !== id);
+              saveWorkouts();
+              loadWorkouts();
+            });
+          });
+
+          document.querySelectorAll(".delete-exercise").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              const workoutId = e.currentTarget.dataset.workoutId;
+              const exerciseId = e.currentTarget.dataset.exerciseId;
+              const workout = workouts.find((w) => w.id === workoutId);
+              if (workout) {
+                workout.exercises = workout.exercises.filter(
+                  (ex) => ex.id !== exerciseId
+                );
+                saveWorkouts();
+                loadWorkouts();
+              }
+            });
+          });
+
+          document.querySelectorAll(".add-exercise-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              const workoutId = e.currentTarget.dataset.workoutId;
+              const parent = e.currentTarget.closest(".add-exercise-form");
+              const name = parent.querySelector(".exercise-name").value.trim();
+              const sets =
+                parseInt(parent.querySelector(".exercise-sets").value) || 3;
+              const reps =
+                parseInt(parent.querySelector(".exercise-reps").value) || 12;
+
+              if (name) {
+                const workout = workouts.find((w) => w.id === workoutId);
+                if (workout) {
+                  workout.exercises.push({
+                    id: generateId(),
+                    name: name,
+                    sets: sets,
+                    reps: reps,
                   });
-                  console.log('Screen Wake Lock is active');
-                  return; // Exit if successful
-                } catch (err) {
-                  console.warn(`Could not acquire screen wake lock, falling back: ${err.name}, ${err.message}`);
+                  saveWorkouts();
+                  loadWorkouts();
                 }
               }
-        
-              // Fallback for iOS and older browsers using NoSleep.js
-              try {
-                if (!noSleep) {
-                  noSleep = new NoSleep();
-                }
-                // Must be enabled inside a user interaction event
-                await noSleep.enable();
-                console.log('NoSleep.js is active as a fallback');
-              } catch (err) {
-                console.error(`NoSleep.js failed to enable: ${err.message}`);
-              }
-            };
-
-            const releaseWakeLock = async () => {
-                if (wakeLock !== null) {
-                    try {
-                        await wakeLock.release();
-                        wakeLock = null;
-                        console.log('Screen Wake Lock released');
-                    } catch(err) {
-                        console.error('WakeLock release failed:', err);
-                    }
-                }
-                if (noSleep && noSleep.isEnabled) {
-                    noSleep.disable();
-                    console.log('NoSleep.js disabled');
-                }
-            };
-
-
-            const initAudio = () => {
-                // Audio must be initialized after a user gesture on some browsers
-                if (!audioCtx) {
-                    try {
-                         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    } catch(e) {
-                        console.error("Web Audio API is not supported in this browser");
-                    }
-                }
-            };
-
-            const playBeep = (frequency = 440, duration = 100) => {
-                if (!audioCtx) return;
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-
-                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.01);
-
-                oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-                oscillator.type = 'sine';
-
-                oscillator.start(audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration / 1000);
-                oscillator.stop(audioCtx.currentTime + duration / 1000);
-            };
-
-            const speak = (text, rate = 1.0, voice = null) => {
-                if (synth.speaking) {
-                    return;
-                }
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.volume = volume;
-                utterance.rate = rate;
-                if (voice) {
-                    utterance.voice = voice;
-                }
-                synth.speak(utterance);
-            };
-
-            const updateDisplay = () => {
-                repDisplay.textContent = currentRep;
-                setDisplay.textContent = currentSet;
-                document.querySelectorAll('.btn-number').forEach(btn => {
-                    if (parseInt(btn.dataset.rep) === currentRep) {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                });
-
-                if (currentRep > 0 && isRunning && !isPaused) {
-                     const repDuration = concentricSeconds + eccentricSeconds;
-                     const progress = (currentPhaseTime / (currentPhase === 'concentric' ? concentricSeconds : eccentricSeconds)) * 100;
-                     progressBar.style.width = `${progress}%`;
-                     phaseDisplay.textContent = currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1);
-                } else {
-                    progressBar.style.width = '0%';
-                    phaseDisplay.innerHTML = '&nbsp;';
-                }
-            };
-            
-            const endSet = () => {
-                if (!isRunning) return;
-                stopAllIntervals();
-                isRunning = false;
-
-                currentSet++;
-                if (currentSet > maxSets) {
-                    stopWorkout();
-                    speak("Workout complete. Well done!");
-                    statusText.textContent = "Workout Complete!";
-                } else {
-                    currentRep = 0;
-                    startRestTimer();
-                }
-            };
-
-            const startRepCycle = () => {
-                clearInterval(intervalId);
-                currentRep++;
-                if (currentRep > maxReps) {
-                    endSet();
-                    return;
-                }
-
-                updateDisplay();
-                speak(currentRep);
-                
-                // Concentric phase
-                currentPhase = 'concentric';
-                currentPhaseTime = 0;
-                updateDisplay();
-
-                intervalId = setInterval(() => {
-                    currentPhaseTime += 0.1;
-                    if (currentPhaseTime >= concentricSeconds) {
-                        // Switch to Eccentric phase
-                        clearInterval(intervalId);
-                        currentPhase = 'eccentric';
-                        currentPhaseTime = 0;
-                        let lastSpokenSecond = -1;
-                        updateDisplay();
-
-                        intervalId = setInterval(() => {
-                             currentPhaseTime += 0.1;
-                             
-                             const currentIntegerSecond = Math.floor(currentPhaseTime);
-                             if (eccentricCountdownEnabled && currentIntegerSecond > lastSpokenSecond && currentPhaseTime < eccentricSeconds) {
-                                 const numberToSpeak = Math.ceil(eccentricSeconds - currentPhaseTime);
-                                 if (numberToSpeak > 0) {
-                                     synth.cancel(); 
-                                     speak(numberToSpeak, 1.5, femaleVoice);
-                                 }
-                                 lastSpokenSecond = currentIntegerSecond;
-                             }
-
-                             if(currentPhaseTime >= eccentricSeconds) {
-                                 clearInterval(intervalId);
-                                 startRepCycle();
-                             }
-                             updateDisplay();
-                        }, 100);
-                    }
-                    updateDisplay();
-                }, 100);
-            };
-
-            const startRestTimer = () => {
-                stopAllIntervals();
-                isResting = true;
-                isRunning = false;
-
-                startBtn.classList.remove('hidden');
-                pauseBtn.classList.add('hidden');
-                endSetBtn.classList.add('hidden');
-                startBtn.classList.add('col-span-2');
-                
-                let restCount = restSeconds;
-                statusText.textContent = `Rest: ${restCount}s`;
-                speak(`Set ${currentSet - 1} complete. Rest for ${restSeconds} seconds.`);
-                updateDisplay();
-
-                restIntervalId = setInterval(() => {
-                    restCount--;
-                    statusText.textContent = `Rest: ${restCount}s`;
-
-                    if (restCount <= 3 && restCount > 0) {
-                        playBeep(660, 100);
-                    }
-
-                    if (restCount <= 0) {
-                        clearInterval(restIntervalId);
-                        statusText.textContent = `Press Start for Set ${currentSet}`;
-                        speak(`Rest complete. Press start for set ${currentSet}.`);
-                        playBeep(880, 200);
-                    }
-                }, 1000);
-            };
-
-            const runNextSet = () => {
-                stopAllIntervals();
-                isResting = false;
-                isRunning = true;
-                isPaused = false;
-
-                startBtn.classList.add('hidden');
-                pauseBtn.classList.remove('hidden');
-                endSetBtn.classList.remove('hidden');
-                startBtn.classList.remove('col-span-2');
-                pauseBtn.textContent = 'Pause';
-                
-                requestWakeLock();
-                startCountdown(startRepCycle);
-            }
-
-            const startCountdown = (callback) => {
-                stopAllIntervals();
-                let count = countdownSeconds;
-                statusText.textContent = `Get Ready... ${count}`;
-                speak(`Get ready. ${count}`);
-
-                countdownIntervalId = setInterval(() => {
-                    count--;
-                    if (count > 0) {
-                        statusText.textContent = `Get Ready... ${count}`;
-                        speak(count);
-                    } else if (count === 0) {
-                         statusText.textContent = "Go!";
-                         speak("Go!");
-                         playBeep(880, 200);
-                    } else {
-                        clearInterval(countdownIntervalId);
-                        statusText.textContent = "In Progress";
-                        callback();
-                    }
-                }, 1000);
-            };
-            
-            const startWorkout = (startRep = 0) => {
-                if (isRunning) return;
-                isResting = false;
-                stopAllIntervals();
-
-                if (startRep === 0) {
-                    currentRep = 0;
-                    currentSet = 1;
-                } else {
-                    currentRep = startRep - 1;
-                    currentSet = 1;
-                }
-                
-                isRunning = true;
-                isPaused = false;
-                startBtn.classList.add('hidden');
-                pauseBtn.classList.remove('hidden');
-                endSetBtn.classList.remove('hidden');
-                startBtn.classList.remove('col-span-2');
-
-                pauseBtn.textContent = 'Pause';
-                
-                requestWakeLock();
-                
-                startCountdown(() => {
-                    startRepCycle();
-                });
-            };
-
-            const pauseWorkout = () => {
-                if (!isRunning) return;
-
-                if (isPaused) { // Resuming
-                    isPaused = false;
-                    pauseBtn.textContent = 'Pause';
-                    endSetBtn.classList.remove('hidden');
-                    requestWakeLock();
-                    
-                    if (currentRep > 0) {
-                        currentRep--;
-                    }
-                    
-                    startCountdown(startRepCycle);
-
-                } else { // Pausing
-                    isPaused = true;
-                    releaseWakeLock();
-                    stopAllIntervals();
-                    pauseBtn.textContent = 'Resume';
-                    endSetBtn.classList.add('hidden');
-                    statusText.textContent = 'Paused';
-                    speak("Paused");
-                }
-            };
-            
-            const stopWorkout = () => {
-                releaseWakeLock();
-                stopAllIntervals();
-                isRunning = false;
-                isPaused = false;
-                isResting = false;
-                currentRep = 0;
-                currentSet = 1;
-                startBtn.classList.remove('hidden');
-                pauseBtn.classList.add('hidden');
-                endSetBtn.classList.add('hidden');
-                startBtn.classList.add('col-span-2');
-                statusText.textContent = 'Press Start';
-                updateDisplay();
-                synth.cancel();
-            };
-            
-            const jumpToRep = (repNumber) => {
-                stopAllIntervals();
-                synth.cancel();
-                isRunning = true;
-                isPaused = false;
-                isResting = false;
-                currentRep = repNumber - 1;
-                if (currentSet < 1) {
-                    currentSet = 1;
-                }
-                startBtn.classList.add('hidden');
-                pauseBtn.classList.remove('hidden');
-                endSetBtn.classList.remove('hidden');
-                startBtn.classList.remove('col-span-2');
-                pauseBtn.textContent = 'Pause';
-                
-                requestWakeLock();
-                
-                startCountdown(() => {
-                    startRepCycle();
-                });
-            }
-
-            const stopAllIntervals = () => {
-                clearInterval(intervalId);
-                clearInterval(countdownIntervalId);
-                clearInterval(restIntervalId);
-                intervalId = null;
-                countdownIntervalId = null;
-                restIntervalId = null;
-            }
-
-            // --- Settings ---
-            
-            const saveSettings = () => {
-                const settings = {
-                    countdownSeconds: parseInt(countdownInput.value),
-                    maxReps: parseInt(maxRepsInput.value),
-                    maxSets: parseInt(maxSetsInput.value),
-                    restSeconds: parseInt(restSecondsInput.value),
-                    concentricSeconds: parseFloat(concentricInput.value),
-                    eccentricSeconds: parseFloat(eccentricInput.value),
-                    eccentricCountdownEnabled: eccentricCountdownToggle.checked,
-                    volume: parseFloat(volumeSlider.value)
-                };
-                localStorage.setItem('repCounterSettings', JSON.stringify(settings));
-                loadSettings();
-                generateNumberButtons();
-
-                const originalText = saveSettingsBtn.textContent;
-                saveSettingsBtn.textContent = 'Saved!';
-                saveSettingsBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                saveSettingsBtn.classList.add('bg-green-500');
-                setTimeout(() => {
-                    saveSettingsBtn.textContent = originalText;
-                    saveSettingsBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                    saveSettingsBtn.classList.remove('bg-green-500');
-                }, 1500);
-            };
-
-            const loadSettings = () => {
-                const settings = JSON.parse(localStorage.getItem('repCounterSettings'));
-                if (settings) {
-                    countdownSeconds = settings.countdownSeconds || 5;
-                    maxReps = settings.maxReps || 15;
-                    maxSets = settings.maxSets || 3;
-                    restSeconds = settings.restSeconds || 60;
-                    concentricSeconds = settings.concentricSeconds || 1;
-                    eccentricSeconds = settings.eccentricSeconds || 4;
-                    eccentricCountdownEnabled = settings.eccentricCountdownEnabled ?? true;
-                    volume = settings.volume ?? 1.0;
-                }
-                
-                countdownInput.value = countdownSeconds;
-                maxRepsInput.value = maxReps;
-                maxSetsInput.value = maxSets;
-                restSecondsInput.value = restSeconds;
-                concentricInput.value = concentricSeconds;
-                eccentricInput.value = eccentricSeconds;
-                eccentricCountdownToggle.checked = eccentricCountdownEnabled;
-                volumeSlider.value = volume;
-                volumeValue.textContent = `${Math.round(volume * 100)}%`;
-            };
-
-            const generateNumberButtons = () => {
-                numberButtonsContainer.innerHTML = '';
-                for (let i = 1; i <= maxReps; i++) {
-                    const button = document.createElement('button');
-                    button.textContent = i;
-                    button.dataset.rep = i;
-                    button.className = 'btn-number p-2 border-2 border-gray-600 rounded-md text-center hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center';
-                    button.addEventListener('click', () => {
-                        initAudio();
-                        jumpToRep(i)
-                    });
-                    numberButtonsContainer.appendChild(button);
-                }
-            }
-
-            const handleVisibilityChange = async () => {
-              if (wakeLock === null && document.visibilityState === 'visible' && isRunning && !isPaused) {
-                console.log('Re-acquiring wake lock on visibility change');
-                await requestWakeLock();
-              }
-            };
-
-
-            // --- Event Listeners ---
-            startBtn.addEventListener('click', () => {
-                initAudio();
-                if (isResting) {
-                    runNextSet();
-                } else {
-                    startWorkout();
-                }
             });
-            pauseBtn.addEventListener('click', pauseWorkout);
-            stopBtn.addEventListener('click', stopWorkout);
-            endSetBtn.addEventListener('click', endSet);
-            settingsToggle.addEventListener('click', () => {
-                settingsPanel.classList.toggle('hidden');
-            });
-            saveSettingsBtn.addEventListener('click', saveSettings);
+          });
+        };
 
-            volumeSlider.addEventListener('input', () => {
-                volume = parseFloat(volumeSlider.value);
-                volumeValue.textContent = `${Math.round(volume * 100)}%`;
-            });
-            
-            volumeSlider.addEventListener('change', () => {
-                initAudio();
-                playBeep(660, 50);
-            });
+        const selectWorkout = (workoutId) => {
+          currentWorkout = workouts.find((w) => w.id === workoutId);
+          currentExerciseIndex = 0;
 
-            document.addEventListener('visibilitychange', handleVisibilityChange);
+          if (currentWorkout && currentWorkout.exercises.length > 0) {
+            currentExerciseInfo.classList.remove("hidden");
+            exerciseNav.classList.remove("hidden");
+            updateExerciseDisplay();
+          } else {
+            currentExerciseInfo.classList.add("hidden");
+            exerciseNav.classList.add("hidden");
+          }
+        };
 
-            // --- Initialisation ---
-            loadSettings();
+        const updateExerciseDisplay = () => {
+          if (currentWorkout && currentWorkout.exercises.length > 0) {
+            const exercise = currentWorkout.exercises[currentExerciseIndex];
+            currentExerciseName.textContent = exercise.name;
+            exerciseProgress.textContent = `Exercise ${
+              currentExerciseIndex + 1
+            } of ${currentWorkout.exercises.length}`;
+
+            // Update max sets and reps for current exercise
+            maxSets = exercise.sets;
+            maxReps = exercise.reps;
+            maxSetsInput.value = maxSets;
+            maxRepsInput.value = maxReps;
             generateNumberButtons();
+
+            // Update navigation buttons
+            prevExerciseBtn.disabled = currentExerciseIndex === 0;
+            nextExerciseBtn.disabled =
+              currentExerciseIndex === currentWorkout.exercises.length - 1;
+          }
+        };
+
+        const nextExercise = () => {
+          if (
+            currentWorkout &&
+            currentExerciseIndex < currentWorkout.exercises.length - 1
+          ) {
+            stopWorkout();
+            currentExerciseIndex++;
+            updateExerciseDisplay();
+            speak(
+              `Next exercise: ${currentWorkout.exercises[currentExerciseIndex].name}`
+            );
+          }
+        };
+
+        const previousExercise = () => {
+          if (currentWorkout && currentExerciseIndex > 0) {
+            stopWorkout();
+            currentExerciseIndex--;
+            updateExerciseDisplay();
+            speak(
+              `Previous exercise: ${currentWorkout.exercises[currentExerciseIndex].name}`
+            );
+          }
+        };
+
+        // --- Core Functions ---
+
+        const requestWakeLock = async () => {
+          // Modern Screen Wake Lock API
+          if ("wakeLock" in navigator) {
+            try {
+              wakeLock = await navigator.wakeLock.request("screen");
+              wakeLock.addEventListener("release", () => {
+                console.log("Screen Wake Lock was released");
+                wakeLock = null;
+              });
+              console.log("Screen Wake Lock is active");
+              return; // Exit if successful
+            } catch (err) {
+              console.warn(
+                `Could not acquire screen wake lock, falling back: ${err.name}, ${err.message}`
+              );
+            }
+          }
+
+          // Fallback for iOS and older browsers using NoSleep.js
+          try {
+            if (!noSleep) {
+              noSleep = new NoSleep();
+            }
+            // Must be enabled inside a user interaction event
+            await noSleep.enable();
+            console.log("NoSleep.js is active as a fallback");
+          } catch (err) {
+            console.error(`NoSleep.js failed to enable: ${err.message}`);
+          }
+        };
+
+        const releaseWakeLock = async () => {
+          if (wakeLock !== null) {
+            try {
+              await wakeLock.release();
+              wakeLock = null;
+              console.log("Screen Wake Lock released");
+            } catch (err) {
+              console.error("WakeLock release failed:", err);
+            }
+          }
+          if (noSleep && noSleep.isEnabled) {
+            noSleep.disable();
+            console.log("NoSleep.js disabled");
+          }
+        };
+
+        const initAudio = () => {
+          // Audio must be initialized after a user gesture on some browsers
+          if (!audioCtx) {
+            try {
+              audioCtx = new (window.AudioContext ||
+                window.webkitAudioContext)();
+            } catch (e) {
+              console.error("Web Audio API is not supported in this browser");
+            }
+          }
+        };
+
+        const playBeep = (frequency = 440, duration = 100) => {
+          if (!audioCtx) return;
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          gainNode.gain.linearRampToValueAtTime(
+            volume,
+            audioCtx.currentTime + 0.01
+          );
+
+          oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+          oscillator.type = "sine";
+
+          oscillator.start(audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.00001,
+            audioCtx.currentTime + duration / 1000
+          );
+          oscillator.stop(audioCtx.currentTime + duration / 1000);
+        };
+
+        const speak = (text, rate = 1.0, voice = null) => {
+          console.log("Speaking:", text);
+
+          if (synth.speaking) {
+            console.error("speechSynthesis.speaking");
+            return;
+          }
+          console.log("Volume:", volume, "Rate:", rate);
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.volume = volume;
+          utterance.rate = rate;
+          if (voice) {
+            utterance.voice = voice;
+          }
+          synth.speak(utterance);
+        };
+
+        const updateDisplay = () => {
+          repDisplay.textContent = currentRep;
+          setDisplay.textContent = currentSet;
+          document.querySelectorAll(".btn-number").forEach((btn) => {
+            if (parseInt(btn.dataset.rep) === currentRep) {
+              btn.classList.add("active");
+            } else {
+              btn.classList.remove("active");
+            }
+          });
+
+          if (currentRep > 0 && isRunning && !isPaused) {
+            const repDuration = concentricSeconds + eccentricSeconds;
+            const progress =
+              (currentPhaseTime /
+                (currentPhase === "concentric"
+                  ? concentricSeconds
+                  : eccentricSeconds)) *
+              100;
+            progressBar.style.width = `${progress}%`;
+            phaseDisplay.textContent =
+              currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1);
+          } else {
+            progressBar.style.width = "0%";
+            phaseDisplay.innerHTML = "&nbsp;";
+          }
+        };
+
+        const endSet = () => {
+          if (!isRunning) return;
+          stopAllIntervals();
+          isRunning = false;
+
+          currentSet++;
+          if (currentSet > maxSets) {
+            // Exercise complete
+            speak(
+              `${
+                currentWorkout && currentWorkout.exercises[currentExerciseIndex]
+                  ? currentWorkout.exercises[currentExerciseIndex].name
+                  : "Exercise"
+              } complete!`
+            );
+
+            if (
+              currentWorkout &&
+              currentExerciseIndex < currentWorkout.exercises.length - 1
+            ) {
+              // Auto-advance to next exercise
+              currentSet = 1;
+              nextExercise();
+              statusText.textContent = `Press Start for ${currentWorkout.exercises[currentExerciseIndex].name}`;
+            } else {
+              stopWorkout();
+              statusText.textContent = "Workout Complete!";
+              speak("Workout complete. Well done!");
+            }
+          } else {
+            currentRep = 0;
+            startRestTimer();
+          }
+        };
+
+        const startRepCycle = () => {
+          clearInterval(intervalId);
+          currentRep++;
+          if (currentRep > maxReps) {
+            endSet();
+            return;
+          }
+
+          updateDisplay();
+          speak(currentRep);
+
+          // Concentric phase
+          currentPhase = "concentric";
+          currentPhaseTime = 0;
+          updateDisplay();
+
+          intervalId = setInterval(() => {
+            currentPhaseTime += 0.1;
+            if (currentPhaseTime >= concentricSeconds) {
+              // Switch to Eccentric phase
+              clearInterval(intervalId);
+              currentPhase = "eccentric";
+              currentPhaseTime = 0;
+              let lastSpokenSecond = -1;
+              updateDisplay();
+
+              intervalId = setInterval(() => {
+                currentPhaseTime += 0.1;
+
+                const currentIntegerSecond = Math.floor(currentPhaseTime);
+                if (
+                  eccentricCountdownEnabled &&
+                  currentIntegerSecond > lastSpokenSecond &&
+                  currentPhaseTime < eccentricSeconds
+                ) {
+                  const numberToSpeak = Math.ceil(
+                    eccentricSeconds - currentPhaseTime
+                  );
+                  if (numberToSpeak > 0) {
+                    synth.cancel();
+                    speak(numberToSpeak, 1.5, femaleVoice);
+                  }
+                  lastSpokenSecond = currentIntegerSecond;
+                }
+
+                if (currentPhaseTime >= eccentricSeconds) {
+                  clearInterval(intervalId);
+                  startRepCycle();
+                }
+                updateDisplay();
+              }, 100);
+            }
             updateDisplay();
+          }, 100);
+        };
 
-            loadVoices();
-            if (speechSynthesis.onvoiceschanged !== undefined) {
-                speechSynthesis.onvoiceschanged = loadVoices;
+        const startRestTimer = () => {
+          stopAllIntervals();
+          isResting = true;
+          isRunning = false;
+
+          startBtn.classList.remove("hidden");
+          pauseBtn.classList.add("hidden");
+          endSetBtn.classList.add("hidden");
+          startBtn.classList.add("col-span-2");
+
+          let restCount = restSeconds;
+          statusText.textContent = `Rest: ${restCount}s`;
+          speak(
+            `Set ${currentSet - 1} complete. Rest for ${restSeconds} seconds.`
+          );
+          updateDisplay();
+
+          restIntervalId = setInterval(() => {
+            restCount--;
+            statusText.textContent = `Rest: ${restCount}s`;
+
+            if (restCount <= 3 && restCount > 0) {
+              playBeep(660, 100);
             }
 
-            // PWA Service Worker Registration
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('./sw.js').then(reg => {
-                        console.log('Service Worker registered.', reg);
-                    }).catch(err => {
-                        console.log('Service Worker registration failed: ', err);
-                    });
-                });
+            if (restCount <= 0) {
+              clearInterval(restIntervalId);
+              statusText.textContent = `Press Start for Set ${currentSet}`;
+              speak(`Rest complete. Press start for set ${currentSet}.`);
+              playBeep(880, 200);
             }
+          }, 1000);
+        };
+
+        const runNextSet = () => {
+          stopAllIntervals();
+          isResting = false;
+          isRunning = true;
+          isPaused = false;
+
+          startBtn.classList.add("hidden");
+          pauseBtn.classList.remove("hidden");
+          endSetBtn.classList.remove("hidden");
+          startBtn.classList.remove("col-span-2");
+          pauseBtn.textContent = "Pause";
+
+          requestWakeLock();
+          startCountdown(startRepCycle);
+        };
+
+        const startCountdown = (callback) => {
+          stopAllIntervals();
+          let count = countdownSeconds;
+          statusText.textContent = `Get Ready... ${count}`;
+          speak(`Get ready. ${count}`);
+
+          countdownIntervalId = setInterval(() => {
+            count--;
+            if (count > 0) {
+              statusText.textContent = `Get Ready... ${count}`;
+              speak(count);
+            } else if (count === 0) {
+              statusText.textContent = "Go!";
+              speak("Go!");
+              playBeep(880, 200);
+            } else {
+              clearInterval(countdownIntervalId);
+              statusText.textContent = "In Progress";
+              callback();
+            }
+          }, 1000);
+        };
+
+        const startWorkout = (startRep = 0) => {
+          if (isRunning) return;
+
+          // If workout was complete, reset it.
+          if (statusText.textContent === "Workout Complete!") {
+            currentExerciseIndex = 0;
+            updateExerciseDisplay();
+          }
+
+          isResting = false;
+          stopAllIntervals();
+
+          if (startRep === 0) {
+            currentRep = 0;
+            currentSet = 1;
+          } else {
+            currentRep = startRep - 1;
+            currentSet = 1;
+          }
+
+          isRunning = true;
+          isPaused = false;
+          startBtn.classList.add("hidden");
+          pauseBtn.classList.remove("hidden");
+          endSetBtn.classList.remove("hidden");
+          startBtn.classList.remove("col-span-2");
+
+          pauseBtn.textContent = "Pause";
+
+          requestWakeLock();
+
+          startCountdown(() => {
+            startRepCycle();
+          });
+        };
+
+        const pauseWorkout = () => {
+          if (!isRunning) return;
+
+          if (isPaused) {
+            // Resuming
+            isPaused = false;
+            pauseBtn.textContent = "Pause";
+            endSetBtn.classList.remove("hidden");
+            requestWakeLock();
+
+            if (currentRep > 0) {
+              currentRep--;
+            }
+
+            startCountdown(startRepCycle);
+          } else {
+            // Pausing
+            isPaused = true;
+            releaseWakeLock();
+            stopAllIntervals();
+            pauseBtn.textContent = "Resume";
+            endSetBtn.classList.add("hidden");
+            statusText.textContent = "Paused";
+            speak("Paused");
+          }
+        };
+
+        const stopWorkout = () => {
+          releaseWakeLock();
+          stopAllIntervals();
+          isRunning = false;
+          isPaused = false;
+          isResting = false;
+          currentRep = 0;
+          currentSet = 1;
+          startBtn.classList.remove("hidden");
+          pauseBtn.classList.add("hidden");
+          endSetBtn.classList.add("hidden");
+          startBtn.classList.add("col-span-2");
+          statusText.textContent = "Press Start";
+          updateDisplay();
+          synth.cancel();
+        };
+
+        const jumpToRep = (repNumber) => {
+          stopAllIntervals();
+          synth.cancel();
+          isRunning = true;
+          isPaused = false;
+          isResting = false;
+          currentRep = repNumber - 1;
+          if (currentSet < 1) {
+            currentSet = 1;
+          }
+          startBtn.classList.add("hidden");
+          pauseBtn.classList.remove("hidden");
+          endSetBtn.classList.remove("hidden");
+          startBtn.classList.remove("col-span-2");
+          pauseBtn.textContent = "Pause";
+
+          requestWakeLock();
+
+          startCountdown(() => {
+            startRepCycle();
+          });
+        };
+
+        const stopAllIntervals = () => {
+          clearInterval(intervalId);
+          clearInterval(countdownIntervalId);
+          clearInterval(restIntervalId);
+          intervalId = null;
+          countdownIntervalId = null;
+          restIntervalId = null;
+        };
+
+        // --- Settings ---
+
+        const saveSettings = () => {
+          const settings = {
+            countdownSeconds: parseInt(countdownInput.value),
+            maxReps: parseInt(maxRepsInput.value),
+            maxSets: parseInt(maxSetsInput.value),
+            restSeconds: parseInt(restSecondsInput.value),
+            concentricSeconds: parseFloat(concentricInput.value),
+            eccentricSeconds: parseFloat(eccentricInput.value),
+            eccentricCountdownEnabled: eccentricCountdownToggle.checked,
+            volume: parseFloat(volumeSlider.value),
+          };
+          localStorage.setItem("repCounterSettings", JSON.stringify(settings));
+          loadSettings();
+          generateNumberButtons();
+
+          const originalText = saveSettingsBtn.textContent;
+          saveSettingsBtn.textContent = "Saved!";
+          saveSettingsBtn.classList.remove("bg-blue-600", "hover:bg-blue-700");
+          saveSettingsBtn.classList.add("bg-green-500");
+          setTimeout(() => {
+            saveSettingsBtn.textContent = originalText;
+            saveSettingsBtn.classList.add("bg-blue-600", "hover:bg-blue-700");
+            saveSettingsBtn.classList.remove("bg-green-500");
+          }, 1500);
+        };
+
+        const loadSettings = () => {
+          const settings = JSON.parse(
+            localStorage.getItem("repCounterSettings")
+          );
+          if (settings) {
+            countdownSeconds = settings.countdownSeconds || 5;
+            maxReps = settings.maxReps || 15;
+            maxSets = settings.maxSets || 3;
+            restSeconds = settings.restSeconds || 60;
+            concentricSeconds = settings.concentricSeconds || 1;
+            eccentricSeconds = settings.eccentricSeconds || 4;
+            eccentricCountdownEnabled =
+              settings.eccentricCountdownEnabled ?? true;
+            volume = settings.volume ?? 1.0;
+          }
+
+          countdownInput.value = countdownSeconds;
+          maxRepsInput.value = maxReps;
+          maxSetsInput.value = maxSets;
+          restSecondsInput.value = restSeconds;
+          concentricInput.value = concentricSeconds;
+          eccentricInput.value = eccentricSeconds;
+          eccentricCountdownToggle.checked = eccentricCountdownEnabled;
+          volumeSlider.value = volume;
+          volumeValue.textContent = `${Math.round(volume * 100)}%`;
+        };
+
+        const generateNumberButtons = () => {
+          numberButtonsContainer.innerHTML = "";
+          for (let i = 1; i <= maxReps; i++) {
+            const button = document.createElement("button");
+            button.textContent = i;
+            button.dataset.rep = i;
+            button.className =
+              "btn-number p-2 border-2 border-gray-600 rounded-md text-center hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center";
+            button.addEventListener("click", () => {
+              initAudio();
+              jumpToRep(i);
+            });
+            numberButtonsContainer.appendChild(button);
+          }
+        };
+
+        const handleVisibilityChange = async () => {
+          if (
+            wakeLock === null &&
+            document.visibilityState === "visible" &&
+            isRunning &&
+            !isPaused
+          ) {
+            console.log("Re-acquiring wake lock on visibility change");
+            await requestWakeLock();
+          }
+        };
+
+        // --- Event Listeners ---
+        startBtn.addEventListener("click", () => {
+          initAudio();
+          if (isResting) {
+            runNextSet();
+          } else {
+            startWorkout();
+          }
         });
+        pauseBtn.addEventListener("click", pauseWorkout);
+        stopBtn.addEventListener("click", stopWorkout);
+        endSetBtn.addEventListener("click", endSet);
+        settingsToggle.addEventListener("click", () => {
+          settingsPanel.classList.toggle("hidden");
+        });
+        saveSettingsBtn.addEventListener("click", saveSettings);
+
+        volumeSlider.addEventListener("input", () => {
+          volume = parseFloat(volumeSlider.value);
+          volumeValue.textContent = `${Math.round(volume * 100)}%`;
+        });
+
+        volumeSlider.addEventListener("change", () => {
+          initAudio();
+          playBeep(660, 50);
+        });
+
+        // Workout Management Event Listeners
+        manageWorkoutsBtn.addEventListener("click", () => {
+          workoutModal.classList.remove("hidden");
+        });
+
+        closeModalBtn.addEventListener("click", () => {
+          workoutModal.classList.add("hidden");
+        });
+
+        workoutModal.addEventListener("click", (e) => {
+          if (e.target === workoutModal) {
+            workoutModal.classList.add("hidden");
+          }
+        });
+
+        addWorkoutBtn.addEventListener("click", () => {
+          const name = newWorkoutName.value.trim();
+          if (name) {
+            workouts.push({
+              id: generateId(),
+              name: name,
+              exercises: [],
+            });
+            saveWorkouts();
+            loadWorkouts();
+            newWorkoutName.value = "";
+          }
+        });
+
+        workoutSelect.addEventListener("change", (e) => {
+          selectWorkout(e.target.value);
+        });
+
+        prevExerciseBtn.addEventListener("click", previousExercise);
+        nextExerciseBtn.addEventListener("click", nextExercise);
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        // --- Initialisation ---
+        loadSettings();
+        generateNumberButtons();
+        updateDisplay();
+        loadWorkouts();
+
+        loadVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+          speechSynthesis.onvoiceschanged = loadVoices;
+        }
+
+        // PWA Service Worker Registration
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker
+              .register("./sw.js")
+              .then((reg) => {
+                console.log("Service Worker registered.", reg);
+              })
+              .catch((err) => {
+                console.log("Service Worker registration failed: ", err);
+              });
+          });
+        }
+      });
     </script>
-
-</body>
+  </body>
 </html>
-
