@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "rep-counter-app",
-    "slug": "rep-counter-app",
+    "slug": "gym-rep-counter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,6 +25,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "59f2dded-70e1-4ae2-bfc2-45835bceb0ba"
+      }
+    },
+    "owner": "ganganimaulik"
   }
 }
