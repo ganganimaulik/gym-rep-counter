@@ -1,44 +1,49 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
-  background: '#111827', // bg-gray-900
-  surface: '#1f2937', // bg-gray-800
-  primary: '#3b82f6', // bg-blue-600
-  primaryHover: '#2563eb', // bg-blue-700
-  secondary: '#f59e0b', // bg-yellow-500
-  success: '#16a34a', // bg-green-600
-  danger: '#dc2626', // bg-red-600
-  text: '#ffffff',
-  textSecondary: '#9ca3af', // text-gray-400
-  border: '#4b5563', // border-gray-500
-  input: '#4b5563', // bg-gray-700
-  card: '#374151', // bg-gray-700 (for modals)
+  background: '#0B0F19', // Dark blue-gray
+  surface: '#1A202C',    // Dark slate gray
+  primary: '#38A169',     // Green
+  primaryHover: '#2F855A',// Darker Green
+  secondary: '#DD6B20',   // Orange
+  success: '#38A169',     // Green
+  danger: '#E53E3E',      // Red
+  text: '#E2E8F0',        // Light gray
+  textSecondary: '#A0AEC0',// Gray
+  border: '#4A5568',      // Gray
+  input: '#2D3748',       // Dark blue-gray
+  card: '#1A202C',        // Dark slate gray
 };
 
 export const typography = {
-  fontFamily: 'System', // Using system font for simplicity
+  fontFamily: 'System',
   h1: {
-    fontSize: 72,
+    fontSize: 64,
     fontWeight: 'bold',
     color: colors.text,
+    letterSpacing: -1,
   },
   h2: {
-    fontSize: 56,
+    fontSize: 48,
     fontWeight: 'bold',
     color: colors.text,
+    letterSpacing: -0.5,
   },
   h3: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '600',
     color: colors.text,
   },
   body: {
     fontSize: 16,
     color: colors.text,
+    lineHeight: 24,
   },
   label: {
     fontSize: 14,
     color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 };
 
@@ -47,43 +52,46 @@ export const layout = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
+    paddingTop: 40,
+    paddingHorizontal: 16,
   },
   card: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 450,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });
 
 export const components = StyleSheet.create({
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     transform: [{ scale: 1 }],
+    transition: 'transform 0.2s, background-color 0.2s',
   },
   buttonText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
   },
   input: {
     backgroundColor: colors.input,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     color: colors.text,
     fontSize: 16,
     marginTop: 8,

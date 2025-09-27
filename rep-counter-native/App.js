@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  Image,
 } from 'react-native';
 import { layout, colors, typography, components } from './styles';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -64,8 +65,6 @@ const App = () => {
     const workout = workouts.find(w => w.id === currentWorkoutId);
     if (workout && currentExerciseIndex < workout.exercises.length - 1) {
       setCurrentExerciseIndex(prev => prev + 1);
-      // Automatically start the next exercise's timer if desired
-      // For now, we'll let the user do it manually
     } else {
       setIsWorkoutComplete(true);
     }
@@ -81,13 +80,11 @@ const App = () => {
 
   const { rep, set, phase, status, isRunning, isPaused, progress } = workoutState;
 
-  // Load data on mount
   useEffect(() => {
     loadSettings();
     loadWorkouts();
   }, []);
 
-  // Update settings when exercise changes
   useEffect(() => {
     if (currentWorkoutId) {
       const workout = workouts.find(w => w.id === currentWorkoutId);
@@ -98,11 +95,10 @@ const App = () => {
           maxReps: exercise.reps,
           maxSets: exercise.sets,
         }));
-        setIsWorkoutComplete(false); // Reset completion status
+        setIsWorkoutComplete(false);
       }
     }
   }, [currentWorkoutId, currentExerciseIndex, workouts]);
-
 
   const loadSettings = async () => {
     try {
@@ -168,7 +164,6 @@ const App = () => {
   const navigateExercise = (direction) => {
       const workout = workouts.find(w => w.id === currentWorkoutId);
       if(!workout) return;
-
       const newIndex = currentExerciseIndex + direction;
       if(newIndex >= 0 && newIndex < workout.exercises.length) {
           setCurrentExerciseIndex(newIndex);
@@ -182,8 +177,12 @@ const App = () => {
     <SafeAreaView style={layout.container}>
       <StatusBar barStyle="light-content" />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.header}>
+            <Image source={require('./assets/icon.png')} style={styles.logo} />
+            <Text style={styles.title}>Rep Counter</Text>
+        </View>
+
         <View style={styles.card}>
-          {/* Workout Selection */}
           <View style={styles.workoutSelectionContainer}>
             <View style={{flex: 1}}>
                 <Picker
@@ -195,6 +194,7 @@ const App = () => {
                     }}
                     style={styles.picker}
                     itemStyle={styles.pickerItem}
+                    dropdownIconColor={colors.textSecondary}
                     enabled={!isRunning}
                 >
                     <Picker.Item label="Select a workout..." value={null} />
@@ -220,31 +220,26 @@ const App = () => {
           ) : (
             <>
                 <Text style={styles.statusText}>{status || 'Press Start'}</Text>
-
                 <View style={styles.displayContainer}>
                     <View style={styles.displayBox}>
-                    <Text style={styles.repDisplay}>{rep || 0}</Text>
-                    <Text style={styles.displayLabel}>REP</Text>
+                        <Text style={styles.repDisplay}>{rep || 0}</Text>
+                        <Text style={styles.displayLabel}>REP</Text>
                     </View>
                     <View style={styles.displayBox}>
-                    <Text style={styles.setDisplay}>{set || 1}</Text>
-                    <Text style={styles.displayLabel}>SET</Text>
+                        <Text style={styles.setDisplay}>{set || 1}</Text>
+                        <Text style={styles.displayLabel}>SET</Text>
                     </View>
                 </View>
-
                 <Text style={styles.phaseDisplay}>{phase || ' '}</Text>
-
                 <View style={styles.progressBarContainer}>
                     <View style={[components.progressBar, { width: `${progress || 0}%` }]} />
                 </View>
             </>
           )}
 
-
-          {/* Controls */}
           <View style={styles.controlsContainer}>
             {!isRunning ? (
-              <TouchableOpacity onPress={() => startWorkout()} style={[components.button, styles.startButton, {flex: 2}]} disabled={!currentWorkoutId || isWorkoutComplete}>
+              <TouchableOpacity onPress={() => startWorkout()} style={[components.button, styles.startButton]} disabled={!currentWorkoutId || isWorkoutComplete}>
                 <Text style={components.buttonText}>Start</Text>
               </TouchableOpacity>
             ) : (
@@ -273,36 +268,15 @@ const App = () => {
             </View>
           )}
 
-          {/* Settings Toggle */}
-          <TouchableOpacity
-            style={styles.settingsToggle}
-            onPress={() => setIsSettingsVisible(!isSettingsVisible)}
-            disabled={isRunning}
-          >
-            <Text style={styles.settingsToggleText}>
-              {isSettingsVisible ? 'Hide Settings' : 'Settings'}
-            </Text>
+          <TouchableOpacity style={styles.settingsToggle} onPress={() => setIsSettingsVisible(!isSettingsVisible)} disabled={isRunning}>
+            <Text style={styles.settingsToggleText}>{isSettingsVisible ? 'Hide Settings' : 'Settings'}</Text>
           </TouchableOpacity>
 
-          {/* Settings Panel */}
-          <SettingsPanel
-            visible={isSettingsVisible}
-            settings={settings}
-            onSettingChange={(key, val) => setSettings(prev => ({ ...prev, [key]: val }))}
-            onSave={handleSaveSettings}
-          />
+          <SettingsPanel visible={isSettingsVisible} settings={settings} onSettingChange={(key, val) => setSettings(prev => ({ ...prev, [key]: val }))} onSave={handleSaveSettings} />
         </View>
       </ScrollView>
 
-      <WorkoutModal
-        visible={isWorkoutModalVisible}
-        onClose={() => setIsWorkoutModalVisible(false)}
-        workouts={workouts}
-        onAddWorkout={handleAddWorkout}
-        onDeleteWorkout={handleDeleteWorkout}
-        onAddExercise={handleAddExercise}
-        onDeleteExercise={handleDeleteExercise}
-      />
+      <WorkoutModal visible={isWorkoutModalVisible} onClose={() => setIsWorkoutModalVisible(false)} workouts={workouts} onAddWorkout={handleAddWorkout} onDeleteWorkout={handleDeleteWorkout} onAddExercise={handleAddExercise} onDeleteExercise={handleDeleteExercise} />
     </SafeAreaView>
   );
 };
@@ -312,7 +286,22 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        width: '100%'
+        width: '100%',
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    logo: {
+        width: 40,
+        height: 40,
+        marginRight: 12,
+    },
+    title: {
+        ...typography.h3,
+        fontSize: 28,
+        fontWeight: 'bold',
     },
     card: {
         ...layout.card,
@@ -324,52 +313,56 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 16,
-        backgroundColor: colors.card,
-        borderRadius: 8,
+        marginBottom: 24,
+        backgroundColor: colors.input,
+        borderRadius: 12,
     },
     picker: {
         color: colors.text,
+        height: 50,
     },
     pickerItem: {
         color: colors.text,
-        backgroundColor: colors.surface, // For iOS
+        backgroundColor: colors.surface,
     },
     manageButton: {
         ...components.button,
-        backgroundColor: colors.input,
-        paddingVertical: 8,
-        paddingHorizontal: 16,
+        backgroundColor: colors.border,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        marginLeft: 8,
     },
     exerciseInfo: {
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 20,
     },
     statusText: {
         ...typography.h3,
         color: colors.primary,
-        marginBottom: 16,
+        marginBottom: 20,
         minHeight: 30,
+        fontWeight: '600',
     },
     displayContainer: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-around',
         alignItems: 'flex-end',
-        marginBottom: 16,
+        marginBottom: 20,
+        width: '100%',
     },
     displayBox: {
         alignItems: 'center',
-        marginHorizontal: 24,
     },
     repDisplay: { ...typography.h1 },
     setDisplay: { ...typography.h2 },
-    displayLabel: { ...typography.label, fontSize: 18 },
+    displayLabel: { ...typography.label, fontSize: 16, marginTop: 4 },
     phaseDisplay: {
         ...typography.body,
-        fontSize: 20,
+        fontSize: 18,
         color: colors.textSecondary,
-        marginBottom: 16,
+        marginBottom: 20,
         height: 24,
+        fontStyle: 'italic',
     },
     progressBarContainer: {
         width: '100%',
@@ -382,10 +375,10 @@ const styles = StyleSheet.create({
     controlsContainer: {
         flexDirection: 'row',
         width: '100%',
-        justifyContent: 'space-between',
-        gap: 16,
+        justifyContent: 'center',
+        gap: 12,
     },
-    startButton: { backgroundColor: colors.success, flex: 1 },
+    startButton: { backgroundColor: colors.success, flex: 2 },
     pauseButton: { backgroundColor: colors.secondary, flex: 1 },
     endSetButton: { backgroundColor: colors.primary, flex: 1 },
     stopButton: { backgroundColor: colors.danger, flex: 1 },
@@ -393,18 +386,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         width: '100%',
-        marginTop: 16,
+        marginTop: 20,
         paddingHorizontal: 16,
     },
     navText: {
         color: colors.primary,
         fontSize: 16,
+        fontWeight: '600',
     },
     navTextDisabled: {
         color: colors.textSecondary,
     },
-    settingsToggle: { marginTop: 24, padding: 8 },
-    settingsToggleText: { color: colors.primary, fontSize: 16 },
+    settingsToggle: { marginTop: 24, padding: 12 },
+    settingsToggleText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
 });
 
 export default App;
