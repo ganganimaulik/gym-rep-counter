@@ -1,3 +1,4 @@
+import "./global.css";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   SafeAreaView,
