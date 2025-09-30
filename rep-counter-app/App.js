@@ -70,6 +70,14 @@ const App = () => {
   // --- Effects ---
   useEffect(() => {
     const initializeApp = async () => {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        interruptionModeIOS: 1, // DoNotMix
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: 1, // DoNotMix
+        playThroughEarpieceAndroid: false,
+      });
       await loadSettings();
       await loadWorkouts();
       await findFemaleVoice();
