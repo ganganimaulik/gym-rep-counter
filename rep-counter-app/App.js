@@ -74,9 +74,9 @@ const App = () => {
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
-        interruptionModeIOS: 1, // DoNotMix
+        interruptionModeIOS: 2, // MixWithOthers
         shouldDuckAndroid: true,
-        interruptionModeAndroid: 1, // DoNotMix
+        interruptionModeAndroid: 2, // DuckOthers
         playThroughEarpieceAndroid: false,
       });
       await loadSettings();
