@@ -11,6 +11,7 @@ import { Edit, Settings as SettingsIcon, ChevronLeft, ChevronRight } from 'lucid
 import NumberButton from './components/NumberButton';
 import SettingsPanel from './components/SettingsPanel';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
+import { getDefaultWorkouts } from './utils/defaultWorkouts';
 
 const StyledSafeAreaView = styled(SafeAreaView);
 const StyledView = styled(View);
@@ -55,22 +56,26 @@ const App = () => {
   const soundRef = useRef();
   const appState = useRef(AppState.currentState);
 
+  const findFemaleVoice = async () => {
+    const voices = await Speech.getAvailableVoicesAsync();
+    // A simple heuristic to find a female voice. This could be improved.
+    const foundVoice = voices.find(v =>
+      v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Serena')
+    );
+    if (foundVoice) {
+      setFemaleVoice(foundVoice.identifier);
+    }
+  };
+
   // --- Effects ---
   useEffect(() => {
-    const findFemaleVoice = async () => {
-      const voices = await Speech.getAvailableVoicesAsync();
-      // A simple heuristic to find a female voice. This could be improved.
-      const foundVoice = voices.find(v =>
-        v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Serena')
-      );
-      if (foundVoice) {
-        setFemaleVoice(foundVoice.identifier);
-      }
+    const initializeApp = async () => {
+      await loadSettings();
+      await loadWorkouts();
+      await findFemaleVoice();
     };
 
-    loadSettings();
-    loadWorkouts();
-    findFemaleVoice();
+    initializeApp();
 
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -155,10 +160,9 @@ const App = () => {
         setWorkouts(JSON.parse(savedWorkouts));
       } else {
         // Set default workouts if none are saved
-        const defaultWorkouts = [
-          // ... (add default workouts if desired)
-        ];
+        const defaultWorkouts = getDefaultWorkouts();
         setWorkouts(defaultWorkouts);
+        await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
       }
     } catch (e) { console.error("Failed to load workouts.", e); }
   };
