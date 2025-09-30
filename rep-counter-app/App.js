@@ -46,6 +46,7 @@ const App = () => {
   const [workouts, setWorkouts] = useState([]);
   const [currentWorkout, setCurrentWorkout] = useState(null);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [femaleVoice, setFemaleVoice] = useState(null);
 
   // Refs
   const intervalRef = useRef(null);
@@ -56,8 +57,21 @@ const App = () => {
 
   // --- Effects ---
   useEffect(() => {
+    const findFemaleVoice = async () => {
+      const voices = await Speech.getAvailableVoicesAsync();
+      // A simple heuristic to find a female voice. This could be improved.
+      const foundVoice = voices.find(v =>
+        v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Serena')
+      );
+      if (foundVoice) {
+        setFemaleVoice(foundVoice.identifier);
+      }
+    };
+
     loadSettings();
     loadWorkouts();
+    findFemaleVoice();
+
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         // App has come to the foreground
@@ -107,6 +121,14 @@ const App = () => {
     Speech.speak(text, {
       volume: settings.volume,
       rate: 1.2,
+    });
+  };
+
+  const speakEccentric = (text) => {
+    Speech.speak(text, {
+      volume: settings.volume,
+      rate: 1.2,
+      voice: femaleVoice, // Use the found female voice, or default if null
     });
   };
 
@@ -290,7 +312,7 @@ const App = () => {
                         const numberToSpeak = Math.ceil(settings.eccentricSeconds - eccentricPhaseTime);
                         if (numberToSpeak > 0) {
                             Speech.stop();
-                            speak(String(numberToSpeak));
+                            speakEccentric(String(numberToSpeak));
                         }
                         lastSpokenSecond = currentIntegerSecond;
                     }
