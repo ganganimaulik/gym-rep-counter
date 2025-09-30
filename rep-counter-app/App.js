@@ -391,7 +391,7 @@ const App = () => {
         className="flex-1 p-4"
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-2">
+        <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6">
           {/* Workout Selection */}
           <StyledView className="bg-gray-700 rounded-lg p-4 space-y-3">
             <StyledView className="flex-row justify-between items-center">
