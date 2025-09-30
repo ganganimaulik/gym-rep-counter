@@ -394,7 +394,7 @@ const App = () => {
         <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6">
           {/* Workout Selection */}
           <StyledView className="bg-gray-700 rounded-lg p-4 space-y-3">
-            <StyledView className="flex-row justify-between items-center">
+            <StyledView className="flex-row justify-between items-center mb-2">
               <StyledText className="text-lg font-semibold text-white">Current Workout</StyledText>
               <StyledTouchableOpacity onPress={() => setModalVisible(true)} className="flex-row items-center space-x-2 rounded-lg bg-gray-600 px-3 py-2">
                  <Edit color="#d1d5db" size={16}/>
