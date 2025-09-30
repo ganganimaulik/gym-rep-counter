@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import { styled } from 'nativewind';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { X, Trash2, Plus } from 'lucide-react-native';
+import { X, Trash2, Plus, GripVertical } from 'lucide-react-native';
+import DraggableFlatList from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
-const WorkoutManagementModal = ({ visible, onClose, onSelectWorkout, workouts, setWorkouts }) => {
+const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => {
   const [newWorkoutName, setNewWorkoutName] = useState('');
 
   const generateId = () => {
@@ -66,6 +68,17 @@ const WorkoutManagementModal = ({ visible, onClose, onSelectWorkout, workouts, s
     await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
   };
 
+  const updateExerciseOrder = async (workoutId, reorderedExercises) => {
+    const updatedWorkouts = workouts.map(w => {
+      if (w.id === workoutId) {
+        return { ...w, exercises: reorderedExercises };
+      }
+      return w;
+    });
+    setWorkouts(updatedWorkouts);
+    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+  };
+
   const WorkoutItem = ({ workout }) => {
     const [exerciseName, setExerciseName] = useState('');
     const [sets, setSets] = useState('3');
@@ -76,6 +89,23 @@ const WorkoutManagementModal = ({ visible, onClose, onSelectWorkout, workouts, s
       setExerciseName('');
     };
 
+    const renderExercise = ({ item: ex, drag, isActive, getIndex }) => (
+      <StyledTouchableOpacity
+        onLongPress={drag}
+        disabled={isActive}
+        className={`flex-row items-center justify-between bg-gray-600/50 p-2 rounded-md mb-2 ${isActive ? 'opacity-50' : ''}`}
+      >
+        <StyledView className="flex-row items-center flex-1">
+          <GripVertical color="#9ca3af" size={20} className="mr-2" />
+          <StyledText className="text-sm font-medium text-white flex-1">{getIndex() + 1}. {ex.name}</StyledText>
+        </StyledView>
+        <StyledText className="text-xs text-gray-400 font-mono mx-3">{ex.sets}x{ex.reps}</StyledText>
+        <StyledTouchableOpacity onPress={() => deleteExercise(workout.id, ex.id)} className="p-1">
+          <X color="#f87171" size={16} />
+        </StyledTouchableOpacity>
+      </StyledTouchableOpacity>
+    );
+
     return (
       <StyledView className="bg-gray-700 rounded-lg p-4 space-y-3 mb-4">
         <StyledView className="flex-row justify-between items-center">
@@ -84,17 +114,12 @@ const WorkoutManagementModal = ({ visible, onClose, onSelectWorkout, workouts, s
             <Trash2 color="#f87171" size={20} />
           </StyledTouchableOpacity>
         </StyledView>
-        <StyledView className="space-y-2">
-          {workout.exercises.map((ex, index) => (
-            <StyledView key={ex.id} className="flex-row items-center justify-between bg-gray-600/50 p-2 rounded-md">
-              <StyledText className="text-sm font-medium text-white flex-1">{index + 1}. {ex.name}</StyledText>
-              <StyledText className="text-xs text-gray-400 font-mono mx-3">{ex.sets}x{ex.reps}</StyledText>
-              <StyledTouchableOpacity onPress={() => deleteExercise(workout.id, ex.id)} className="p-1">
-                 <X color="#f87171" size={16} />
-              </StyledTouchableOpacity>
-            </StyledView>
-          ))}
-        </StyledView>
+        <DraggableFlatList
+          data={workout.exercises}
+          renderItem={renderExercise}
+          keyExtractor={(item) => item.id}
+          onDragEnd={({ data }) => updateExerciseOrder(workout.id, data)}
+        />
         <StyledView className="pt-2">
           <StyledView className="flex-row gap-2">
             <StyledTextInput
@@ -133,7 +158,6 @@ const WorkoutManagementModal = ({ visible, onClose, onSelectWorkout, workouts, s
     );
   };
 
-
   return (
     <Modal
       animationType="slide"
@@ -141,43 +165,46 @@ const WorkoutManagementModal = ({ visible, onClose, onSelectWorkout, workouts, s
       visible={visible}
       onRequestClose={onClose}
     >
-      <StyledView className="flex-1 justify-center items-center bg-black/50 p-4">
-        <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-lg max-h-[90vh]">
-          <StyledView className="flex-row justify-between items-center pb-4 mb-4 border-b border-gray-700">
-            <StyledText className="text-2xl font-bold text-white">Manage Workouts</StyledText>
-            <StyledTouchableOpacity onPress={onClose}>
-              <X color="#9ca3af" size={24} />
-            </StyledTouchableOpacity>
-          </StyledView>
-
-          <StyledView className="mb-6 bg-gray-700 rounded-lg p-4">
-            <StyledText className="text-lg font-semibold mb-3 text-white">Add New Workout</StyledText>
-            <StyledView className="space-y-3">
-              <StyledTextInput
-                placeholder="Workout name (e.g., Push Day)"
-                placeholderTextColor="#9ca3af"
-                className="w-full bg-gray-600 border border-gray-500 rounded-md p-2 text-white"
-                value={newWorkoutName}
-                onChangeText={setNewWorkoutName}
-              />
-              <StyledTouchableOpacity
-                onPress={addWorkout}
-                className="w-full py-2 px-4 bg-green-600 rounded-lg flex-row items-center justify-center space-x-2"
-              >
-                <Plus color="white" size={20} />
-                <StyledText className="font-semibold text-white">Add Workout</StyledText>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StyledView className="flex-1 justify-center items-center bg-black/50 p-4">
+          <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-lg max-h-[90vh]">
+            <StyledView className="flex-row justify-between items-center pb-4 mb-4 border-b border-gray-700">
+              <StyledText className="text-2xl font-bold text-white">Manage Workouts</StyledText>
+              <StyledTouchableOpacity onPress={onClose}>
+                <X color="#9ca3af" size={24} />
               </StyledTouchableOpacity>
             </StyledView>
-          </StyledView>
 
-          <FlatList
-            data={workouts}
-            renderItem={({ item }) => <WorkoutItem workout={item} />}
-            keyExtractor={item => item.id}
-            showsVerticalScrollIndicator={false}
-          />
+            <StyledView className="mb-6 bg-gray-700 rounded-lg p-4">
+              <StyledText className="text-lg font-semibold mb-3 text-white">Add New Workout</StyledText>
+              <StyledView className="space-y-3">
+                <StyledTextInput
+                  placeholder="Workout name (e.g., Push Day)"
+                  placeholderTextColor="#9ca3af"
+                  className="w-full bg-gray-600 border border-gray-500 rounded-md p-2 text-white"
+                  value={newWorkoutName}
+                  onChangeText={setNewWorkoutName}
+                />
+                <StyledTouchableOpacity
+                  onPress={addWorkout}
+                  className="w-full py-2 px-4 bg-green-600 rounded-lg flex-row items-center justify-center space-x-2"
+                >
+                  <Plus color="white" size={20} />
+                  <StyledText className="font-semibold text-white">Add Workout</StyledText>
+                </StyledTouchableOpacity>
+              </StyledView>
+            </StyledView>
+
+            <FlatList
+              data={workouts}
+              renderItem={({ item }) => <WorkoutItem workout={item} />}
+              keyExtractor={item => item.id}
+              showsVerticalScrollIndicator={false}
+              containerStyle={{ flex: 1 }}
+            />
+          </StyledView>
         </StyledView>
-      </StyledView>
+      </GestureHandlerRootView>
     </Modal>
   );
 };

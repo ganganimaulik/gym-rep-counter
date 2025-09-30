@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import React, { useState, useEffect, useRef } from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity, ScrollView, StatusBar, AppState } from 'react-native';
 import { styled } from 'nativewind';
