@@ -11,6 +11,7 @@ import { Edit, Settings as SettingsIcon, ChevronLeft, ChevronRight } from 'lucid
 import NumberButton from './components/NumberButton';
 import SettingsPanel from './components/SettingsPanel';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
+import { getDefaultWorkouts } from './utils/defaultWorkouts';
 
 const StyledSafeAreaView = styled(SafeAreaView);
 const StyledView = styled(View);
@@ -155,9 +156,7 @@ const App = () => {
         setWorkouts(JSON.parse(savedWorkouts));
       } else {
         // Set default workouts if none are saved
-        const defaultWorkouts = [
-          // ... (add default workouts if desired)
-        ];
+        const defaultWorkouts = getDefaultWorkouts();
         setWorkouts(defaultWorkouts);
       }
     } catch (e) { console.error("Failed to load workouts.", e); }
