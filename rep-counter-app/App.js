@@ -227,7 +227,9 @@ const App = () => {
     stopAllTimers();
     setIsRunning(false);
 
-    if (currentSet + 1 > settings.maxSets) {
+    const nextSet = currentSet + 1;
+
+    if (nextSet > settings.maxSets) {
       speak('Exercise complete!');
       if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
         nextExercise();
@@ -236,13 +238,13 @@ const App = () => {
         setStatusText('Workout Complete!');
       }
     } else {
-      setCurrentSet(prev => prev + 1);
+      setCurrentSet(nextSet);
       setCurrentRep(0);
-      startRestTimer();
+      startRestTimer(nextSet);
     }
   };
 
-  const startRestTimer = () => {
+  const startRestTimer = (nextSet) => {
     setIsResting(true);
     let restCount = settings.restSeconds;
     setStatusText(`Rest: ${restCount}s`);
@@ -254,8 +256,8 @@ const App = () => {
       if (restCount <= 3 && restCount > 0) playBeep();
       if (restCount <= 0) {
         clearInterval(restRef.current);
-        setStatusText(`Press Start for Set ${currentSet}`);
-        speak(`Rest complete. Press start for set ${currentSet}.`);
+        setStatusText(`Press Start for Set ${nextSet}`);
+        speak(`Rest complete. Press start for set ${nextSet}.`);
         playBeep(880);
       }
     }, 1000);
@@ -418,9 +420,14 @@ const App = () => {
               <StyledView>
                 <StyledText className="text-sm text-gray-400">Current Exercise:</StyledText>
                 <StyledText className="text-lg font-medium text-white">{currentWorkout.exercises[currentExerciseIndex]?.name}</StyledText>
-                <StyledText className="text-sm text-gray-400 mt-1">
-                  Exercise {currentExerciseIndex + 1} of {currentWorkout.exercises.length}
-                </StyledText>
+                <StyledView className="flex-row justify-between items-center mt-1">
+                  <StyledText className="text-sm text-gray-400">
+                    Exercise {currentExerciseIndex + 1} of {currentWorkout.exercises.length}
+                  </StyledText>
+                  <StyledText className="text-sm font-semibold text-gray-200">
+                    Sets: {settings.maxSets}
+                  </StyledText>
+                </StyledView>
               </StyledView>
             )}
           </StyledView>
@@ -433,9 +440,14 @@ const App = () => {
                 <StyledText className="text-8xl font-bold tracking-tight text-white">{currentRep}</StyledText>
                 <StyledText className="text-lg text-gray-400 text-center">REP</StyledText>
               </StyledView>
-              <StyledView className="pb-2">
-                <StyledText className="text-6xl font-bold tracking-tight text-white">{currentSet}</StyledText>
-                <StyledText className="text-lg text-gray-400 text-center">SET</StyledText>
+              <StyledView className="items-center">
+                  <StyledView className="flex-row items-baseline space-x-1">
+                    <StyledText className="text-6xl font-bold tracking-tight text-white">{currentSet}</StyledText>
+                    <StyledText className="text-3xl font-semibold text-gray-400 -mb-1">
+                      / {settings.maxSets}
+                    </StyledText>
+                  </StyledView>
+                <StyledText className="text-lg text-gray-400 text-center -mt-2">SET</StyledText>
               </StyledView>
             </StyledView>
             <StyledText className="text-xl text-gray-400 mt-2">{phase || ' '}</StyledText>
