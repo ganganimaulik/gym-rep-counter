@@ -391,7 +391,7 @@ const App = () => {
         className="flex-1 p-4"
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6">
+        <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-2">
           {/* Workout Selection */}
           <StyledView className="bg-gray-700 rounded-lg p-4 space-y-3">
             <StyledView className="flex-row justify-between items-center">
@@ -408,7 +408,7 @@ const App = () => {
                 style={{ color: 'white' }}
                 dropdownIconColor="white"
               >
-                <Picker.Item label="Select a workout..." value={null} />
+                <Picker.Item label="Select Workout" value={null} />
                 {workouts.map(w => <Picker.Item key={w.id} label={w.name} value={w.id} />)}
               </Picker>
             </StyledView>
@@ -440,41 +440,41 @@ const App = () => {
           </StyledView>
 
           {/* Main Controls */}
-          <StyledView className="grid grid-cols-3 gap-4">
+          <StyledView className="flex-row gap-4">
             {(() => {
               if (!isRunning) {
                 return [
                   <StyledTouchableOpacity
                     key="start"
                     onPress={isResting ? runNextSet : startWorkout}
-                    className="py-3 px-4 bg-green-600 rounded-lg col-span-2 items-center"
+                    className="py-3 px-4 bg-green-600 rounded-lg flex-1 items-center"
                   >
                     <StyledText className="text-lg font-semibold text-white">Start</StyledText>
                   </StyledTouchableOpacity>,
-                  <StyledTouchableOpacity key="stop" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg items-center">
+                  <StyledTouchableOpacity key="stop" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
                     <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
                   </StyledTouchableOpacity>
                 ];
               }
               if (isPaused) {
                 return [
-                  <StyledTouchableOpacity key="resume" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg col-span-2 items-center">
+                  <StyledTouchableOpacity key="resume" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center">
                     <StyledText className="text-lg font-semibold text-white">Resume</StyledText>
                   </StyledTouchableOpacity>,
-                  <StyledTouchableOpacity key="stop-paused" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg items-center">
+                  <StyledTouchableOpacity key="stop-paused" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
                     <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
                   </StyledTouchableOpacity>
                 ];
               }
               // isRunning && !isPaused
               return [
-                <StyledTouchableOpacity key="pause" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg items-center">
+                <StyledTouchableOpacity key="pause" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center">
                   <StyledText className="text-lg font-semibold text-white">Pause</StyledText>
                 </StyledTouchableOpacity>,
-                <StyledTouchableOpacity key="end-set" onPress={endSet} className="py-3 px-4 bg-blue-600 rounded-lg items-center">
+                <StyledTouchableOpacity key="end-set" onPress={endSet} className="py-3 px-4 bg-blue-600 rounded-lg flex-1 items-center">
                   <StyledText className="text-lg font-semibold text-white">End Set</StyledText>
                 </StyledTouchableOpacity>,
-                <StyledTouchableOpacity key="stop-running" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg items-center">
+                <StyledTouchableOpacity key="stop-running" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
                   <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
                 </StyledTouchableOpacity>
               ];
