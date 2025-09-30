@@ -31,6 +31,7 @@ const App = () => {
   const [statusText, setStatusText] = useState('Press Start');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState([]);
 
   const [settings, setSettings] = useState({
     countdownSeconds: 5,
@@ -41,6 +42,7 @@ const App = () => {
     eccentricSeconds: 4,
     eccentricCountdownEnabled: true,
     volume: 1.0,
+    voiceIdentifier: null,
   });
 
   const [workouts, setWorkouts] = useState([]);
@@ -56,7 +58,12 @@ const App = () => {
 
   // --- Effects ---
   useEffect(() => {
-    loadSettings();
+    const init = async () => {
+      await loadSettings();
+      const voices = await Speech.getAvailableVoicesAsync();
+      setAvailableVoices(voices);
+    };
+    init();
     loadWorkouts();
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -104,17 +111,25 @@ const App = () => {
   };
 
   const speak = (text) => {
-    Speech.speak(text, {
+    const options = {
       volume: settings.volume,
       rate: 1.2,
-    });
+      voice: settings.voiceIdentifier,
+    };
+    Speech.speak(text, options);
   };
 
   // --- Data Persistence ---
   const loadSettings = async () => {
     try {
-      const savedSettings = await AsyncStorage.getItem('repCounterSettings');
-      if (savedSettings) setSettings(JSON.parse(savedSettings));
+      const savedSettingsJSON = await AsyncStorage.getItem('repCounterSettings');
+      if (savedSettingsJSON) {
+        const savedSettings = JSON.parse(savedSettingsJSON);
+        setSettings(prevSettings => ({
+          ...prevSettings,
+          ...savedSettings,
+        }));
+      }
     } catch (e) { console.error("Failed to load settings.", e); }
   };
 
@@ -489,6 +504,7 @@ const App = () => {
             visible={settingsVisible}
             settings={settings}
             onSave={saveSettings}
+            availableVoices={availableVoices}
           />
         </StyledView>
       </StyledScrollView>

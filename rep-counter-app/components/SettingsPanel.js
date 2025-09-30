@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Switch, TouchableOpacity } from 'react-native';
 import { styled } from 'nativewind';
 import Slider from '@react-native-community/slider';
+import { Picker } from '@react-native-picker/picker';
+
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -9,8 +11,13 @@ const StyledTextInput = styled(TextInput);
 const StyledSwitch = styled(Switch);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
-const SettingsPanel = ({ settings, onSave, visible }) => {
+const SettingsPanel = ({ settings, onSave, visible, availableVoices }) => {
   const [localSettings, setLocalSettings] = useState(settings);
+
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings, visible]);
+
 
   const handleSave = () => {
     onSave(localSettings);
@@ -106,6 +113,22 @@ const SettingsPanel = ({ settings, onSave, visible }) => {
             <StyledText className="text-sm font-medium w-12 text-right text-gray-300">
               {`${Math.round(localSettings.volume * 100)}%`}
             </StyledText>
+          </StyledView>
+        </StyledView>
+        <StyledView className="col-span-2 pt-2">
+          <StyledText className="text-sm font-medium text-gray-300 mb-1">Voice</StyledText>
+          <StyledView className="w-full bg-gray-700 border border-gray-600 rounded-md">
+            <Picker
+              selectedValue={localSettings.voiceIdentifier}
+              onValueChange={(itemValue) => handleValueChange('voiceIdentifier', itemValue)}
+              style={{ color: 'white' }}
+              dropdownIconColor="white"
+            >
+              <Picker.Item label="Default" value={null} />
+              {availableVoices && availableVoices.map((voice) => (
+                <Picker.Item key={voice.identifier} label={`${voice.name} (${voice.language})`} value={voice.identifier} />
+              ))}
+            </Picker>
           </StyledView>
         </StyledView>
       </StyledView>
