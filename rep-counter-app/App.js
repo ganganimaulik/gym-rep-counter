@@ -130,10 +130,11 @@ const App = () => {
     }
   };
 
-  const speak = (text) => {
+  const speak = (text, options) => {
     Speech.speak(text, {
       volume: settings.volume,
       rate: 1.2,
+      ...options,
     });
   };
 
@@ -274,24 +275,37 @@ const App = () => {
   const startCountdown = (callback) => {
     stopAllTimers();
     let count = settings.countdownSeconds;
-    setStatusText(`Get Ready... ${count}`);
-    speak(`Get ready. ${count}`);
+    setStatusText('Get Ready...');
 
-    countdownRef.current = setInterval(() => {
-      count--;
-      if (count > 0) {
-        setStatusText(`Get Ready... ${count}`);
-        speak(count);
-      } else if (count === 0) {
-        setStatusText('Go!');
-        speak('Go!');
-        playBeep(880);
+    const countdownRecursion = (c) => {
+      if (c > 0) {
+        setStatusText(`Get Ready... ${c}`);
+        // Use onDone to chain the speech, ensuring one finishes before the next starts.
+        speak(String(c), {
+          onDone: () => {
+            // A timeout to create a rhythmic pace for the countdown.
+            countdownRef.current = setTimeout(() => countdownRecursion(c - 1), 700);
+          }
+        });
       } else {
-        clearInterval(countdownRef.current);
-        setStatusText('In Progress');
-        callback();
+        setStatusText('Go!');
+        speak('Go!', {
+          onDone: () => {
+            playBeep(880);
+            setStatusText('In Progress');
+            callback();
+          }
+        });
       }
-    }, 1000);
+    };
+
+    // Initial "Get ready", then start the recursive countdown.
+    speak('Get ready.', {
+      onDone: () => {
+        // A brief pause after "Get ready" before starting the numbers.
+        countdownRef.current = setTimeout(() => countdownRecursion(count), 300);
+      }
+    });
   };
 
   const startRepCycle = () => {
