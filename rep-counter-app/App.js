@@ -5,12 +5,12 @@ import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import { useKeepAwake } from 'expo-keep-awake';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
 import { Edit, Settings as SettingsIcon, ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import NumberButton from './components/NumberButton';
 import SettingsPanel from './components/SettingsPanel';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
+import WorkoutPicker from './components/WorkoutPicker';
 import { getDefaultWorkouts } from './utils/defaultWorkouts';
 
 const StyledSafeAreaView = styled(SafeAreaView);
@@ -401,17 +401,11 @@ const App = () => {
                 <StyledText className="text-sm font-semibold text-white">Manage</StyledText>
               </StyledTouchableOpacity>
             </StyledView>
-            <StyledView className="w-full bg-gray-600 border border-gray-500 rounded-md">
-              <Picker
-                selectedValue={currentWorkout?.id}
-                onValueChange={(itemValue) => selectWorkout(itemValue)}
-                style={{ color: 'white' }}
-                dropdownIconColor="white"
-              >
-                <Picker.Item label="Select Workout" value={null} />
-                {workouts.map(w => <Picker.Item key={w.id} label={w.name} value={w.id} />)}
-              </Picker>
-            </StyledView>
+            <WorkoutPicker
+              selectedValue={currentWorkout?.id}
+              onValueChange={(itemValue) => selectWorkout(itemValue)}
+              workouts={workouts}
+            />
             {currentWorkout && (
               <StyledView>
                 <StyledText className="text-sm text-gray-400">Current Exercise:</StyledText>
