@@ -56,22 +56,26 @@ const App = () => {
   const soundRef = useRef();
   const appState = useRef(AppState.currentState);
 
+  const findFemaleVoice = async () => {
+    const voices = await Speech.getAvailableVoicesAsync();
+    // A simple heuristic to find a female voice. This could be improved.
+    const foundVoice = voices.find(v =>
+      v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Serena')
+    );
+    if (foundVoice) {
+      setFemaleVoice(foundVoice.identifier);
+    }
+  };
+
   // --- Effects ---
   useEffect(() => {
-    const findFemaleVoice = async () => {
-      const voices = await Speech.getAvailableVoicesAsync();
-      // A simple heuristic to find a female voice. This could be improved.
-      const foundVoice = voices.find(v =>
-        v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Serena')
-      );
-      if (foundVoice) {
-        setFemaleVoice(foundVoice.identifier);
-      }
+    const initializeApp = async () => {
+      await loadSettings();
+      await loadWorkouts();
+      await findFemaleVoice();
     };
 
-    loadSettings();
-    loadWorkouts();
-    findFemaleVoice();
+    initializeApp();
 
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -158,6 +162,7 @@ const App = () => {
         // Set default workouts if none are saved
         const defaultWorkouts = getDefaultWorkouts();
         setWorkouts(defaultWorkouts);
+        await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
       }
     } catch (e) { console.error("Failed to load workouts.", e); }
   };
