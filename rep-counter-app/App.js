@@ -198,7 +198,7 @@ const App = () => {
     if (!isRunning) return;
     if (isPaused) { // Resuming
       setIsPaused(false);
-      if(currentRep > 0) setCurrentRep(prev => prev - 1);
+      if (currentRep > 0) setCurrentRep(prev => prev - 1);
       startCountdown(startRepCycle);
       setStatusText('In Progress');
       speak('Resuming');
@@ -227,7 +227,9 @@ const App = () => {
     stopAllTimers();
     setIsRunning(false);
 
-    if (currentSet + 1 > settings.maxSets) {
+    const nextSet = currentSet + 1;
+
+    if (nextSet > settings.maxSets) {
       speak('Exercise complete!');
       if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
         nextExercise();
@@ -236,13 +238,13 @@ const App = () => {
         setStatusText('Workout Complete!');
       }
     } else {
-      setCurrentSet(prev => prev + 1);
+      setCurrentSet(nextSet);
       setCurrentRep(0);
-      startRestTimer();
+      startRestTimer(nextSet);
     }
   };
 
-  const startRestTimer = () => {
+  const startRestTimer = (nextSet) => {
     setIsResting(true);
     let restCount = settings.restSeconds;
     setStatusText(`Rest: ${restCount}s`);
@@ -254,8 +256,8 @@ const App = () => {
       if (restCount <= 3 && restCount > 0) playBeep();
       if (restCount <= 0) {
         clearInterval(restRef.current);
-        setStatusText(`Press Start for Set ${currentSet}`);
-        speak(`Rest complete. Press start for set ${currentSet}.`);
+        setStatusText(`Press Start for Set ${nextSet}`);
+        speak(`Rest complete. Press start for set ${nextSet}.`);
         playBeep(880);
       }
     }, 1000);
@@ -294,51 +296,51 @@ const App = () => {
 
   const startRepCycle = () => {
     setCurrentRep(prevRep => {
-        const nextRep = prevRep + 1;
-        if (nextRep > settings.maxReps) {
-            endSet();
-            return prevRep;
-        }
+      const nextRep = prevRep + 1;
+      if (nextRep > settings.maxReps) {
+        endSet();
+        return prevRep;
+      }
 
-        speak(String(nextRep));
-        setPhase('Concentric');
-        let phaseTime = 0;
+      speak(String(nextRep));
+      setPhase('Concentric');
+      let phaseTime = 0;
 
-        clearInterval(intervalRef.current);
+      clearInterval(intervalRef.current);
 
-        const concentricInterval = setInterval(() => {
-            phaseTime += 0.1;
+      const concentricInterval = setInterval(() => {
+        phaseTime += 0.1;
 
-            if (phaseTime >= settings.concentricSeconds) {
-                clearInterval(concentricInterval);
+        if (phaseTime >= settings.concentricSeconds) {
+          clearInterval(concentricInterval);
 
-                setPhase('Eccentric');
-                let eccentricPhaseTime = 0;
-                let lastSpokenSecond = -1;
+          setPhase('Eccentric');
+          let eccentricPhaseTime = 0;
+          let lastSpokenSecond = -1;
 
-                const eccentricInterval = setInterval(() => {
-                    eccentricPhaseTime += 0.1;
+          const eccentricInterval = setInterval(() => {
+            eccentricPhaseTime += 0.1;
 
-                    const currentIntegerSecond = Math.floor(eccentricPhaseTime);
-                    if (settings.eccentricCountdownEnabled && currentIntegerSecond > lastSpokenSecond && eccentricPhaseTime < settings.eccentricSeconds) {
-                        const numberToSpeak = Math.ceil(settings.eccentricSeconds - eccentricPhaseTime);
-                        if (numberToSpeak > 0) {
-                            Speech.stop();
-                            speakEccentric(String(numberToSpeak));
-                        }
-                        lastSpokenSecond = currentIntegerSecond;
-                    }
-
-                    if (eccentricPhaseTime >= settings.eccentricSeconds) {
-                        clearInterval(eccentricInterval);
-                        startRepCycle();
-                    }
-                }, 100);
-                intervalRef.current = eccentricInterval;
+            const currentIntegerSecond = Math.floor(eccentricPhaseTime);
+            if (settings.eccentricCountdownEnabled && currentIntegerSecond > lastSpokenSecond && eccentricPhaseTime < settings.eccentricSeconds) {
+              const numberToSpeak = Math.ceil(settings.eccentricSeconds - eccentricPhaseTime);
+              if (numberToSpeak > 0) {
+                Speech.stop();
+                speakEccentric(String(numberToSpeak));
+              }
+              lastSpokenSecond = currentIntegerSecond;
             }
-        }, 100);
-        intervalRef.current = concentricInterval;
-        return nextRep;
+
+            if (eccentricPhaseTime >= settings.eccentricSeconds) {
+              clearInterval(eccentricInterval);
+              startRepCycle();
+            }
+          }, 100);
+          intervalRef.current = eccentricInterval;
+        }
+      }, 100);
+      intervalRef.current = concentricInterval;
+      return nextRep;
     });
   };
 
@@ -349,7 +351,7 @@ const App = () => {
     setIsPaused(false);
     setIsResting(false);
     setCurrentRep(rep - 1);
-    if(currentSet < 1) setCurrentSet(1);
+    if (currentSet < 1) setCurrentSet(1);
     startCountdown(startRepCycle);
   };
 
@@ -405,7 +407,7 @@ const App = () => {
             <StyledView className="flex-row justify-between items-center mb-2">
               <StyledText className="text-lg font-semibold text-white">Current Workout</StyledText>
               <StyledTouchableOpacity onPress={() => setModalVisible(true)} className="flex-row items-center space-x-2 rounded-lg bg-gray-600 px-3 py-2">
-                 <Edit color="#d1d5db" size={16}/>
+                <Edit color="#d1d5db" size={16} />
                 <StyledText className="text-sm font-semibold text-white">Manage</StyledText>
               </StyledTouchableOpacity>
             </StyledView>
@@ -418,9 +420,14 @@ const App = () => {
               <StyledView>
                 <StyledText className="text-sm text-gray-400">Current Exercise:</StyledText>
                 <StyledText className="text-lg font-medium text-white">{currentWorkout.exercises[currentExerciseIndex]?.name}</StyledText>
-                <StyledText className="text-sm text-gray-400 mt-1">
-                  Exercise {currentExerciseIndex + 1} of {currentWorkout.exercises.length}
-                </StyledText>
+                <StyledView className="flex-row justify-between items-center mt-1">
+                  <StyledText className="text-sm text-gray-400">
+                    Exercise {currentExerciseIndex + 1} of {currentWorkout.exercises.length}
+                  </StyledText>
+                  <StyledText className="text-sm font-semibold text-gray-200">
+                    Sets: {settings.maxSets}
+                  </StyledText>
+                </StyledView>
               </StyledView>
             )}
           </StyledView>
@@ -483,8 +490,8 @@ const App = () => {
             })()}
           </StyledView>
 
-           {/* Exercise Navigation */}
-           {currentWorkout && (
+          {/* Exercise Navigation */}
+          {currentWorkout && (
             <StyledView className="flex-row justify-between gap-4">
               <StyledTouchableOpacity onPress={prevExercise} disabled={currentExerciseIndex === 0} className="py-2 px-4 bg-gray-600 rounded-lg flex-1 items-center">
                 <ChevronLeft color={currentExerciseIndex === 0 ? "#4b5563" : "white"} />
@@ -493,7 +500,7 @@ const App = () => {
                 <ChevronRight color={currentExerciseIndex >= currentWorkout.exercises.length - 1 ? "#4b5563" : "white"} />
               </StyledTouchableOpacity>
             </StyledView>
-           )}
+          )}
 
           {/* Number Jump Buttons */}
           <StyledView>
@@ -506,8 +513,8 @@ const App = () => {
           {/* Settings */}
           <StyledView className="items-center">
             <StyledTouchableOpacity onPress={() => setSettingsVisible(!settingsVisible)} className="flex-row items-center space-x-2">
-                <SettingsIcon color="#60a5fa" size={16} />
-                <StyledText className="text-blue-400">Settings</StyledText>
+              <SettingsIcon color="#60a5fa" size={16} />
+              <StyledText className="text-blue-400">Settings</StyledText>
             </StyledTouchableOpacity>
           </StyledView>
           <SettingsPanel
