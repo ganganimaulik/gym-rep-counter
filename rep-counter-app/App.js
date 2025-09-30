@@ -5,12 +5,12 @@ import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import { useKeepAwake } from 'expo-keep-awake';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
 import { Edit, Settings as SettingsIcon, ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import NumberButton from './components/NumberButton';
 import SettingsPanel from './components/SettingsPanel';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
+import WorkoutPicker from './components/WorkoutPicker';
 import { getDefaultWorkouts } from './utils/defaultWorkouts';
 
 const StyledSafeAreaView = styled(SafeAreaView);
@@ -401,17 +401,11 @@ const App = () => {
                 <StyledText className="text-sm font-semibold text-white">Manage</StyledText>
               </StyledTouchableOpacity>
             </StyledView>
-            <StyledView className="w-full bg-gray-600 border border-gray-500 rounded-md">
-              <Picker
-                selectedValue={currentWorkout?.id}
-                onValueChange={(itemValue) => selectWorkout(itemValue)}
-                style={{ color: 'white' }}
-                dropdownIconColor="white"
-              >
-                <Picker.Item label="Select a workout..." value={null} />
-                {workouts.map(w => <Picker.Item key={w.id} label={w.name} value={w.id} />)}
-              </Picker>
-            </StyledView>
+            <WorkoutPicker
+              selectedValue={currentWorkout?.id}
+              onValueChange={(itemValue) => selectWorkout(itemValue)}
+              workouts={workouts}
+            />
             {currentWorkout && (
               <StyledView>
                 <StyledText className="text-sm text-gray-400">Current Exercise:</StyledText>
@@ -440,41 +434,41 @@ const App = () => {
           </StyledView>
 
           {/* Main Controls */}
-          <StyledView className="grid grid-cols-3 gap-4">
+          <StyledView className="flex-row gap-4">
             {(() => {
               if (!isRunning) {
                 return [
                   <StyledTouchableOpacity
                     key="start"
                     onPress={isResting ? runNextSet : startWorkout}
-                    className="py-3 px-4 bg-green-600 rounded-lg col-span-2 items-center"
+                    className="py-3 px-4 bg-green-600 rounded-lg flex-1 items-center"
                   >
                     <StyledText className="text-lg font-semibold text-white">Start</StyledText>
                   </StyledTouchableOpacity>,
-                  <StyledTouchableOpacity key="stop" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg items-center">
+                  <StyledTouchableOpacity key="stop" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
                     <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
                   </StyledTouchableOpacity>
                 ];
               }
               if (isPaused) {
                 return [
-                  <StyledTouchableOpacity key="resume" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg col-span-2 items-center">
+                  <StyledTouchableOpacity key="resume" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center">
                     <StyledText className="text-lg font-semibold text-white">Resume</StyledText>
                   </StyledTouchableOpacity>,
-                  <StyledTouchableOpacity key="stop-paused" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg items-center">
+                  <StyledTouchableOpacity key="stop-paused" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
                     <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
                   </StyledTouchableOpacity>
                 ];
               }
               // isRunning && !isPaused
               return [
-                <StyledTouchableOpacity key="pause" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg items-center">
+                <StyledTouchableOpacity key="pause" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center">
                   <StyledText className="text-lg font-semibold text-white">Pause</StyledText>
                 </StyledTouchableOpacity>,
-                <StyledTouchableOpacity key="end-set" onPress={endSet} className="py-3 px-4 bg-blue-600 rounded-lg items-center">
+                <StyledTouchableOpacity key="end-set" onPress={endSet} className="py-3 px-4 bg-blue-600 rounded-lg flex-1 items-center">
                   <StyledText className="text-lg font-semibold text-white">End Set</StyledText>
                 </StyledTouchableOpacity>,
-                <StyledTouchableOpacity key="stop-running" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg items-center">
+                <StyledTouchableOpacity key="stop-running" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
                   <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
                 </StyledTouchableOpacity>
               ];
