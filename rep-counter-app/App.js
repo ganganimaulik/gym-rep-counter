@@ -29,7 +29,7 @@ import {
   signInWithCredential,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { WEB_CLIENT_ID } from '@env';
+import { WEB_CLIENT_ID, IOS_CLIENT_ID } from '@env';
 import { auth, db } from './utils/firebase';
 
 import NumberButton from './components/NumberButton';
@@ -37,6 +37,7 @@ import SettingsPanel from './components/SettingsPanel';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
 import WorkoutPicker from './components/WorkoutPicker';
 import { getDefaultWorkouts } from './utils/defaultWorkouts';
+import { IOS } from 'nativewind/dist/utils/selector';
 
 const StyledSafeAreaView = styled(SafeAreaView);
 const StyledView = styled(View);
@@ -101,6 +102,7 @@ const App = () => {
     const initializeApp = async () => {
       GoogleSignin.configure({
         webClientId: WEB_CLIENT_ID,
+        iosClientId: IOS_CLIENT_ID,
       });
 
       const subscriber = onAuthStateChanged(auth, onAuthStateChange);
@@ -516,8 +518,7 @@ const App = () => {
       stopWorkout();
       setCurrentExerciseIndex(prev => prev + 1);
       speak(
-        `Next exercise: ${
-          currentWorkout.exercises[currentExerciseIndex + 1].name
+        `Next exercise: ${currentWorkout.exercises[currentExerciseIndex + 1].name
         }`,
       );
     }
@@ -528,8 +529,7 @@ const App = () => {
       stopWorkout();
       setCurrentExerciseIndex(prev => prev - 1);
       speak(
-        `Previous exercise: ${
-          currentWorkout.exercises[currentExerciseIndex - 1].name
+        `Previous exercise: ${currentWorkout.exercises[currentExerciseIndex - 1].name
         }`,
       );
     }
