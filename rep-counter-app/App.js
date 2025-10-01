@@ -22,6 +22,14 @@ import {
   ChevronRight,
   LogOut,
 } from 'lucide-react-native';
+import {
+  enableBackgroundExecution,
+  disableBackgroundExecution,
+  bgSetTimeout,
+  bgSetInterval,
+  bgClearTimeout,
+  bgClearInterval,
+} from 'expo-background-timer';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import {
   onAuthStateChanged,
@@ -133,9 +141,16 @@ const App = () => {
       appState.current = nextAppState;
     });
 
+    enableBackgroundExecution().then(() =>
+      console.log('Background execution enabled.'),
+    );
+
     return () => {
       subscription.remove();
       unloadSound();
+      disableBackgroundExecution().then(() =>
+        console.log('Background execution disabled.'),
+      );
     };
   }, []);
 
@@ -312,9 +327,9 @@ const App = () => {
 
   // --- Core Logic ---
   const stopAllTimers = () => {
-    clearInterval(intervalRef.current);
-    clearInterval(countdownRef.current);
-    clearInterval(restRef.current);
+    bgClearInterval(intervalRef.current);
+    bgClearTimeout(countdownRef.current);
+    bgClearInterval(restRef.current);
   };
 
   const startWorkout = () => {
@@ -387,12 +402,12 @@ const App = () => {
     setStatusText(`Rest: ${restCount}s`);
     speak(`Set complete. Rest for ${restCount} seconds.`);
 
-    restRef.current = setInterval(() => {
+    restRef.current = bgSetInterval(() => {
       restCount--;
       setStatusText(`Rest: ${restCount}s`);
       if (restCount <= 3 && restCount > 0) playBeep();
       if (restCount <= 0) {
-        clearInterval(restRef.current);
+        bgClearInterval(restRef.current);
         setStatusText(`Press Start for Set ${nextSet}`);
         speak(`Rest complete. Press start for set ${nextSet}.`);
         playBeep(880);
@@ -418,7 +433,7 @@ const App = () => {
         setStatusText(`Get Ready... ${c}`);
         speak(String(c), {
           onDone: () => {
-            countdownRef.current = setTimeout(
+            countdownRef.current = bgSetTimeout(
               () => countdownRecursion(c - 1),
               700,
             );
@@ -438,7 +453,10 @@ const App = () => {
 
     speak('Get ready.', {
       onDone: () => {
-        countdownRef.current = setTimeout(() => countdownRecursion(count), 300);
+        countdownRef.current = bgSetTimeout(
+          () => countdownRecursion(count),
+          300,
+        );
       },
     });
   };
@@ -455,19 +473,19 @@ const App = () => {
       setPhase('Concentric');
       let phaseTime = 0;
 
-      clearInterval(intervalRef.current);
+      bgClearInterval(intervalRef.current);
 
-      const concentricInterval = setInterval(() => {
+      const concentricInterval = bgSetInterval(() => {
         phaseTime += 0.1;
 
         if (phaseTime >= settings.concentricSeconds) {
-          clearInterval(concentricInterval);
+          bgClearInterval(concentricInterval);
 
           setPhase('Eccentric');
           let eccentricPhaseTime = 0;
           let lastSpokenSecond = -1;
 
-          const eccentricInterval = setInterval(() => {
+          const eccentricInterval = bgSetInterval(() => {
             eccentricPhaseTime += 0.1;
 
             const currentIntegerSecond = Math.floor(eccentricPhaseTime);
@@ -487,7 +505,7 @@ const App = () => {
             }
 
             if (eccentricPhaseTime >= settings.eccentricSeconds) {
-              clearInterval(eccentricInterval);
+              bgClearInterval(eccentricInterval);
               startRepCycle();
             }
           }, 100);
