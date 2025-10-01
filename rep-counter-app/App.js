@@ -22,6 +22,14 @@ import {
   ChevronRight,
   LogOut,
 } from 'lucide-react-native';
+import {
+  enableBackgroundExecution,
+  disableBackgroundExecution,
+  bgSetTimeout,
+  bgSetInterval,
+  bgClearTimeout,
+  bgClearInterval,
+} from 'expo-background-timer';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import {
   onAuthStateChanged,
@@ -32,7 +40,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from './utils/firebase';
 
 import NumberButton from './components/NumberButton';
-import SettingsPanel from './components/SettingsPanel';
+import SettingsModal from './components/SettingsModal';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
 import WorkoutPicker from './components/WorkoutPicker';
 import { getDefaultWorkouts } from './utils/defaultWorkouts';
@@ -133,9 +141,16 @@ const App = () => {
       appState.current = nextAppState;
     });
 
+    enableBackgroundExecution().then(() =>
+      console.log('Background execution enabled.'),
+    );
+
     return () => {
       subscription.remove();
       unloadSound();
+      disableBackgroundExecution().then(() =>
+        console.log('Background execution disabled.'),
+      );
     };
   }, []);
 
@@ -168,10 +183,19 @@ const App = () => {
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const { idToken } = await GoogleSignin.signIn();
+      if (!idToken) {
+        return; // User cancelled the sign-in
+      }
       const googleCredential = GoogleAuthProvider.credential(idToken);
-      return signInWithCredential(auth, googleCredential);
+      // Wait for the sign-in process to complete
+      await signInWithCredential(auth, googleCredential);
     } catch (error) {
-      console.error(error);
+      // Error codes for user cancellation
+      if (error.code === '12501' || error.code === '-5') {
+        console.log('User cancelled the Google Sign-In flow.');
+      } else {
+        console.error('Google Sign-In error:', error);
+      }
     }
   };
 
@@ -231,7 +255,6 @@ const App = () => {
         JSON.stringify(newSettings),
       );
       setSettings(newSettings);
-      setSettingsVisible(false);
 
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
@@ -304,9 +327,9 @@ const App = () => {
 
   // --- Core Logic ---
   const stopAllTimers = () => {
-    clearInterval(intervalRef.current);
-    clearInterval(countdownRef.current);
-    clearInterval(restRef.current);
+    bgClearInterval(intervalRef.current);
+    bgClearTimeout(countdownRef.current);
+    bgClearInterval(restRef.current);
   };
 
   const startWorkout = () => {
@@ -379,12 +402,12 @@ const App = () => {
     setStatusText(`Rest: ${restCount}s`);
     speak(`Set complete. Rest for ${restCount} seconds.`);
 
-    restRef.current = setInterval(() => {
+    restRef.current = bgSetInterval(() => {
       restCount--;
       setStatusText(`Rest: ${restCount}s`);
       if (restCount <= 3 && restCount > 0) playBeep();
       if (restCount <= 0) {
-        clearInterval(restRef.current);
+        bgClearInterval(restRef.current);
         setStatusText(`Press Start for Set ${nextSet}`);
         speak(`Rest complete. Press start for set ${nextSet}.`);
         playBeep(880);
@@ -410,7 +433,7 @@ const App = () => {
         setStatusText(`Get Ready... ${c}`);
         speak(String(c), {
           onDone: () => {
-            countdownRef.current = setTimeout(
+            countdownRef.current = bgSetTimeout(
               () => countdownRecursion(c - 1),
               700,
             );
@@ -430,7 +453,10 @@ const App = () => {
 
     speak('Get ready.', {
       onDone: () => {
-        countdownRef.current = setTimeout(() => countdownRecursion(count), 300);
+        countdownRef.current = bgSetTimeout(
+          () => countdownRecursion(count),
+          300,
+        );
       },
     });
   };
@@ -447,19 +473,19 @@ const App = () => {
       setPhase('Concentric');
       let phaseTime = 0;
 
-      clearInterval(intervalRef.current);
+      bgClearInterval(intervalRef.current);
 
-      const concentricInterval = setInterval(() => {
+      const concentricInterval = bgSetInterval(() => {
         phaseTime += 0.1;
 
         if (phaseTime >= settings.concentricSeconds) {
-          clearInterval(concentricInterval);
+          bgClearInterval(concentricInterval);
 
           setPhase('Eccentric');
           let eccentricPhaseTime = 0;
           let lastSpokenSecond = -1;
 
-          const eccentricInterval = setInterval(() => {
+          const eccentricInterval = bgSetInterval(() => {
             eccentricPhaseTime += 0.1;
 
             const currentIntegerSecond = Math.floor(eccentricPhaseTime);
@@ -479,7 +505,7 @@ const App = () => {
             }
 
             if (eccentricPhaseTime >= settings.eccentricSeconds) {
-              clearInterval(eccentricInterval);
+              bgClearInterval(eccentricInterval);
               startRepCycle();
             }
           }, 100);
@@ -791,14 +817,7 @@ const App = () => {
               <StyledText className="text-blue-400">Settings</StyledText>
             </StyledTouchableOpacity>
           </StyledView>
-          <SettingsPanel
-            visible={settingsVisible}
-            settings={settings}
-            onSave={saveSettings}
-            onGoogleButtonPress={onGoogleButtonPress}
-            user={user}
-            disconnectAccount={disconnectAccount}
-          />
+          {/* This space is intentionally left blank */}
         </StyledView>
       </StyledScrollView>
 
@@ -807,6 +826,15 @@ const App = () => {
         onClose={() => setModalVisible(false)}
         workouts={workouts}
         setWorkouts={saveWorkouts}
+      />
+      <SettingsModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        settings={settings}
+        onSave={saveSettings}
+        onGoogleButtonPress={onGoogleButtonPress}
+        user={user}
+        disconnectAccount={disconnectAccount}
       />
     </StyledSafeAreaView>
   );
