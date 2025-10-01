@@ -141,16 +141,14 @@ const App = () => {
       appState.current = nextAppState;
     });
 
-    enableBackgroundExecution().then(() =>
-      console.log('Background execution enabled.'),
-    );
+    enableBackgroundExecution();
+    console.log('Background execution enabled.');
 
     return () => {
       subscription.remove();
       unloadSound();
-      disableBackgroundExecution().then(() =>
-        console.log('Background execution disabled.'),
-      );
+      disableBackgroundExecution();
+      console.log('Background execution disabled.');
     };
   }, []);
 
