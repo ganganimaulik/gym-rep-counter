@@ -32,7 +32,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from './utils/firebase';
 
 import NumberButton from './components/NumberButton';
-import SettingsPanel from './components/SettingsPanel';
+import SettingsModal from './components/SettingsModal';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
 import WorkoutPicker from './components/WorkoutPicker';
 import { getDefaultWorkouts } from './utils/defaultWorkouts';
@@ -231,7 +231,6 @@ const App = () => {
         JSON.stringify(newSettings),
       );
       setSettings(newSettings);
-      setSettingsVisible(false);
 
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
@@ -791,14 +790,7 @@ const App = () => {
               <StyledText className="text-blue-400">Settings</StyledText>
             </StyledTouchableOpacity>
           </StyledView>
-          <SettingsPanel
-            visible={settingsVisible}
-            settings={settings}
-            onSave={saveSettings}
-            onGoogleButtonPress={onGoogleButtonPress}
-            user={user}
-            disconnectAccount={disconnectAccount}
-          />
+          {/* This space is intentionally left blank */}
         </StyledView>
       </StyledScrollView>
 
@@ -807,6 +799,15 @@ const App = () => {
         onClose={() => setModalVisible(false)}
         workouts={workouts}
         setWorkouts={saveWorkouts}
+      />
+      <SettingsModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        settings={settings}
+        onSave={saveSettings}
+        onGoogleButtonPress={onGoogleButtonPress}
+        user={user}
+        disconnectAccount={disconnectAccount}
       />
     </StyledSafeAreaView>
   );
