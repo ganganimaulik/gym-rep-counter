@@ -168,10 +168,19 @@ const App = () => {
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const { idToken } = await GoogleSignin.signIn();
+      if (!idToken) {
+        return; // User cancelled the sign-in
+      }
       const googleCredential = GoogleAuthProvider.credential(idToken);
-      return signInWithCredential(auth, googleCredential);
+      // Wait for the sign-in process to complete
+      await signInWithCredential(auth, googleCredential);
     } catch (error) {
-      console.error(error);
+      // Error codes for user cancellation
+      if (error.code === '12501' || error.code === '-5') {
+        console.log('User cancelled the Google Sign-In flow.');
+      } else {
+        console.error('Google Sign-In error:', error);
+      }
     }
   };
 
