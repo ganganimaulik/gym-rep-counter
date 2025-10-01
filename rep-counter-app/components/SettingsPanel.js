@@ -16,6 +16,7 @@ const SettingsPanel = ({
   visible,
   onGoogleButtonPress,
   user,
+  disconnectAccount,
 }) => {
   const [localSettings, setLocalSettings] = useState(settings);
 
@@ -143,13 +144,22 @@ const SettingsPanel = ({
         </StyledView>
       </StyledView>
       <StyledView className="text-center items-center">
-        {!user && (
+        {!user ? (
           <GoogleSigninButton
             style={{ width: 192, height: 48 }}
             size={GoogleSigninButton.Size.Wide}
             color={GoogleSigninButton.Color.Dark}
             onPress={onGoogleButtonPress}
           />
+        ) : (
+          <StyledTouchableOpacity
+            onPress={disconnectAccount}
+            className="py-2 px-6 bg-red-600 rounded-lg"
+          >
+            <StyledText className="font-semibold text-white">
+              Disconnect Account
+            </StyledText>
+          </StyledTouchableOpacity>
         )}
         <StyledTouchableOpacity
           onPress={handleSave}

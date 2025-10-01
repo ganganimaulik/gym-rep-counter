@@ -175,7 +175,7 @@ const App = () => {
     }
   };
 
-  const signOut = async () => {
+  const disconnectAccount = async () => {
     try {
       await GoogleSignin.signOut();
       await auth.signOut();
@@ -583,7 +583,7 @@ const App = () => {
                 </StyledView>
               </StyledView>
               <StyledTouchableOpacity
-                onPress={signOut}
+                onPress={disconnectAccount}
                 className="p-2 bg-red-600 rounded-lg"
               >
                 <LogOut color="white" size={20} />
@@ -797,6 +797,7 @@ const App = () => {
             onSave={saveSettings}
             onGoogleButtonPress={onGoogleButtonPress}
             user={user}
+            disconnectAccount={disconnectAccount}
           />
         </StyledView>
       </StyledScrollView>
