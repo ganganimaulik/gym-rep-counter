@@ -18,7 +18,14 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
-          "processing"
+"processing"
+        ],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.139720525210-vp5bo557d5l164k5f7j6fq2o5ug104r0"
+            ]
+          }
         ]
       }
     },
