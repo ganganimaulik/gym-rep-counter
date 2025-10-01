@@ -29,7 +29,6 @@ import {
   signInWithCredential,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { WEB_CLIENT_ID, IOS_CLIENT_ID } from '@env';
 import { auth, db } from './utils/firebase';
 
 import NumberButton from './components/NumberButton';
@@ -101,8 +100,8 @@ const App = () => {
   useEffect(() => {
     const initializeApp = async () => {
       GoogleSignin.configure({
-        webClientId: WEB_CLIENT_ID,
-        iosClientId: IOS_CLIENT_ID,
+        webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
+        iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
       });
 
       const subscriber = onAuthStateChanged(auth, onAuthStateChange);
