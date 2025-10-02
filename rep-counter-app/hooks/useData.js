@@ -15,7 +15,7 @@ const defaultSettings = {
   volume: 1.0,
 };
 
-export const useData = (user) => {
+export const useData = () => {
   const [settings, setSettings] = useState(defaultSettings);
   const [workouts, setWorkouts] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -32,7 +32,7 @@ export const useData = (user) => {
     }
   }, []);
 
-  const saveSettings = useCallback(async (newSettings) => {
+  const saveSettings = useCallback(async (newSettings, user) => {
     try {
       setSettings(newSettings);
       await AsyncStorage.setItem('repCounterSettings', JSON.stringify(newSettings));
@@ -43,7 +43,7 @@ export const useData = (user) => {
     } catch (e) {
       console.error('Failed to save settings.', e);
     }
-  }, [user]);
+  }, []);
 
   const loadWorkouts = useCallback(async () => {
     try {
@@ -63,14 +63,14 @@ export const useData = (user) => {
     }
   }, []);
 
-  const saveWorkouts = useCallback(async (newWorkouts) => {
+  const saveWorkouts = useCallback(async (newWorkouts, user) => {
     setWorkouts(newWorkouts);
     await AsyncStorage.setItem('workouts', JSON.stringify(newWorkouts));
     if (user) {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, { workouts: newWorkouts }, { merge: true });
     }
-  }, [user]);
+  }, []);
 
   const syncUserData = useCallback(async (firebaseUser) => {
     if (!firebaseUser) {
@@ -87,10 +87,10 @@ export const useData = (user) => {
       const userData = userDoc.data();
       // Merge remote data with local, remote taking precedence
       if (userData.settings) {
-        await saveSettings(userData.settings);
+        await saveSettings(userData.settings, firebaseUser);
       }
       if (userData.workouts) {
-        await saveWorkouts(userData.workouts);
+        await saveWorkouts(userData.workouts, firebaseUser);
       }
     } else {
       // New user, push local data to remote

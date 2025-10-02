@@ -54,7 +54,7 @@ const App = () => {
     saveWorkouts,
     dataLoaded,
     syncUserData,
-  } = useData(auth.currentUser);
+  } = useData();
 
   const { user, initializing, onGoogleButtonPress, disconnectAccount } =
     useAuth(syncUserData);
@@ -102,9 +102,9 @@ const App = () => {
         ...settings,
         maxReps: exercise.reps,
         maxSets: exercise.sets,
-      });
+      }, user);
     }
-  }, [currentWorkout, currentExerciseIndex]);
+  }, [currentWorkout, currentExerciseIndex, user]);
 
   // --- Event Handlers ---
   const handleSelectWorkout = (workoutId) => {
@@ -140,6 +140,14 @@ const App = () => {
       );
     }
   };
+
+  const handleSaveSettings = (newSettings) => {
+    saveSettings(newSettings, user);
+  };
+
+  const handleSaveWorkouts = (newWorkouts) => {
+    saveWorkouts(newWorkouts, user);
+  }
 
   if (initializing || !dataLoaded) {
     return (
@@ -202,13 +210,13 @@ const App = () => {
         visible={workoutModalVisible}
         onClose={() => setWorkoutModalVisible(false)}
         workouts={workouts}
-        setWorkouts={saveWorkouts}
+        setWorkouts={handleSaveWorkouts}
       />
       <SettingsModal
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
         settings={settings}
-        onSave={saveSettings}
+        onSave={handleSaveSettings}
         onGoogleButtonPress={onGoogleButtonPress}
         user={user}
         disconnectAccount={disconnectAccount}
