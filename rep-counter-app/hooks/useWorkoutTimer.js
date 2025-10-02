@@ -23,19 +23,18 @@ export const useWorkoutTimer = (
   const countdownRef = useRef(null);
   const restRef = useRef(null);
 
+  const onSetCompleteRef = useRef(onSetComplete);
+  useEffect(() => {
+    onSetCompleteRef.current = onSetComplete;
+  }, [onSetComplete]);
+
   const stopAllTimers = useCallback(() => {
-    if (intervalRef.current) {
-      bgClearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    if (countdownRef.current) {
-      bgClearTimeout(countdownRef.current);
-      countdownRef.current = null;
-    }
-    if (restRef.current) {
-      bgClearInterval(restRef.current);
-      restRef.current = null;
-    }
+    if (intervalRef.current) bgClearInterval(intervalRef.current);
+    if (countdownRef.current) bgClearTimeout(countdownRef.current);
+    if (restRef.current) bgClearInterval(restRef.current);
+    intervalRef.current = null;
+    countdownRef.current = null;
+    restRef.current = null;
     stopSpeech();
   }, [stopSpeech]);
 
@@ -43,11 +42,47 @@ export const useWorkoutTimer = (
     return () => stopAllTimers();
   }, [stopAllTimers]);
 
+  const endSet = useCallback(() => {
+    stopAllTimers();
+    setIsRunning(false);
+    setCurrentSet(prevSet => {
+      const nextSet = prevSet + 1;
+      if (nextSet > settings.maxSets) {
+        speak('Exercise complete!');
+        if (onSetCompleteRef.current) {
+          onSetCompleteRef.current(true); // isWorkoutComplete
+        }
+        return prevSet;
+      } else {
+        setCurrentRep(0);
+        setIsResting(true);
+        let restCount = settings.restSeconds;
+        setStatusText(`Rest: ${restCount}s`);
+        speak(`Set complete. Rest for ${restCount} seconds.`);
+        restRef.current = bgSetInterval(() => {
+          restCount--;
+          setStatusText(`Rest: ${restCount}s`);
+          if (restCount <= 3 && restCount > 0) playBeep();
+          if (restCount <= 0) {
+            if (restRef.current) bgClearInterval(restRef.current);
+            setStatusText(`Press Start for Set ${nextSet}`);
+            speak(`Rest complete. Press start for set ${nextSet}.`);
+            playBeep(880);
+          }
+        }, 1000);
+        if (onSetCompleteRef.current) {
+          onSetCompleteRef.current(false); // set complete, not workout
+        }
+        return nextSet;
+      }
+    });
+  }, [stopAllTimers, settings.maxSets, settings.restSeconds, speak, playBeep]);
+
   const startRepCycle = useCallback(() => {
-    setCurrentRep((prevRep) => {
+    setCurrentRep(prevRep => {
       const nextRep = prevRep + 1;
       if (nextRep > settings.maxReps) {
-        // This will be handled by the endSet logic
+        endSet();
         return prevRep;
       }
 
@@ -73,7 +108,7 @@ export const useWorkoutTimer = (
               eccentricPhaseTime < settings.eccentricSeconds
             ) {
               const numberToSpeak = Math.ceil(
-                settings.eccentricSeconds - eccentricPhaseTime
+                settings.eccentricSeconds - eccentricPhaseTime,
               );
               if (numberToSpeak > 0) {
                 speakEccentric(String(numberToSpeak));
@@ -83,11 +118,7 @@ export const useWorkoutTimer = (
 
             if (eccentricPhaseTime >= settings.eccentricSeconds) {
               bgClearInterval(eccentricInterval);
-              if (currentRep + 1 < settings.maxReps) {
-                startRepCycle();
-              } else {
-                endSet();
-              }
+              startRepCycle(); // Simple recursive call
             }
           }, 100);
           intervalRef.current = eccentricInterval;
@@ -96,10 +127,9 @@ export const useWorkoutTimer = (
       intervalRef.current = concentricInterval;
       return nextRep;
     });
-  }, [settings, speak, speakEccentric, currentRep]);
+  }, [settings, speak, speakEccentric, endSet]);
 
-  const startCountdown = useCallback(
-    (callback) => {
+  const startCountdown = useCallback((callback) => {
       stopAllTimers();
       let count = settings.countdownSeconds;
       setStatusText('Get Ready...');
@@ -129,52 +159,7 @@ export const useWorkoutTimer = (
           countdownRef.current = bgSetTimeout(() => countdownRecursion(count), 300);
         },
       });
-    },
-    [settings.countdownSeconds, stopAllTimers, speak, playBeep]
-  );
-
-  const startRestTimer = useCallback(
-    (nextSet) => {
-      setIsResting(true);
-      let restCount = settings.restSeconds;
-      setStatusText(`Rest: ${restCount}s`);
-      speak(`Set complete. Rest for ${restCount} seconds.`);
-
-      restRef.current = bgSetInterval(() => {
-        restCount--;
-        setStatusText(`Rest: ${restCount}s`);
-        if (restCount <= 3 && restCount > 0) playBeep();
-        if (restCount <= 0) {
-          if (restRef.current) bgClearInterval(restRef.current);
-          setStatusText(`Press Start for Set ${nextSet}`);
-          speak(`Rest complete. Press start for set ${nextSet}.`);
-          playBeep(880);
-        }
-      }, 1000);
-    },
-    [settings.restSeconds, speak, playBeep]
-  );
-
-  const endSet = useCallback(() => {
-    if (!isRunning) return;
-    stopAllTimers();
-    setIsRunning(false);
-
-    const nextSet = currentSet + 1;
-    if (nextSet > settings.maxSets) {
-      speak('Exercise complete!');
-      if (onSetComplete) {
-        onSetComplete(true); // Workout complete
-      }
-    } else {
-      setCurrentSet(nextSet);
-      setCurrentRep(0);
-      startRestTimer(nextSet);
-      if (onSetComplete) {
-        onSetComplete(false); // Set complete, but not workout
-      }
-    }
-  }, [isRunning, stopAllTimers, currentSet, settings.maxSets, speak, startRestTimer, onSetComplete]);
+    }, [settings.countdownSeconds, stopAllTimers, speak, playBeep]);
 
   const startWorkout = useCallback(() => {
     if (isRunning) return;
@@ -191,13 +176,12 @@ export const useWorkoutTimer = (
     if (!isRunning) return;
     if (isPaused) {
       setIsPaused(false);
-      // Resume logic
-      startCountdown(() => {
-        setCurrentRep(prev => prev - 1); // Re-do the current rep
-        startRepCycle();
-      });
       setStatusText('In Progress');
       speak('Resuming');
+      startCountdown(() => {
+        setCurrentRep(prev => (prev > 0 ? prev - 1 : 0));
+        startRepCycle();
+      });
     } else {
       setIsPaused(true);
       stopAllTimers();
@@ -231,11 +215,10 @@ export const useWorkoutTimer = (
     setIsPaused(false);
     setIsResting(false);
     setCurrentRep(rep - 1);
-    if (currentSet < 1) setCurrentSet(1);
+    setCurrentSet(prev => (prev < 1 ? 1 : prev));
     startCountdown(startRepCycle);
-  }, [stopAllTimers, currentSet, startCountdown, startRepCycle]);
+  }, [stopAllTimers, startCountdown, startRepCycle]);
 
-  // Reset timer state when settings change (e.g., new exercise selected)
   useEffect(() => {
     stopWorkout();
   }, [settings, stopWorkout]);
