@@ -546,7 +546,8 @@ const App = () => {
     setIsResting(false);
     setCurrentRep(rep - 1);
     if (currentSet < 1) setCurrentSet(1);
-    startCountdown(startRepCycle);
+    setStatusText('In Progress');
+    startRepCycle();
   };
 
   const selectWorkout = workoutId => {
