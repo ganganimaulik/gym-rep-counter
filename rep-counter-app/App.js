@@ -180,11 +180,12 @@ const App = () => {
   const onGoogleButtonPress = async () => {
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const { idToken } = await GoogleSignin.signIn();
-      if (!idToken) {
+      const { data } = await GoogleSignin.signIn();
+
+      if (!data.idToken) {
         return; // User cancelled the sign-in
       }
-      const googleCredential = GoogleAuthProvider.credential(idToken);
+      const googleCredential = GoogleAuthProvider.credential(data.idToken);
       // Wait for the sign-in process to complete
       await signInWithCredential(auth, googleCredential);
     } catch (error) {
