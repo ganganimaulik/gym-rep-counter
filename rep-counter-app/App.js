@@ -1,18 +1,50 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useRef } from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, ScrollView, StatusBar, AppState } from 'react-native';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  AppState,
+  Image,
+} from 'react-native';
 import { styled } from 'nativewind';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import { useKeepAwake } from 'expo-keep-awake';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Edit, Settings as SettingsIcon, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import {
+  Edit,
+  Settings as SettingsIcon,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+} from 'lucide-react-native';
+import {
+  enableBackgroundExecution,
+  disableBackgroundExecution,
+  bgSetTimeout,
+  bgSetInterval,
+  bgClearTimeout,
+  bgClearInterval,
+} from 'expo-background-timer';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import {
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithCredential,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from './utils/firebase';
 
 import NumberButton from './components/NumberButton';
-import SettingsPanel from './components/SettingsPanel';
+import SettingsModal from './components/SettingsModal';
 import WorkoutManagementModal from './components/WorkoutManagementModal';
 import WorkoutPicker from './components/WorkoutPicker';
 import { getDefaultWorkouts } from './utils/defaultWorkouts';
+import { IOS } from 'nativewind/dist/utils/selector';
 
 const StyledSafeAreaView = styled(SafeAreaView);
 const StyledView = styled(View);
@@ -33,6 +65,8 @@ const App = () => {
   const [statusText, setStatusText] = useState('Press Start');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
   const [settings, setSettings] = useState({
     countdownSeconds: 5,
@@ -59,9 +93,11 @@ const App = () => {
 
   const findFemaleVoice = async () => {
     const voices = await Speech.getAvailableVoicesAsync();
-    // A simple heuristic to find a female voice. This could be improved.
-    const foundVoice = voices.find(v =>
-      v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Serena')
+    const foundVoice = voices.find(
+      v =>
+        v.name.includes('Female') ||
+        v.name.includes('Samantha') ||
+        v.name.includes('Serena'),
     );
     if (foundVoice) {
       setFemaleVoice(foundVoice.identifier);
@@ -71,6 +107,13 @@ const App = () => {
   // --- Effects ---
   useEffect(() => {
     const initializeApp = async () => {
+      GoogleSignin.configure({
+        webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
+        iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
+      });
+
+      const subscriber = onAuthStateChanged(auth, onAuthStateChange);
+
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
@@ -82,20 +125,30 @@ const App = () => {
       await loadSettings();
       await loadWorkouts();
       await findFemaleVoice();
+
+      return subscriber;
     };
 
     initializeApp();
 
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
         // App has come to the foreground
       }
       appState.current = nextAppState;
     });
 
+    enableBackgroundExecution();
+    console.log('Background execution enabled.');
+
     return () => {
       subscription.remove();
       unloadSound();
+      disableBackgroundExecution();
+      console.log('Background execution disabled.');
     };
   }, []);
 
@@ -110,13 +163,136 @@ const App = () => {
     }
   }, [currentWorkout, currentExerciseIndex]);
 
+  // --- Authentication ---
+  const onAuthStateChange = async user => {
+    setUser(user);
+    if (user) {
+      await syncUserData(user);
+    } else {
+      await loadSettings();
+      await loadWorkouts();
+    }
+    if (initializing) {
+      setInitializing(false);
+    }
+  };
+
+  const onGoogleButtonPress = async () => {
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const { idToken } = await GoogleSignin.signIn();
+      if (!idToken) {
+        return; // User cancelled the sign-in
+      }
+      const googleCredential = GoogleAuthProvider.credential(idToken);
+      // Wait for the sign-in process to complete
+      await signInWithCredential(auth, googleCredential);
+    } catch (error) {
+      // Error codes for user cancellation
+      if (error.code === '12501' || error.code === '-5') {
+        console.log('User cancelled the Google Sign-In flow.');
+      } else {
+        console.error('Google Sign-In error:', error);
+      }
+    }
+  };
+
+  const disconnectAccount = async () => {
+    try {
+      await GoogleSignin.signOut();
+      await auth.signOut();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // --- Data Persistence & Sync ---
+  const syncUserData = async firebaseUser => {
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      if (userData.settings) {
+        setSettings(userData.settings);
+        await AsyncStorage.setItem(
+          'repCounterSettings',
+          JSON.stringify(userData.settings),
+        );
+      }
+      if (userData.workouts) {
+        setWorkouts(userData.workouts);
+        await AsyncStorage.setItem(
+          'workouts',
+          JSON.stringify(userData.workouts),
+        );
+      }
+    } else {
+      await setDoc(userDocRef, {
+        email: firebaseUser.email,
+        name: firebaseUser.displayName,
+        settings: settings,
+        workouts: workouts,
+      });
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('repCounterSettings');
+      if (savedSettings) setSettings(JSON.parse(savedSettings));
+    } catch (e) {
+      console.error('Failed to load settings.', e);
+    }
+  };
+
+  const saveSettings = async newSettings => {
+    try {
+      await AsyncStorage.setItem(
+        'repCounterSettings',
+        JSON.stringify(newSettings),
+      );
+      setSettings(newSettings);
+
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, { settings: newSettings }, { merge: true });
+      }
+    } catch (e) {
+      console.error('Failed to save settings.', e);
+    }
+  };
+
+  const loadWorkouts = async () => {
+    try {
+      const savedWorkouts = await AsyncStorage.getItem('workouts');
+      if (savedWorkouts) {
+        setWorkouts(JSON.parse(savedWorkouts));
+      } else {
+        const defaultWorkouts = getDefaultWorkouts();
+        setWorkouts(defaultWorkouts);
+        await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
+      }
+    } catch (e) {
+      console.error('Failed to load workouts.', e);
+    }
+  };
+
+  const saveWorkouts = async newWorkouts => {
+    setWorkouts(newWorkouts);
+    await AsyncStorage.setItem('workouts', JSON.stringify(newWorkouts));
+    if (user) {
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, { workouts: newWorkouts }, { merge: true });
+    }
+  };
 
   // --- Audio & Speech ---
   const playBeep = async (freq = 440) => {
     try {
       const { sound } = await Audio.Sound.createAsync(
         require('./assets/beep.mp3'),
-        { shouldPlay: true, volume: settings.volume }
+        { shouldPlay: true, volume: settings.volume },
       );
       soundRef.current = sound;
       await sound.playAsync();
@@ -139,50 +315,28 @@ const App = () => {
     });
   };
 
-  const speakEccentric = (text) => {
+  const speakEccentric = text => {
     Speech.speak(text, {
       volume: settings.volume,
       rate: 1.2,
-      voice: femaleVoice, // Use the found female voice, or default if null
+      voice: femaleVoice,
     });
   };
 
-  // --- Data Persistence ---
-  const loadSettings = async () => {
-    try {
-      const savedSettings = await AsyncStorage.getItem('repCounterSettings');
-      if (savedSettings) setSettings(JSON.parse(savedSettings));
-    } catch (e) { console.error("Failed to load settings.", e); }
-  };
-
-  const saveSettings = async (newSettings) => {
-    try {
-      await AsyncStorage.setItem('repCounterSettings', JSON.stringify(newSettings));
-      setSettings(newSettings);
-      setSettingsVisible(false);
-    } catch (e) { console.error("Failed to save settings.", e); }
-  };
-
-  const loadWorkouts = async () => {
-    try {
-      const savedWorkouts = await AsyncStorage.getItem('workouts');
-      if (savedWorkouts) {
-        setWorkouts(JSON.parse(savedWorkouts));
-      } else {
-        // Set default workouts if none are saved
-        const defaultWorkouts = getDefaultWorkouts();
-        setWorkouts(defaultWorkouts);
-        await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
-      }
-    } catch (e) { console.error("Failed to load workouts.", e); }
-  };
-
-
   // --- Core Logic ---
   const stopAllTimers = () => {
-    clearInterval(intervalRef.current);
-    clearInterval(countdownRef.current);
-    clearInterval(restRef.current);
+    if (intervalRef.current) {
+      bgClearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (countdownRef.current) {
+      bgClearTimeout(countdownRef.current);
+      countdownRef.current = null;
+    }
+    if (restRef.current) {
+      bgClearInterval(restRef.current);
+      restRef.current = null;
+    }
   };
 
   const startWorkout = () => {
@@ -198,13 +352,13 @@ const App = () => {
 
   const pauseWorkout = () => {
     if (!isRunning) return;
-    if (isPaused) { // Resuming
+    if (isPaused) {
       setIsPaused(false);
       if (currentRep > 0) setCurrentRep(prev => prev - 1);
       startCountdown(startRepCycle);
       setStatusText('In Progress');
       speak('Resuming');
-    } else { // Pausing
+    } else {
       setIsPaused(true);
       stopAllTimers();
       setStatusText('Paused');
@@ -233,7 +387,10 @@ const App = () => {
 
     if (nextSet > settings.maxSets) {
       speak('Exercise complete!');
-      if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
+      if (
+        currentWorkout &&
+        currentExerciseIndex < currentWorkout.exercises.length - 1
+      ) {
         nextExercise();
       } else {
         stopWorkout();
@@ -246,18 +403,18 @@ const App = () => {
     }
   };
 
-  const startRestTimer = (nextSet) => {
+  const startRestTimer = nextSet => {
     setIsResting(true);
     let restCount = settings.restSeconds;
     setStatusText(`Rest: ${restCount}s`);
     speak(`Set complete. Rest for ${restCount} seconds.`);
 
-    restRef.current = setInterval(() => {
+    restRef.current = bgSetInterval(() => {
       restCount--;
       setStatusText(`Rest: ${restCount}s`);
       if (restCount <= 3 && restCount > 0) playBeep();
       if (restCount <= 0) {
-        clearInterval(restRef.current);
+        bgClearInterval(restRef.current);
         setStatusText(`Press Start for Set ${nextSet}`);
         speak(`Rest complete. Press start for set ${nextSet}.`);
         playBeep(880);
@@ -273,20 +430,21 @@ const App = () => {
     startCountdown(startRepCycle);
   };
 
-  const startCountdown = (callback) => {
+  const startCountdown = callback => {
     stopAllTimers();
     let count = settings.countdownSeconds;
     setStatusText('Get Ready...');
 
-    const countdownRecursion = (c) => {
+    const countdownRecursion = c => {
       if (c > 0) {
         setStatusText(`Get Ready... ${c}`);
-        // Use onDone to chain the speech, ensuring one finishes before the next starts.
         speak(String(c), {
           onDone: () => {
-            // A timeout to create a rhythmic pace for the countdown.
-            countdownRef.current = setTimeout(() => countdownRecursion(c - 1), 700);
-          }
+            countdownRef.current = bgSetTimeout(
+              () => countdownRecursion(c - 1),
+              700,
+            );
+          },
         });
       } else {
         setStatusText('Go!');
@@ -295,17 +453,18 @@ const App = () => {
             playBeep(880);
             setStatusText('In Progress');
             callback();
-          }
+          },
         });
       }
     };
 
-    // Initial "Get ready", then start the recursive countdown.
     speak('Get ready.', {
       onDone: () => {
-        // A brief pause after "Get ready" before starting the numbers.
-        countdownRef.current = setTimeout(() => countdownRecursion(count), 300);
-      }
+        countdownRef.current = bgSetTimeout(
+          () => countdownRecursion(count),
+          300,
+        );
+      },
     });
   };
 
@@ -321,24 +480,30 @@ const App = () => {
       setPhase('Concentric');
       let phaseTime = 0;
 
-      clearInterval(intervalRef.current);
+      bgClearInterval(intervalRef.current);
 
-      const concentricInterval = setInterval(() => {
+      const concentricInterval = bgSetInterval(() => {
         phaseTime += 0.1;
 
         if (phaseTime >= settings.concentricSeconds) {
-          clearInterval(concentricInterval);
+          bgClearInterval(concentricInterval);
 
           setPhase('Eccentric');
           let eccentricPhaseTime = 0;
           let lastSpokenSecond = -1;
 
-          const eccentricInterval = setInterval(() => {
+          const eccentricInterval = bgSetInterval(() => {
             eccentricPhaseTime += 0.1;
 
             const currentIntegerSecond = Math.floor(eccentricPhaseTime);
-            if (settings.eccentricCountdownEnabled && currentIntegerSecond > lastSpokenSecond && eccentricPhaseTime < settings.eccentricSeconds) {
-              const numberToSpeak = Math.ceil(settings.eccentricSeconds - eccentricPhaseTime);
+            if (
+              settings.eccentricCountdownEnabled &&
+              currentIntegerSecond > lastSpokenSecond &&
+              eccentricPhaseTime < settings.eccentricSeconds
+            ) {
+              const numberToSpeak = Math.ceil(
+                settings.eccentricSeconds - eccentricPhaseTime,
+              );
               if (numberToSpeak > 0) {
                 Speech.stop();
                 speakEccentric(String(numberToSpeak));
@@ -347,7 +512,7 @@ const App = () => {
             }
 
             if (eccentricPhaseTime >= settings.eccentricSeconds) {
-              clearInterval(eccentricInterval);
+              bgClearInterval(eccentricInterval);
               startRepCycle();
             }
           }, 100);
@@ -359,7 +524,7 @@ const App = () => {
     });
   };
 
-  const jumpToRep = (rep) => {
+  const jumpToRep = rep => {
     stopAllTimers();
     Speech.stop();
     setIsRunning(true);
@@ -370,7 +535,7 @@ const App = () => {
     startCountdown(startRepCycle);
   };
 
-  const selectWorkout = (workoutId) => {
+  const selectWorkout = workoutId => {
     const workout = workouts.find(w => w.id === workoutId);
     setCurrentWorkout(workout);
     setCurrentExerciseIndex(0);
@@ -378,10 +543,16 @@ const App = () => {
   };
 
   const nextExercise = () => {
-    if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
+    if (
+      currentWorkout &&
+      currentExerciseIndex < currentWorkout.exercises.length - 1
+    ) {
       stopWorkout();
       setCurrentExerciseIndex(prev => prev + 1);
-      speak(`Next exercise: ${currentWorkout.exercises[currentExerciseIndex + 1].name}`);
+      speak(
+        `Next exercise: ${currentWorkout.exercises[currentExerciseIndex + 1].name
+        }`,
+      );
     }
   };
 
@@ -389,7 +560,10 @@ const App = () => {
     if (currentWorkout && currentExerciseIndex > 0) {
       stopWorkout();
       setCurrentExerciseIndex(prev => prev - 1);
-      speak(`Previous exercise: ${currentWorkout.exercises[currentExerciseIndex - 1].name}`);
+      speak(
+        `Previous exercise: ${currentWorkout.exercises[currentExerciseIndex - 1].name
+        }`,
+      );
     }
   };
 
@@ -402,12 +576,19 @@ const App = () => {
           number={i}
           onPress={() => jumpToRep(i)}
           isActive={currentRep === i}
-        />
+        />,
       );
     }
     return buttons;
   };
 
+  if (initializing) {
+    return (
+      <StyledSafeAreaView className="flex-1 bg-gray-900 justify-center items-center">
+        <StyledText className="text-white text-xl">Loading...</StyledText>
+      </StyledSafeAreaView>
+    );
+  }
 
   return (
     <StyledSafeAreaView className="flex-1 bg-gray-900">
@@ -417,27 +598,65 @@ const App = () => {
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6">
+          {/* User Profile Section */}
+          {user && (
+            <StyledView className="flex-row items-center justify-between bg-gray-700 rounded-lg p-3">
+              <StyledView className="flex-row items-center space-x-3">
+                <Image
+                  source={{ uri: user.photoURL }}
+                  className="w-10 h-10 rounded-full"
+                />
+                <StyledView>
+                  <StyledText className="text-white font-semibold">
+                    {user.displayName}
+                  </StyledText>
+                  <StyledText className="text-gray-400 text-sm">
+                    {user.email}
+                  </StyledText>
+                </StyledView>
+              </StyledView>
+              <StyledTouchableOpacity
+                onPress={disconnectAccount}
+                className="p-2 bg-red-600 rounded-lg"
+              >
+                <LogOut color="white" size={20} />
+              </StyledTouchableOpacity>
+            </StyledView>
+          )}
+
           {/* Workout Selection */}
           <StyledView className="bg-gray-700 rounded-lg p-4 space-y-3">
             <StyledView className="flex-row justify-between items-center mb-2">
-              <StyledText className="text-lg font-semibold text-white">Current Workout</StyledText>
-              <StyledTouchableOpacity onPress={() => setModalVisible(true)} className="flex-row items-center space-x-2 rounded-lg bg-gray-600 px-3 py-2">
+              <StyledText className="text-lg font-semibold text-white">
+                Current Workout
+              </StyledText>
+              <StyledTouchableOpacity
+                onPress={() => setModalVisible(true)}
+                className="flex-row items-center space-x-2 rounded-lg bg-gray-600 px-3 py-2"
+              >
                 <Edit color="#d1d5db" size={16} />
-                <StyledText className="text-sm font-semibold text-white">Manage</StyledText>
+                <StyledText className="text-sm font-semibold text-white">
+                  Manage
+                </StyledText>
               </StyledTouchableOpacity>
             </StyledView>
             <WorkoutPicker
               selectedValue={currentWorkout?.id}
-              onValueChange={(itemValue) => selectWorkout(itemValue)}
+              onValueChange={itemValue => selectWorkout(itemValue)}
               workouts={workouts}
             />
             {currentWorkout && (
               <StyledView>
-                <StyledText className="text-sm text-gray-400">Current Exercise:</StyledText>
-                <StyledText className="text-lg font-medium text-white">{currentWorkout.exercises[currentExerciseIndex]?.name}</StyledText>
+                <StyledText className="text-sm text-gray-400">
+                  Current Exercise:
+                </StyledText>
+                <StyledText className="text-lg font-medium text-white">
+                  {currentWorkout.exercises[currentExerciseIndex]?.name}
+                </StyledText>
                 <StyledView className="flex-row justify-between items-center mt-1">
                   <StyledText className="text-sm text-gray-400">
-                    Exercise {currentExerciseIndex + 1} of {currentWorkout.exercises.length}
+                    Exercise {currentExerciseIndex + 1} of{' '}
+                    {currentWorkout.exercises.length}
                   </StyledText>
                   <StyledText className="text-sm font-semibold text-gray-200">
                     Sets: {settings.maxSets}
@@ -449,18 +668,30 @@ const App = () => {
 
           {/* Main Display */}
           <StyledView className="items-center">
-            <StyledText className="text-2xl font-medium text-blue-400 mb-2">{statusText}</StyledText>
+            <StyledText className="text-2xl font-medium text-blue-400 mb-2">
+              {statusText}
+            </StyledText>
             <StyledView className="flex-row justify-center items-end space-x-6">
               <StyledView>
-                <StyledText className="text-8xl font-bold tracking-tight text-white">{currentRep}</StyledText>
-                <StyledText className="text-lg text-gray-400 text-center">REP</StyledText>
+                <StyledText className="text-8xl font-bold tracking-tight text-white">
+                  {currentRep}
+                </StyledText>
+                <StyledText className="text-lg text-gray-400 text-center">
+                  REP
+                </StyledText>
               </StyledView>
               <StyledView className="pb-2">
-                <StyledText className="text-6xl font-bold tracking-tight text-white">{currentSet}</StyledText>
-                <StyledText className="text-lg text-gray-400 text-center">SET</StyledText>
+                <StyledText className="text-6xl font-bold tracking-tight text-white">
+                  {currentSet}
+                </StyledText>
+                <StyledText className="text-lg text-gray-400 text-center">
+                  SET
+                </StyledText>
               </StyledView>
             </StyledView>
-            <StyledText className="text-xl text-gray-400 mt-2">{phase || ' '}</StyledText>
+            <StyledText className="text-xl text-gray-400 mt-2">
+              {phase || ' '}
+            </StyledText>
           </StyledView>
 
           {/* Main Controls */}
@@ -473,34 +704,72 @@ const App = () => {
                     onPress={isResting ? runNextSet : startWorkout}
                     className="py-3 px-4 bg-green-600 rounded-lg flex-1 items-center"
                   >
-                    <StyledText className="text-lg font-semibold text-white">Start</StyledText>
+                    <StyledText className="text-lg font-semibold text-white">
+                      Start
+                    </StyledText>
                   </StyledTouchableOpacity>,
-                  <StyledTouchableOpacity key="stop" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
-                    <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
-                  </StyledTouchableOpacity>
+                  <StyledTouchableOpacity
+                    key="stop"
+                    onPress={stopWorkout}
+                    className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center"
+                  >
+                    <StyledText className="text-lg font-semibold text-white">
+                      Stop
+                    </StyledText>
+                  </StyledTouchableOpacity>,
                 ];
               }
               if (isPaused) {
                 return [
-                  <StyledTouchableOpacity key="resume" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center">
-                    <StyledText className="text-lg font-semibold text-white">Resume</StyledText>
+                  <StyledTouchableOpacity
+                    key="resume"
+                    onPress={pauseWorkout}
+                    className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center"
+                  >
+                    <StyledText className="text-lg font-semibold text-white">
+                      Resume
+                    </StyledText>
                   </StyledTouchableOpacity>,
-                  <StyledTouchableOpacity key="stop-paused" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
-                    <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
-                  </StyledTouchableOpacity>
+                  <StyledTouchableOpacity
+                    key="stop-paused"
+                    onPress={stopWorkout}
+                    className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center"
+                  >
+                    <StyledText className="text-lg font-semibold text-white">
+                      Stop
+                    </StyledText>
+                  </StyledTouchableOpacity>,
                 ];
               }
               // isRunning && !isPaused
               return [
-                <StyledTouchableOpacity key="pause" onPress={pauseWorkout} className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center">
-                  <StyledText className="text-lg font-semibold text-white">Pause</StyledText>
+                <StyledTouchableOpacity
+                  key="pause"
+                  onPress={pauseWorkout}
+                  className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center"
+                >
+                  <StyledText className="text-lg font-semibold text-white">
+                    Pause
+                  </StyledText>
                 </StyledTouchableOpacity>,
-                <StyledTouchableOpacity key="end-set" onPress={endSet} className="py-3 px-4 bg-blue-600 rounded-lg flex-1 items-center">
-                  <StyledText className="text-lg font-semibold text-white">End Set</StyledText>
+                <StyledTouchableOpacity
+                  key="end-set"
+                  onPress={endSet}
+                  className="py-3 px-4 bg-blue-600 rounded-lg flex-1 items-center"
+                >
+                  <StyledText className="text-lg font-semibold text-white">
+                    End Set
+                  </StyledText>
                 </StyledTouchableOpacity>,
-                <StyledTouchableOpacity key="stop-running" onPress={stopWorkout} className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center">
-                  <StyledText className="text-lg font-semibold text-white">Stop</StyledText>
-                </StyledTouchableOpacity>
+                <StyledTouchableOpacity
+                  key="stop-running"
+                  onPress={stopWorkout}
+                  className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center"
+                >
+                  <StyledText className="text-lg font-semibold text-white">
+                    Stop
+                  </StyledText>
+                </StyledTouchableOpacity>,
               ];
             })()}
           </StyledView>
@@ -508,18 +777,38 @@ const App = () => {
           {/* Exercise Navigation */}
           {currentWorkout && (
             <StyledView className="flex-row justify-between gap-4">
-              <StyledTouchableOpacity onPress={prevExercise} disabled={currentExerciseIndex === 0} className="py-2 px-4 bg-gray-600 rounded-lg flex-1 items-center">
-                <ChevronLeft color={currentExerciseIndex === 0 ? "#4b5563" : "white"} />
+              <StyledTouchableOpacity
+                onPress={prevExercise}
+                disabled={currentExerciseIndex === 0}
+                className="py-2 px-4 bg-gray-600 rounded-lg flex-1 items-center"
+              >
+                <ChevronLeft
+                  color={currentExerciseIndex === 0 ? '#4b5563' : 'white'}
+                />
               </StyledTouchableOpacity>
-              <StyledTouchableOpacity onPress={nextExercise} disabled={currentExerciseIndex >= currentWorkout.exercises.length - 1} className="py-2 px-4 bg-gray-600 rounded-lg flex-1 items-center">
-                <ChevronRight color={currentExerciseIndex >= currentWorkout.exercises.length - 1 ? "#4b5563" : "white"} />
+              <StyledTouchableOpacity
+                onPress={nextExercise}
+                disabled={
+                  currentExerciseIndex >= currentWorkout.exercises.length - 1
+                }
+                className="py-2 px-4 bg-gray-600 rounded-lg flex-1 items-center"
+              >
+                <ChevronRight
+                  color={
+                    currentExerciseIndex >= currentWorkout.exercises.length - 1
+                      ? '#4b5563'
+                      : 'white'
+                  }
+                />
               </StyledTouchableOpacity>
             </StyledView>
           )}
 
           {/* Number Jump Buttons */}
           <StyledView>
-            <StyledText className="text-sm font-medium text-gray-400 mb-2 text-center">Jump to Rep</StyledText>
+            <StyledText className="text-sm font-medium text-gray-400 mb-2 text-center">
+              Jump to Rep
+            </StyledText>
             <StyledView className="flex-row flex-wrap justify-center gap-2">
               {renderNumberButtons()}
             </StyledView>
@@ -527,16 +816,15 @@ const App = () => {
 
           {/* Settings */}
           <StyledView className="items-center">
-            <StyledTouchableOpacity onPress={() => setSettingsVisible(!settingsVisible)} className="flex-row items-center space-x-2">
+            <StyledTouchableOpacity
+              onPress={() => setSettingsVisible(!settingsVisible)}
+              className="flex-row items-center space-x-2"
+            >
               <SettingsIcon color="#60a5fa" size={16} />
               <StyledText className="text-blue-400">Settings</StyledText>
             </StyledTouchableOpacity>
           </StyledView>
-          <SettingsPanel
-            visible={settingsVisible}
-            settings={settings}
-            onSave={saveSettings}
-          />
+          {/* This space is intentionally left blank */}
         </StyledView>
       </StyledScrollView>
 
@@ -544,7 +832,16 @@ const App = () => {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         workouts={workouts}
-        setWorkouts={setWorkouts}
+        setWorkouts={saveWorkouts}
+      />
+      <SettingsModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        settings={settings}
+        onSave={saveSettings}
+        onGoogleButtonPress={onGoogleButtonPress}
+        user={user}
+        disconnectAccount={disconnectAccount}
       />
     </StyledSafeAreaView>
   );

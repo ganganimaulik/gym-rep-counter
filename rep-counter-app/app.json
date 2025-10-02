@@ -16,10 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ganganimaulik.repcounterapp",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio",
-          "processing"
-        ]
+        "UIBackgroundModes": ["audio", "processing"]
       }
     },
     "android": {
@@ -30,8 +27,13 @@
       "edgeToEdgeEnabled": true,
       "package": "com.ganganimaulik.repcounterapp"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.139720525210-vp5bo557d5l164k5f7j6fq2o5ug104r0"
+        }
+      ]
+    ]
   }
 }
