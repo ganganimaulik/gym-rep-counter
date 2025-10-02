@@ -106,13 +106,14 @@ const App = () => {
 
   // --- Effects ---
   useEffect(() => {
+    // Firebase Auth
+    const subscriber = onAuthStateChanged(auth, onAuthStateChange);
+
     const initializeApp = async () => {
       GoogleSignin.configure({
         webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
         iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
       });
-
-      const subscriber = onAuthStateChanged(auth, onAuthStateChange);
 
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
@@ -125,27 +126,30 @@ const App = () => {
       await loadSettings();
       await loadWorkouts();
       await findFemaleVoice();
-
-      return subscriber;
     };
 
     initializeApp();
 
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-        // App has come to the foreground
-      }
-      appState.current = nextAppState;
-    });
+    const appStateSubscription = AppState.addEventListener(
+      'change',
+      nextAppState => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === 'active'
+        ) {
+          // App has come to the foreground
+        }
+        appState.current = nextAppState;
+      },
+    );
 
     enableBackgroundExecution();
     console.log('Background execution enabled.');
 
     return () => {
-      subscription.remove();
+      // Cleanup
+      if (subscriber) subscriber(); // Unsubscribe from Firebase Auth
+      appStateSubscription.remove();
       unloadSound();
       disableBackgroundExecution();
       console.log('Background execution disabled.');
