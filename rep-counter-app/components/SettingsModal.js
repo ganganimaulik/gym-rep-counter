@@ -29,6 +29,7 @@ const SettingsModal = ({
   onGoogleButtonPress,
   user,
   disconnectAccount,
+  isSigningIn,
 }) => {
   const [localSettings, setLocalSettings] = useState(settings);
 
@@ -185,6 +186,7 @@ const SettingsModal = ({
                     size={GoogleSigninButton.Size.Wide}
                     color={GoogleSigninButton.Color.Dark}
                     onPress={onGoogleButtonPress}
+                    disabled={isSigningIn}
                   />
                 ) : (
                   <StyledTouchableOpacity
