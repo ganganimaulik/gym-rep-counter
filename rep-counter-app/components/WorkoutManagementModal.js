@@ -107,7 +107,7 @@ const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => 
     );
 
     return (
-      <StyledView className="bg-gray-700 rounded-lg p-4 space-y-3 mb-4">
+      <StyledView className="bg-gray-700 rounded-lg p-3 space-y-2 mb-2">
         <StyledView className="flex-row justify-between items-center">
           <StyledText className="text-lg font-semibold text-white">{workout.name}</StyledText>
           <StyledTouchableOpacity onPress={() => deleteWorkout(workout.id)} className="p-1">
@@ -167,15 +167,15 @@ const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => 
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StyledView className="flex-1 justify-center items-center bg-black/50 p-4">
-          <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-lg max-h-[90vh]">
-            <StyledView className="flex-row justify-between items-center pb-4 mb-4 border-b border-gray-700">
+          <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-4 w-full max-w-lg max-h-[90vh]">
+            <StyledView className="flex-row justify-between items-center pb-4 border-b border-gray-700">
               <StyledText className="text-2xl font-bold text-white">Manage Workouts</StyledText>
               <StyledTouchableOpacity onPress={onClose}>
                 <X color="#9ca3af" size={24} />
               </StyledTouchableOpacity>
             </StyledView>
 
-            <StyledView className="mb-6 bg-gray-700 rounded-lg p-4">
+            <StyledView className="my-4 bg-gray-700 rounded-lg p-4">
               <StyledText className="text-lg font-semibold mb-3 text-white">Add New Workout</StyledText>
               <StyledView className="space-y-3">
                 <StyledTextInput
