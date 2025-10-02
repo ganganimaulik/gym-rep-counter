@@ -6,10 +6,10 @@ const TICK_INTERVAL = 100; // ms
 
 export const useWorkoutTimer = (
   settings,
-  onSetComplete,
   { speak, speakEccentric, playBeep }
 ) => {
   // --- State for UI Rendering ---
+  const [isExerciseComplete, setIsExerciseComplete] = useState(false);
   const [displayRep, setDisplayRep] = useState(0);
   const [displaySet, setDisplaySet] = useState(1);
   const [isRunning, setIsRunning] = useState(false);
@@ -192,9 +192,9 @@ export const useWorkoutTimer = (
 
     if (nextSet > maxSets) {
       speak('Exercise complete!');
-      onSetComplete(true);
       stopWorkout();
       setStatusText('Exercise Complete!');
+      setIsExerciseComplete(true); // Set completion flag
     } else {
       state.phase = 'rest';
       state.phaseTime = 0;
@@ -210,7 +210,7 @@ export const useWorkoutTimer = (
       speak(`Set complete. Rest for ${settingsRef.current.restSeconds} seconds.`);
       startTimer();
     }
-  }, [onSetComplete, stopAllTimers, startTimer, stopWorkout, speak]);
+  }, [stopAllTimers, startTimer, stopWorkout, speak]);
 
   const startWorkout = () => {
     if (isRunning && !isPaused) return;
@@ -218,6 +218,8 @@ export const useWorkoutTimer = (
     if (statusText === 'Exercise Complete!') {
       stopWorkout();
     }
+
+    setIsExerciseComplete(false); // Reset completion flag
 
     setIsRunning(true);
     setIsPaused(false);
@@ -317,5 +319,7 @@ export const useWorkoutTimer = (
     runNextSet,
     jumpToRep,
     endSet,
+    isExerciseComplete,
+    setStatusText,
   };
 };
