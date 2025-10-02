@@ -38,13 +38,12 @@ export const useAuth = (onAuthSuccess) => {
     setIsSigningIn(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const { idToken } = await GoogleSignin.signIn();
-
-      if (!idToken) {
+      const { data } = await GoogleSignin.signIn();
+      if (!data?.idToken) {
         setIsSigningIn(false);
         return;
       }
-      const googleCredential = GoogleAuthProvider.credential(idToken);
+      const googleCredential = GoogleAuthProvider.credential(data.idToken);
       await signInWithCredential(auth, googleCredential);
     } catch (error) {
       if (error.code === '12501' || error.code === '-5') {
