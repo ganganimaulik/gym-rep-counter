@@ -20,6 +20,18 @@ export const useData = () => {
   const [workouts, setWorkouts] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  // --- Local-only update functions ---
+  const setAndStoreSettings = useCallback(async (newSettings) => {
+    setSettings(newSettings);
+    await AsyncStorage.setItem('repCounterSettings', JSON.stringify(newSettings));
+  }, []);
+
+  const setAndStoreWorkouts = useCallback(async (newWorkouts) => {
+    setWorkouts(newWorkouts);
+    await AsyncStorage.setItem('workouts', JSON.stringify(newWorkouts));
+  }, []);
+
+  // --- Load initial data from AsyncStorage ---
   const loadSettings = useCallback(async () => {
     try {
       const savedSettings = await AsyncStorage.getItem('repCounterSettings');
@@ -32,19 +44,6 @@ export const useData = () => {
     }
   }, []);
 
-  const saveSettings = useCallback(async (newSettings, user) => {
-    try {
-      setSettings(newSettings);
-      await AsyncStorage.setItem('repCounterSettings', JSON.stringify(newSettings));
-      if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        await setDoc(userDocRef, { settings: newSettings }, { merge: true });
-      }
-    } catch (e) {
-      console.error('Failed to save settings.', e);
-    }
-  }, []);
-
   const loadWorkouts = useCallback(async () => {
     try {
       const savedWorkouts = await AsyncStorage.getItem('workouts');
@@ -54,27 +53,42 @@ export const useData = () => {
         return parsed;
       }
       const defaultWorkouts = getDefaultWorkouts();
-      setWorkouts(defaultWorkouts);
-      await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
+      await setAndStoreWorkouts(defaultWorkouts);
       return defaultWorkouts;
     } catch (e) {
       console.error('Failed to load workouts.', e);
       return [];
     }
-  }, []);
+  }, [setAndStoreWorkouts]);
+
+  // --- Functions to save to local AND remote ---
+  const saveSettings = useCallback(async (newSettings, user) => {
+    try {
+      await setAndStoreSettings(newSettings);
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, { settings: newSettings }, { merge: true });
+      }
+    } catch (e) {
+      console.error('Failed to save settings.', e);
+    }
+  }, [setAndStoreSettings]);
 
   const saveWorkouts = useCallback(async (newWorkouts, user) => {
-    setWorkouts(newWorkouts);
-    await AsyncStorage.setItem('workouts', JSON.stringify(newWorkouts));
-    if (user) {
-      const userDocRef = doc(db, 'users', user.uid);
-      await setDoc(userDocRef, { workouts: newWorkouts }, { merge: true });
+    try {
+        await setAndStoreWorkouts(newWorkouts);
+        if (user) {
+            const userDocRef = doc(db, 'users', user.uid);
+            await setDoc(userDocRef, { workouts: newWorkouts }, { merge: true });
+        }
+    } catch (e) {
+        console.error('Failed to save workouts.', e);
     }
-  }, []);
+  }, [setAndStoreWorkouts]);
 
+  // --- Sync remote data to local state ---
   const syncUserData = useCallback(async (firebaseUser) => {
     if (!firebaseUser) {
-      // User signed out, load local data
       await loadSettings();
       await loadWorkouts();
       return;
@@ -85,12 +99,12 @@ export const useData = () => {
 
     if (userDoc.exists()) {
       const userData = userDoc.data();
-      // Merge remote data with local, remote taking precedence
+      // FIX: Only update local state, don't write back to Firestore
       if (userData.settings) {
-        await saveSettings(userData.settings, firebaseUser);
+        await setAndStoreSettings(userData.settings);
       }
       if (userData.workouts) {
-        await saveWorkouts(userData.workouts, firebaseUser);
+        await setAndStoreWorkouts(userData.workouts);
       }
     } else {
       // New user, push local data to remote
@@ -103,7 +117,7 @@ export const useData = () => {
         workouts: localWorkouts,
       });
     }
-  }, [loadSettings, saveSettings, loadWorkouts, saveWorkouts]);
+  }, [loadSettings, loadWorkouts, setAndStoreSettings, setAndStoreWorkouts]);
 
   useEffect(() => {
     const loadInitialData = async () => {
