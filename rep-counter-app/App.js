@@ -68,16 +68,34 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
 
-  const [settings, setSettings] = useState({
-    countdownSeconds: 5,
-    restSeconds: 60,
-    maxReps: 15,
-    maxSets: 3,
-    concentricSeconds: 1,
-    eccentricSeconds: 4,
-    eccentricCountdownEnabled: true,
-    volume: 1.0,
-  });
+const defaultSettings = {
+  countdownSeconds: 5,
+  restSeconds: 60,
+  maxReps: 15,
+  maxSets: 3,
+  concentricSeconds: 1,
+  eccentricSeconds: 4,
+  eccentricCountdownEnabled: true,
+  volume: 1.0,
+};
+
+const App = () => {
+  useKeepAwake();
+
+  // State
+  const [currentRep, setCurrentRep] = useState(0);
+  const [currentSet, setCurrentSet] = useState(1);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isResting, setIsResting] = useState(false);
+  const [phase, setPhase] = useState('');
+  const [statusText, setStatusText] = useState('Press Start');
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
+
+  const [settings, setSettings] = useState(defaultSettings);
 
   const [workouts, setWorkouts] = useState([]);
   const [currentWorkout, setCurrentWorkout] = useState(null);
@@ -112,8 +130,6 @@ const App = () => {
         iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
       });
 
-      const subscriber = onAuthStateChanged(auth, onAuthStateChange);
-
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
@@ -122,10 +138,9 @@ const App = () => {
         interruptionModeAndroid: 2, // DuckOthers
         playThroughEarpieceAndroid: false,
       });
-      await loadSettings();
-      await loadWorkouts();
       await findFemaleVoice();
 
+      const subscriber = onAuthStateChanged(auth, onAuthStateChange);
       return subscriber;
     };
 
@@ -164,16 +179,20 @@ const App = () => {
   }, [currentWorkout, currentExerciseIndex]);
 
   // --- Authentication ---
-  const onAuthStateChange = async user => {
-    setUser(user);
-    if (user) {
-      await syncUserData(user);
+  const onAuthStateChange = async firebaseUser => {
+    if (initializing) {
+      setInitializing(false);
+    }
+
+    if (firebaseUser) {
+      const localSettings = await loadSettings();
+      const localWorkouts = await loadWorkouts();
+      await syncUserData(firebaseUser, localSettings, localWorkouts);
+      setUser(firebaseUser);
     } else {
       await loadSettings();
       await loadWorkouts();
-    }
-    if (initializing) {
-      setInitializing(false);
+      setUser(null);
     }
   };
 
@@ -208,7 +227,7 @@ const App = () => {
   };
 
   // --- Data Persistence & Sync ---
-  const syncUserData = async firebaseUser => {
+  const syncUserData = async (firebaseUser, localSettings, localWorkouts) => {
     const userDocRef = doc(db, 'users', firebaseUser.uid);
     const userDoc = await getDoc(userDocRef);
 
@@ -232,8 +251,8 @@ const App = () => {
       await setDoc(userDocRef, {
         email: firebaseUser.email,
         name: firebaseUser.displayName,
-        settings: settings,
-        workouts: workouts,
+        settings: localSettings,
+        workouts: localWorkouts,
       });
     }
   };
@@ -241,9 +260,16 @@ const App = () => {
   const loadSettings = async () => {
     try {
       const savedSettings = await AsyncStorage.getItem('repCounterSettings');
-      if (savedSettings) setSettings(JSON.parse(savedSettings));
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        setSettings(parsed);
+        return parsed;
+      }
+      setSettings(defaultSettings);
+      return defaultSettings;
     } catch (e) {
       console.error('Failed to load settings.', e);
+      return defaultSettings;
     }
   };
 
@@ -268,14 +294,17 @@ const App = () => {
     try {
       const savedWorkouts = await AsyncStorage.getItem('workouts');
       if (savedWorkouts) {
-        setWorkouts(JSON.parse(savedWorkouts));
-      } else {
-        const defaultWorkouts = getDefaultWorkouts();
-        setWorkouts(defaultWorkouts);
-        await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
+        const parsed = JSON.parse(savedWorkouts);
+        setWorkouts(parsed);
+        return parsed;
       }
+      const defaultWorkouts = getDefaultWorkouts();
+      setWorkouts(defaultWorkouts);
+      await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
+      return defaultWorkouts;
     } catch (e) {
       console.error('Failed to load workouts.', e);
+      return [];
     }
   };
 
