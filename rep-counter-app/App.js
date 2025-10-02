@@ -60,6 +60,16 @@ const App = () => {
 
   const audioHandler = useAudio(settings);
 
+  const handleSetComplete = useCallback((isWorkoutComplete) => {
+    if (isWorkoutComplete && currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
+      // The timer is already stopped in useWorkoutTimer's endSet function.
+      // We just need to advance to the next exercise.
+      const nextIndex = currentExerciseIndex + 1;
+      setCurrentExerciseIndex(nextIndex);
+      audioHandler.speak(`Next exercise: ${currentWorkout.exercises[nextIndex].name}`);
+    }
+  }, [currentWorkout, currentExerciseIndex, audioHandler]);
+
   const {
     currentRep,
     currentSet,
@@ -74,24 +84,11 @@ const App = () => {
     runNextSet,
     jumpToRep,
     endSet,
-    isExerciseComplete,
+    setCurrentSet,
+    setCurrentRep,
+    stopAllTimers,
     setStatusText,
-  } = useWorkoutTimer(settings, audioHandler);
-
-  useEffect(() => {
-    if (isExerciseComplete) {
-      if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
-        // Not the last exercise, so advance to the next one
-        const nextIndex = currentExerciseIndex + 1;
-        setCurrentExerciseIndex(nextIndex);
-        audioHandler.speak(`Next exercise: ${currentWorkout.exercises[nextIndex].name}`);
-      } else {
-        // This was the last exercise of the workout
-        setStatusText('Workout Complete!');
-        audioHandler.speak('Workout Complete!');
-      }
-    }
-  }, [isExerciseComplete, currentWorkout, currentExerciseIndex, setStatusText, audioHandler]);
+  } = useWorkoutTimer(settings, handleSetComplete, audioHandler);
 
   const onAuthSuccess = useCallback(async (firebaseUser) => {
     if (firebaseUser) {
