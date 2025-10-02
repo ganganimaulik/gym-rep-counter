@@ -414,7 +414,8 @@ const App = () => {
       setStatusText(`Rest: ${restCount}s`);
       if (restCount <= 3 && restCount > 0) playBeep();
       if (restCount <= 0) {
-        bgClearInterval(restRef.current);
+        if (restRef.current)
+          bgClearInterval(restRef.current);
         setStatusText(`Press Start for Set ${nextSet}`);
         speak(`Rest complete. Press start for set ${nextSet}.`);
         playBeep(880);
@@ -480,14 +481,13 @@ const App = () => {
       setPhase('Concentric');
       let phaseTime = 0;
 
-      bgClearInterval(intervalRef.current);
+      if (intervalRef.current)
+        bgClearInterval(intervalRef.current);
 
       const concentricInterval = bgSetInterval(() => {
         phaseTime += 0.1;
 
         if (phaseTime >= settings.concentricSeconds) {
-          bgClearInterval(concentricInterval);
-
           setPhase('Eccentric');
           let eccentricPhaseTime = 0;
           let lastSpokenSecond = -1;
