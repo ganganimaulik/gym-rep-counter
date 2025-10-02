@@ -62,9 +62,13 @@ const App = () => {
 
   const handleSetComplete = useCallback((isWorkoutComplete) => {
     if (isWorkoutComplete && currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
-      nextExercise();
+      // The timer is already stopped in useWorkoutTimer's endSet function.
+      // We just need to advance to the next exercise.
+      const nextIndex = currentExerciseIndex + 1;
+      setCurrentExerciseIndex(nextIndex);
+      audioHandler.speak(`Next exercise: ${currentWorkout.exercises[nextIndex].name}`);
     }
-  }, [ ]);
+  }, [currentWorkout, currentExerciseIndex, audioHandler]);
 
   const {
     currentRep,
