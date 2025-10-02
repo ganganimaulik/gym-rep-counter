@@ -7,7 +7,7 @@ const StyledText = styled(Text);
 
 const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
   return (
-    <StyledView className="items-center">
+    <StyledView className="items-center mt-4">
       <StyledText className="text-2xl font-medium text-blue-400 mb-2">
         {statusText}
       </StyledText>

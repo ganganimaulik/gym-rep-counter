@@ -19,7 +19,7 @@ const WorkoutSelector = ({
   nextExercise,
 }) => {
   return (
-<StyledView className="bg-gray-700 rounded-lg p-4 space-y-4">
+    <StyledView className="bg-gray-700 rounded-lg p-4 space-y-4">
       <StyledView className="flex-row justify-between items-center">
         <StyledText className="text-lg font-semibold text-white">
           Current Workout
@@ -59,7 +59,7 @@ const WorkoutSelector = ({
         </StyledView>
       )}
       {currentWorkout && (
-        <StyledView className="flex-row justify-between gap-4">
+        <StyledView className="flex-row justify-between gap-x-4">
           <StyledTouchableOpacity
             onPress={prevExercise}
             disabled={currentExerciseIndex === 0}

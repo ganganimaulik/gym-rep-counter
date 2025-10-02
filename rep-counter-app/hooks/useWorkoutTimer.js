@@ -81,7 +81,7 @@ export const useWorkoutTimer = (
 
           // If starting a rep from 0, move to 1. If jumping, the rep is already set.
           if (!state.isJumping && state.rep === 0) {
-             state.rep = 1;
+            state.rep = 1;
           }
 
           state.phase = 'concentric';
@@ -194,7 +194,7 @@ export const useWorkoutTimer = (
       speak('Exercise complete!');
       onSetComplete(true);
       stopWorkout();
-      setStatusText('Workout Complete!');
+      setStatusText('Exercise Complete!');
     } else {
       state.phase = 'rest';
       state.phaseTime = 0;
@@ -215,7 +215,7 @@ export const useWorkoutTimer = (
   const startWorkout = () => {
     if (isRunning && !isPaused) return;
 
-    if (statusText === 'Workout Complete!') {
+    if (statusText === 'Exercise Complete!') {
       stopWorkout();
     }
 
