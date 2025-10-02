@@ -52,21 +52,7 @@ const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 
-const App = () => {
-  useKeepAwake();
 
-  // State
-  const [currentRep, setCurrentRep] = useState(0);
-  const [currentSet, setCurrentSet] = useState(1);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isResting, setIsResting] = useState(false);
-  const [phase, setPhase] = useState('');
-  const [statusText, setStatusText] = useState('Press Start');
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [user, setUser] = useState(null);
-  const [initializing, setInitializing] = useState(true);
 
 const defaultSettings = {
   countdownSeconds: 5,
