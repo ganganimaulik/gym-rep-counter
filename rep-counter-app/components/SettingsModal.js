@@ -29,6 +29,7 @@ const SettingsModal = ({
   onGoogleButtonPress,
   user,
   disconnectAccount,
+  isSigningIn,
 }) => {
   const [localSettings, setLocalSettings] = useState(settings);
 
@@ -53,8 +54,8 @@ const SettingsModal = ({
       onRequestClose={onClose}
     >
       <StyledView className="flex-1 justify-center items-center bg-black/50 p-4">
-        <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-lg max-h-[90vh]">
-          <StyledView className="flex-row justify-between items-center pb-4 mb-4 border-b border-gray-700">
+        <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-4 w-full max-w-lg max-h-[90vh]">
+          <StyledView className="flex-row justify-between items-center pb-4 border-b border-gray-700">
             <StyledText className="text-2xl font-bold text-white">
               Settings
             </StyledText>
@@ -63,8 +64,8 @@ const SettingsModal = ({
             </StyledTouchableOpacity>
           </StyledView>
 
-          <StyledScrollView>
-            <StyledView className="space-y-6">
+          <StyledScrollView className="mt-4">
+            <StyledView className="space-y-4">
               <SyncStatus user={user} />
               <StyledView className="grid grid-cols-2 gap-4">
                 <StyledView>
@@ -178,13 +179,14 @@ const SettingsModal = ({
                   </StyledView>
                 </StyledView>
               </StyledView>
-              <StyledView className="items-center pt-6">
+              <StyledView className="items-center pt-4">
                 {!user ? (
                   <GoogleSigninButton
                     style={{ width: 220, height: 52 }}
                     size={GoogleSigninButton.Size.Wide}
                     color={GoogleSigninButton.Color.Dark}
                     onPress={onGoogleButtonPress}
+                    disabled={isSigningIn}
                   />
                 ) : (
                   <StyledTouchableOpacity
@@ -200,10 +202,10 @@ const SettingsModal = ({
             </StyledView>
           </StyledScrollView>
 
-          <StyledView className="flex-row justify-end pt-6 border-t border-gray-700">
+          <StyledView className="flex-row justify-end pt-4 mt-4 border-t border-gray-700">
             <StyledTouchableOpacity
               onPress={onClose}
-              className="py-2 px-6 bg-gray-600 rounded-lg mr-4"
+              className="py-2 px-6 bg-gray-600 rounded-lg mr-2"
             >
               <StyledText className="font-semibold text-white">
                 Cancel
