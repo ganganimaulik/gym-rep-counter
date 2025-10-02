@@ -325,9 +325,18 @@ const App = () => {
 
   // --- Core Logic ---
   const stopAllTimers = () => {
-    bgClearInterval(intervalRef.current);
-    bgClearTimeout(countdownRef.current);
-    bgClearInterval(restRef.current);
+    if (intervalRef.current) {
+      bgClearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (countdownRef.current) {
+      bgClearTimeout(countdownRef.current);
+      countdownRef.current = null;
+    }
+    if (restRef.current) {
+      bgClearInterval(restRef.current);
+      restRef.current = null;
+    }
   };
 
   const startWorkout = () => {
