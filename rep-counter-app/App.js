@@ -481,13 +481,11 @@ const App = () => {
       setPhase('Concentric');
       let phaseTime = 0;
 
-      if (intervalRef.current)
-        bgClearInterval(intervalRef.current);
-
       const concentricInterval = bgSetInterval(() => {
         phaseTime += 0.1;
 
         if (phaseTime >= settings.concentricSeconds) {
+          bgClearInterval(concentricInterval);
           setPhase('Eccentric');
           let eccentricPhaseTime = 0;
           let lastSpokenSecond = -1;
