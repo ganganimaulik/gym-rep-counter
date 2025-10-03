@@ -1,17 +1,28 @@
 import React from 'react';
 import { TouchableOpacity, Text } from 'react-native';
 import { styled } from 'nativewind';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-const StyledTouchableOpacity = styled(TouchableOpacity);
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const StyledTouchableOpacity = styled(AnimatedTouchableOpacity);
 const StyledText = styled(Text);
 
-const NumberButton = ({ number, onPress, isActive }) => {
+const NumberButton = ({ number, onPress, currentRep }) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    const isActive = Math.round(currentRep.value) === number;
+    return {
+      backgroundColor: isActive ? '#2563eb' : 'transparent',
+      borderColor: isActive ? '#2563eb' : '#4b5563',
+    };
+  });
+
   return (
     <StyledTouchableOpacity
       onPress={onPress}
-      className={`p-2 border-2 border-gray-600 rounded-md items-center justify-center ${isActive ? 'bg-blue-600 border-blue-600' : ''}`}
+      className="p-2 border-2 rounded-md items-center justify-center"
+      style={animatedStyle}
     >
-      <StyledText className={`text-white ${isActive ? 'font-bold' : ''}`}>{number}</StyledText>
+      <StyledText className="text-white">{number}</StyledText>
     </StyledTouchableOpacity>
   );
 };

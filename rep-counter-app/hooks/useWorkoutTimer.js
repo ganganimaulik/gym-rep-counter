@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import * as Speech from 'expo-speech';
 import { bgSetInterval, bgClearInterval } from 'expo-background-timer';
+import { useSharedValue, runOnJS } from 'react-native-reanimated';
 
 const TICK_INTERVAL = 100; // ms
 
@@ -8,15 +9,16 @@ export const useWorkoutTimer = (
   settings,
   { speak, speakEccentric, playBeep }
 ) => {
-  // --- State for UI Rendering ---
+  // --- Reanimated Shared Values for smooth UI updates ---
+  const displayRep = useSharedValue(0);
+  const displaySet = useSharedValue(1);
+
+  // --- State for UI Rendering and Logic Control ---
   const [isExerciseComplete, setIsExerciseComplete] = useState(false);
-  const [displayRep, setDisplayRep] = useState(0);
-  const [displaySet, setDisplaySet] = useState(1);
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [phase, setPhase] = useState(''); // e.g., Concentric, Eccentric, Rest
   const [statusText, setStatusText] = useState('Press Start');
-  const [progress, setProgress] = useState(0); // For the progress bar (0 to 1)
 
   // --- Refs for Internal Logic ---
   const workoutState = useRef({
@@ -56,10 +58,6 @@ export const useWorkoutTimer = (
 
     state.phaseTime += TICK_INTERVAL / 1000;
 
-    const updateProgress = (totalDuration) => {
-      setProgress(Math.min(state.phaseTime / totalDuration, 1));
-    };
-
     switch (state.phase) {
       case 'countdown':
         const remaining = countdownSeconds - state.phaseTime;
@@ -89,13 +87,12 @@ export const useWorkoutTimer = (
           state.isJumping = false; // Reset jump flag
 
           speak(String(state.rep));
-          setDisplayRep(state.rep);
+          displayRep.value = state.rep;
           setPhase('Concentric');
         }
         break;
 
       case 'concentric':
-        updateProgress(concentricSeconds);
         if (state.phaseTime >= concentricSeconds) {
           state.phase = 'eccentric';
           state.phaseTime = 0;
@@ -105,7 +102,6 @@ export const useWorkoutTimer = (
         break;
 
       case 'eccentric':
-        updateProgress(eccentricSeconds);
         const eccentricRemaining = eccentricSeconds - state.phaseTime;
         const eccentricCurrentSecond = Math.floor(state.phaseTime);
 
@@ -130,7 +126,7 @@ export const useWorkoutTimer = (
             state.phaseTime = 0;
             state.rep += 1;
             speak(String(state.rep));
-            setDisplayRep(state.rep);
+            displayRep.value = state.rep;
             setPhase('Concentric');
           }
         }
@@ -138,7 +134,6 @@ export const useWorkoutTimer = (
 
       case 'rest':
         const restRemaining = restSeconds - state.phaseTime;
-        updateProgress(restSeconds);
         setStatusText(`Rest: ${Math.ceil(restRemaining)}s`);
 
         const restCurrentSecond = Math.floor(state.phaseTime);
@@ -169,9 +164,8 @@ export const useWorkoutTimer = (
     setIsPaused(false);
     setPhase('');
     setStatusText('Press Start');
-    setProgress(0);
-    setDisplayRep(0);
-    setDisplaySet(1);
+    displayRep.value = 0;
+    displaySet.value = 1;
     workoutState.current = {
       rep: 0,
       set: 1,
@@ -201,10 +195,9 @@ export const useWorkoutTimer = (
       state.set = nextSet;
       state.rep = 0;
 
-      setDisplaySet(nextSet);
-      setDisplayRep(0);
+      displaySet.value = nextSet;
+      displayRep.value = 0;
       setPhase('Rest');
-      setProgress(0);
 
       speak(`Set complete. Rest for ${settingsRef.current.restSeconds} seconds.`);
       startTimer();
@@ -232,8 +225,8 @@ export const useWorkoutTimer = (
       lastSpokenSecond: -1,
       isJumping: false,
     };
-    setDisplaySet(1);
-    setDisplayRep(0);
+    displaySet.value = 1;
+    displayRep.value = 0;
     speak('Get ready.');
     startTimer();
   };
@@ -291,10 +284,10 @@ export const useWorkoutTimer = (
 
     if (state.set < 1) {
       state.set = 1;
-      setDisplaySet(1);
+      displaySet.value = 1;
     }
 
-    setDisplayRep(rep);
+    displayRep.value = rep;
     speak(`Jumping to rep ${rep}. Get ready.`);
     startTimer();
   };
@@ -315,7 +308,6 @@ export const useWorkoutTimer = (
     isResting: phase === 'Rest',
     phase,
     statusText,
-    progress,
     startWorkout,
     pauseWorkout,
     stopWorkout,
