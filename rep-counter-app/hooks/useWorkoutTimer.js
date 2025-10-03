@@ -41,7 +41,7 @@ export const useWorkoutTimer = (
   }, [settings]);
 
   const stopAllTimers = useCallback(() => {
-    runOnJS(Speech.stop)();
+    Speech.stop();
     cancelAnimation(timer);
     timer.value = 0;
     progress.value = 0;
@@ -67,31 +67,29 @@ export const useWorkoutTimer = (
     const nextSet = state.set + 1;
 
     stopAllTimers();
-    runOnJS(setIsRunning)(false);
+    setIsRunning(false);
 
     if (nextSet > maxSets) {
-      runOnJS(stopWorkout)();
+      stopWorkout();
       statusText.value = 'Exercise Complete!';
-      runOnJS(setIsExerciseComplete)(true);
+      setIsExerciseComplete(true);
     } else {
       state.phase = 'rest';
       state.set = nextSet;
       state.rep = 0;
       state.lastSpokenSecond = -1;
 
-      runOnJS(setDisplaySet)(nextSet);
+      setDisplaySet(nextSet);
       displayRep.value = 0;
       phase.value = 'Rest';
       statusText.value = `Rest: ${restSeconds}s`;
 
-      runOnJS(speak)(
-        `Set complete. Rest for ${restSeconds} seconds.`
-      );
+      speak(`Set complete. Rest for ${restSeconds} seconds.`);
       startTimerAnimation(restSeconds, () => {
-        runOnJS(setIsRunning)(false);
+        setIsRunning(false);
         statusText.value = `Press Start for Set ${state.set}`;
-        runOnJS(speak)(`Rest complete. Press start for set ${state.set}.`);
-        runOnJS(playBeep)(880);
+        speak(`Rest complete. Press start for set ${state.set}.`);
+        playBeep(880);
       });
     }
   }, [
@@ -118,7 +116,7 @@ export const useWorkoutTimer = (
     state.isJumping = false;
 
     displayRep.value = state.rep;
-    runOnJS(speak)(String(state.rep));
+    speak(String(state.rep));
 
     // Concentric phase
     startTimerAnimation(concentricSeconds, () => {
@@ -128,7 +126,7 @@ export const useWorkoutTimer = (
       startTimerAnimation(eccentricSeconds, () => {
         // Check for end of set
         if (state.rep >= maxReps) {
-          runOnJS(endSet)();
+          endSet();
         } else {
           // Start next rep
           startRepCycle();
@@ -137,6 +135,31 @@ export const useWorkoutTimer = (
     });
   }, [speak, endSet, timer, displayRep, phase]);
 
+  const startCountdown = (startMessage, onComplete) => {
+    const { countdownSeconds } = settingsRef.current;
+    const state = workoutState.current;
+
+    state.phase = 'countdown';
+    phase.value = 'Get Ready';
+    statusText.value = `Get Ready... ${countdownSeconds}`;
+
+    speak(startMessage, {
+      onDone: () => {
+        startTimerAnimation(countdownSeconds, () => {
+          playBeep(880);
+          speak('Go!', {
+            onDone: () => {
+              statusText.value = 'In Progress';
+              if (onComplete) {
+                onComplete();
+              }
+            },
+          });
+        });
+      },
+    });
+  };
+
   const startWorkout = () => {
     if (isRunning && !isPaused) return;
 
@@ -144,30 +167,19 @@ export const useWorkoutTimer = (
       stopWorkout();
     }
 
-    runOnJS(setIsExerciseComplete)(false);
-    runOnJS(setIsRunning)(true);
-    runOnJS(setIsPaused)(false);
+    setIsExerciseComplete(false);
+    setIsRunning(true);
+    setIsPaused(false);
 
     const state = workoutState.current;
     state.set = 1;
     state.rep = 0;
     state.isJumping = false;
     state.lastSpokenSecond = -1;
-    runOnJS(setDisplaySet)(1);
+    setDisplaySet(1);
     displayRep.value = 0;
 
-    const { countdownSeconds } = settingsRef.current;
-    state.phase = 'countdown';
-    phase.value = 'Get Ready';
-    statusText.value = `Get Ready... ${countdownSeconds}`;
-    runOnJS(speak)('Get ready.');
-
-    startTimerAnimation(countdownSeconds, () => {
-      runOnJS(playBeep)(880);
-      runOnJS(speak)('Go!');
-      statusText.value = 'In Progress';
-      startRepCycle();
-    });
+    startCountdown('Get ready.', startRepCycle);
   };
 
   const pauseWorkout = () => {
@@ -175,60 +187,37 @@ export const useWorkoutTimer = (
 
     if (isPaused) {
       // Resuming
-      runOnJS(setIsPaused)(false);
-      runOnJS(speak)('Resuming');
-
+      setIsPaused(false);
       const state = workoutState.current;
       state.isJumping = true; // Prevent rep increment
-      const { countdownSeconds } = settingsRef.current;
-      state.phase = 'countdown';
-      phase.value = 'Get Ready';
-      statusText.value = `Get Ready... ${countdownSeconds}`;
-
-      startTimerAnimation(countdownSeconds, () => {
-        runOnJS(playBeep)(880);
-        runOnJS(speak)('Go!');
-        statusText.value = 'In Progress';
-        startRepCycle();
-      });
+      startCountdown('Resuming', startRepCycle);
     } else {
       // Pausing
-      runOnJS(setIsPaused)(true);
+      setIsPaused(true);
       cancelAnimation(timer);
-      runOnJS(Speech.stop)();
+      Speech.stop();
       statusText.value = 'Paused';
-      runOnJS(speak)('Paused');
+      speak('Paused');
     }
   };
 
   const runNextSet = () => {
     stopAllTimers();
-    runOnJS(setIsRunning)(true);
-    runOnJS(setIsPaused)(false);
+    setIsRunning(true);
+    setIsPaused(false);
 
     const state = workoutState.current;
     state.rep = 0;
     state.isJumping = false;
     state.lastSpokenSecond = -1;
 
-    const { countdownSeconds } = settingsRef.current;
-    state.phase = 'countdown';
-    phase.value = 'Get Ready';
-    statusText.value = `Get Ready... ${countdownSeconds}`;
-    runOnJS(speak)('Get ready.');
-
-    startTimerAnimation(countdownSeconds, () => {
-      runOnJS(playBeep)(880);
-      runOnJS(speak)('Go!');
-      statusText.value = 'In Progress';
-      startRepCycle();
-    });
+    startCountdown('Get ready.', startRepCycle);
   };
 
   const jumpToRep = (rep) => {
     stopAllTimers();
-    runOnJS(setIsRunning)(true);
-    runOnJS(setIsPaused)(false);
+    setIsRunning(true);
+    setIsPaused(false);
 
     const state = workoutState.current;
     state.rep = rep;
@@ -236,33 +225,22 @@ export const useWorkoutTimer = (
 
     if (state.set < 1) {
       state.set = 1;
-      runOnJS(setDisplaySet)(1);
+      setDisplaySet(1);
     }
     displayRep.value = rep;
 
-    runOnJS(speak)(`Jumping to rep ${rep}. Get ready.`);
-    const { countdownSeconds } = settingsRef.current;
-    state.phase = 'countdown';
-    phase.value = 'Get Ready';
-    statusText.value = `Get Ready... ${countdownSeconds}`;
-
-    startTimerAnimation(countdownSeconds, () => {
-      runOnJS(playBeep)(880);
-      runOnJS(speak)('Go!');
-      statusText.value = 'In Progress';
-      startRepCycle();
-    });
+    startCountdown(`Jumping to rep ${rep}. Get ready.`, startRepCycle);
   };
 
   const stopWorkout = useCallback(() => {
     stopAllTimers();
-    runOnJS(setIsRunning)(false);
-    runOnJS(setIsPaused)(false);
+    setIsRunning(false);
+    setIsPaused(false);
     phase.value = '';
     statusText.value = 'Press Start';
     progress.value = 0;
     displayRep.value = 0;
-    runOnJS(setDisplaySet)(1);
+    setDisplaySet(1);
     workoutState.current = {
       set: 1,
       rep: 0,
@@ -273,7 +251,7 @@ export const useWorkoutTimer = (
   }, [stopAllTimers, phase, statusText, progress, displayRep]);
 
   const resetExerciseCompleteFlag = useCallback(() => {
-    runOnJS(setIsExerciseComplete)(false);
+    setIsExerciseComplete(false);
   }, []);
 
   // --- Animated Derived Values ---
@@ -289,12 +267,16 @@ export const useWorkoutTimer = (
     const currentTime = timer.value;
 
     // Update progress based on current phase
-    if (state.phase === 'concentric') {
-      progress.value = withTiming(currentTime);
-    } else if (state.phase === 'eccentric') {
-      progress.value = withTiming(currentTime);
-    } else if (state.phase === 'rest') {
-      progress.value = withTiming(currentTime);
+    if (
+      state.phase === 'concentric' ||
+      state.phase === 'eccentric' ||
+      state.phase === 'rest'
+    ) {
+      progress.value = currentTime;
+    }
+
+    // Update status text for relevant phases
+    if (state.phase === 'rest') {
       const restRemaining = restSeconds * (1 - currentTime);
       statusText.value = `Rest: ${Math.ceil(restRemaining)}s`;
     } else if (state.phase === 'countdown') {
@@ -312,10 +294,7 @@ export const useWorkoutTimer = (
     }
 
     // Eccentric countdown speech
-    if (
-      state.phase === 'eccentric' &&
-      eccentricCountdownEnabled
-    ) {
+    if (state.phase === 'eccentric' && eccentricCountdownEnabled) {
       const remaining = eccentricSeconds * (1 - currentTime);
       const numToSpeak = Math.ceil(remaining);
       const currentSecond = Math.floor(eccentricSeconds * currentTime);
@@ -328,7 +307,6 @@ export const useWorkoutTimer = (
       }
     }
   }, [timer]);
-
 
   useEffect(() => {
     return () => stopAllTimers();
