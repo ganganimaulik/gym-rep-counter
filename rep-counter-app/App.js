@@ -76,22 +76,30 @@ const App = () => {
     endSet,
     isExerciseComplete,
     setStatusText,
+    resetExerciseCompleteFlag,
   } = useWorkoutTimer(settings, audioHandler);
 
   useEffect(() => {
     if (isExerciseComplete) {
       if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
-        // Not the last exercise, so advance to the next one
         const nextIndex = currentExerciseIndex + 1;
         setCurrentExerciseIndex(nextIndex);
         audioHandler.speak(`Next exercise: ${currentWorkout.exercises[nextIndex].name}`);
       } else {
-        // This was the last exercise of the workout
         setStatusText('Workout Complete!');
         audioHandler.speak('Workout Complete!');
       }
+      // Reset the flag to prevent this effect from running again unintentionally
+      resetExerciseCompleteFlag();
     }
-  }, [isExerciseComplete, currentWorkout, currentExerciseIndex, setStatusText, audioHandler]);
+  }, [
+    isExerciseComplete,
+    currentWorkout,
+    currentExerciseIndex,
+    setStatusText,
+    audioHandler,
+    resetExerciseCompleteFlag,
+  ]);
 
   const onAuthSuccess = useCallback(async (firebaseUser) => {
     if (firebaseUser) {

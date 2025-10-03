@@ -191,7 +191,6 @@ export const useWorkoutTimer = (
     setIsRunning(false);
 
     if (nextSet > maxSets) {
-      speak('Exercise complete!');
       stopWorkout();
       setStatusText('Exercise Complete!');
       setIsExerciseComplete(true); // Set completion flag
@@ -300,6 +299,10 @@ export const useWorkoutTimer = (
     startTimer();
   };
 
+  const resetExerciseCompleteFlag = useCallback(() => {
+    setIsExerciseComplete(false);
+  }, []);
+
   useEffect(() => {
     return () => stopAllTimers();
   }, [stopAllTimers]);
@@ -321,5 +324,6 @@ export const useWorkoutTimer = (
     endSet,
     isExerciseComplete,
     setStatusText,
+    resetExerciseCompleteFlag,
   };
 };
