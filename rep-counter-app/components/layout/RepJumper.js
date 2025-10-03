@@ -15,7 +15,7 @@ const RepJumper = ({ maxReps, currentRep, jumpToRep }) => {
           key={i}
           number={i}
           onPress={() => jumpToRep(i)}
-          isActive={currentRep === i}
+          currentRep={currentRep}
         />,
       );
     }
