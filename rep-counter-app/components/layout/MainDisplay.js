@@ -21,11 +21,20 @@ const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
     };
   }, []);
 
+  const animatedStatusProps = useAnimatedProps(() => {
+    return {
+      text: statusText.value,
+    };
+  }, []);
+
   return (
     <StyledView className="items-center mt-4">
-      <StyledText className="text-2xl font-medium text-blue-400 mb-2">
-        {statusText}
-      </StyledText>
+      <StyledAnimatedTextInput
+        className="text-2xl font-medium text-blue-400 mb-2 text-center"
+        editable={false}
+        animatedProps={animatedStatusProps}
+        value={statusText.value}
+      />
       <StyledView className="flex-row justify-center items-end space-x-6">
         <StyledView>
           <StyledAnimatedTextInput
