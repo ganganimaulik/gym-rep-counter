@@ -3,7 +3,7 @@ import * as Speech from 'expo-speech';
 import { bgSetInterval, bgClearInterval } from 'expo-background-timer';
 import { useSharedValue, runOnJS } from 'react-native-reanimated';
 
-const TICK_INTERVAL = 250; // ms
+const TICK_INTERVAL = 100; // ms
 const TICK_SECONDS = TICK_INTERVAL / 1000;
 
 // Phase constants
