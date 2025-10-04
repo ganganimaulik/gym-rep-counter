@@ -1,385 +1,376 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import * as Speech from 'expo-speech';
-import { bgSetInterval, bgClearInterval } from 'expo-background-timer';
+import {
+  bgSetTimeout,
+  bgClearTimeout,
+} from 'expo-background-timer';
 import { useSharedValue, runOnJS } from 'react-native-reanimated';
 
-const TICK_INTERVAL = 100; // ms
-const TICK_SECONDS = TICK_INTERVAL / 1000;
-
-// Phase constants
+/*--------------------------------------------------------------------
+  Constants
+--------------------------------------------------------------------*/
 const PHASES = {
   STOPPED: 'stopped',
   COUNTDOWN: 'countdown',
   CONCENTRIC: 'concentric',
   ECCENTRIC: 'eccentric',
-  REST: 'rest'
+  REST: 'rest',
 };
 
 const PHASE_DISPLAY = {
   [PHASES.CONCENTRIC]: 'Concentric',
   [PHASES.ECCENTRIC]: 'Eccentric',
-  [PHASES.REST]: 'Rest'
+  [PHASES.REST]: 'Rest',
 };
 
-export const useWorkoutTimer = (
-  settings,
-  { speak, speakEccentric, playBeep }
-) => {
-  // --- Reanimated Shared Values ---
+/*--------------------------------------------------------------------
+  Hook
+--------------------------------------------------------------------*/
+export function useWorkoutTimer(
+  settings, handlers
+) {
+  /* ----------------------------------------
+     External helpers
+  ---------------------------------------- */
+  const { speak, speakEccentric, playBeep } = handlers;
+
+  /* ----------------------------------------
+     Reanimated shared values
+  ---------------------------------------- */
   const displayRep = useSharedValue(0);
   const displaySet = useSharedValue(1);
-  const statusText = useSharedValue('Press Start');
 
-  // --- State Management ---
-  const [state, setState] = useState({
+  /* ----------------------------------------
+     React state for UI
+  ---------------------------------------- */
+  const [ui, setUI] = useState({
     isExerciseComplete: false,
     isRunning: false,
     isPaused: false,
-    phase: ''
+    phase: '',
+    statusText: 'Press Start',
   });
+  const updateUI = useCallback(
+    (patch) =>
+      setUI(prev => ({ ...prev, ...patch })),
+    [],
+  );
 
-  // --- Internal State Ref ---
-  const workoutState = useRef({
+  /* ----------------------------------------
+     Internal mutable state
+  ---------------------------------------- */
+  const wState = useRef({
     rep: 0,
     set: 1,
     phase: PHASES.STOPPED,
-    phaseTime: 0,
+    phaseStart: Date.now(),      // absolute start time of current phase
     lastSpokenSecond: -1,
-    isJumping: false
+    isJumping: false,
   });
 
-  const timerRef = useRef(null);
-  const settingsRef = useRef(settings);
-
-  // Update settings ref when settings change
-  useEffect(() => {
-    settingsRef.current = settings;
-  }, [settings]);
-
-  // --- Utility Functions ---
-  const stopAllTimers = useCallback(() => {
+  /* ----------------------------------------
+     One single timeout at any moment
+  ---------------------------------------- */
+  const timeoutRef = useRef(null);
+  const clearTimer = useCallback(() => {
+    if (timeoutRef.current != null) {
+      try {
+        bgClearTimeout(timeoutRef.current);
+      } catch {/* ignore “timeout not found” */ }
+      timeoutRef.current = null;
+    }
     Speech.stop();
-    if (timerRef.current) {
-      bgClearInterval(timerRef.current);
-      timerRef.current = null;
-    }
   }, []);
 
-  const updateUIState = useCallback((updates) => {
-    setState(prev => ({ ...prev, ...updates }));
-  }, []);
 
-  // --- Phase Handlers ---
-  const handleCountdownPhase = useCallback(() => {
-    const state = workoutState.current;
-    const { countdownSeconds } = settingsRef.current;
-    const remaining = countdownSeconds - state.phaseTime;
-    const currentSecond = Math.floor(state.phaseTime);
+  /*====================================================================
+    Small helper that schedules the next *absolute* event.
+  ====================================================================*/
+  const schedule = useCallback(
+    (ms, cb) => {
+      clearTimer();                                      // cancel previous
 
-    // Speak countdown numbers
-    if (currentSecond > state.lastSpokenSecond && remaining > 0) {
-      state.lastSpokenSecond = currentSecond;
-      const numToSpeak = Math.ceil(remaining);
-      statusText.value = `Get Ready... ${numToSpeak}`;
-      speak(String(numToSpeak));
-    }
+      // Wrap the real callback so we null-out the ref BEFORE user code runs.
+      const id = bgSetTimeout(() => {
+        timeoutRef.current = null;                       // <-- important
+        cb();
+      }, ms);
 
-    // Transition to concentric phase
-    if (remaining <= 0) {
-      playBeep(880);
-      speak('Go!');
+      timeoutRef.current = id;
+    },
+    [clearTimer],
+  );
 
-      if (!state.isJumping && state.rep === 0) {
-        state.rep = 1;
+
+  /*====================================================================
+    Phase handlers
+  ====================================================================*/
+  const startCountdown = useCallback(() => {
+    const { countdownSeconds } = settings;
+    wState.current.phase = PHASES.COUNTDOWN;
+    wState.current.phaseStart = Date.now();
+    wState.current.lastSpokenSecond = -1;
+    updateUI({ phase: 'Get Ready', statusText: `Get Ready… ${countdownSeconds}` });
+
+    speak('Get ready.');
+
+    /* inner recursive fn -------------------------------------------*/
+    const tick = () => {
+      const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
+      const remaining = countdownSeconds - elapsed;
+      const whole = Math.ceil(remaining);
+
+      if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
+        wState.current.lastSpokenSecond = whole;
+        speak(String(whole));
+        updateUI({ statusText: `Get Ready… ${whole}` });
       }
 
-      state.phase = PHASES.CONCENTRIC;
-      state.phaseTime = 0;
-      state.isJumping = false;
-      state.lastSpokenSecond = -1;
-
-      speak(String(state.rep));
-      displayRep.value = state.rep;
-
-      statusText.value = 'In Progress';
-      updateUIState({
-        phase: PHASE_DISPLAY[PHASES.CONCENTRIC]
-      });
-    }
-  }, [speak, playBeep, displayRep, updateUIState, statusText]);
-
-  const handleConcentricPhase = useCallback(() => {
-    const state = workoutState.current;
-    const { concentricSeconds } = settingsRef.current;
-
-    if (state.phaseTime >= concentricSeconds) {
-      state.phase = PHASES.ECCENTRIC;
-      state.phaseTime = 0;
-      state.lastSpokenSecond = -1;
-      updateUIState({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] });
-    }
-  }, [updateUIState]);
-
-  const handleEccentricPhase = useCallback(() => {
-    const state = workoutState.current;
-    const { eccentricSeconds, maxReps, eccentricCountdownEnabled } = settingsRef.current;
-    const remaining = eccentricSeconds - state.phaseTime;
-    const currentSecond = Math.floor(state.phaseTime);
-
-    // Eccentric countdown
-    if (eccentricCountdownEnabled &&
-      currentSecond > state.lastSpokenSecond &&
-      remaining > 0) {
-      state.lastSpokenSecond = currentSecond;
-      const numToSpeak = Math.ceil(remaining);
-      Speech.stop();
-      speakEccentric(String(numToSpeak));
-    }
-
-    // Phase transition
-    if (state.phaseTime >= eccentricSeconds) {
-      if (state.rep >= maxReps) {
-        runOnJS(endSet)();
+      if (remaining <= 0) {
+        playBeep(880);
+        speak('Go!');
+        if (!wState.current.isJumping && wState.current.rep === 0)
+          wState.current.rep = 1;
+        displayRep.value = wState.current.rep;
+        updateUI({
+          phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
+          statusText: 'In Progress',
+        });
+        startConcentric();
       } else {
-        state.phase = PHASES.CONCENTRIC;
-        state.phaseTime = 0;
-        state.rep += 1;
-        speak(String(state.rep));
-        displayRep.value = state.rep;
-        updateUIState({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] });
+        schedule(1000 - (Date.now() % 1000), tick);  // schedule at next second boundary
       }
-    }
-  }, [speak, speakEccentric, displayRep, updateUIState]);
-
-  const handleRestPhase = useCallback(() => {
-    const state = workoutState.current;
-    const { restSeconds } = settingsRef.current;
-    const remaining = restSeconds - state.phaseTime;
-    const currentSecond = Math.floor(state.phaseTime);
-
-    statusText.value = `Rest: ${Math.ceil(remaining)}s`;
-
-    // Rest countdown beeps
-    if (remaining <= 3 && currentSecond > state.lastSpokenSecond) {
-      state.lastSpokenSecond = currentSecond;
-      playBeep();
-    }
-
-    // Rest complete
-    if (remaining <= 0) {
-      stopAllTimers();
-      statusText.value = `Press Start for Set ${state.set}`;
-      updateUIState({
-        isRunning: false
-      });
-      speak(`Rest complete. Press start for set ${state.set}.`);
-      playBeep(880);
-    }
-  }, [speak, playBeep, stopAllTimers, updateUIState, statusText]);
-
-  // --- Main Timer Tick ---
-  const timerTick = useCallback(() => {
-    const state = workoutState.current;
-    state.phaseTime += TICK_SECONDS;
-
-    const phaseHandlers = {
-      [PHASES.COUNTDOWN]: handleCountdownPhase,
-      [PHASES.CONCENTRIC]: handleConcentricPhase,
-      [PHASES.ECCENTRIC]: handleEccentricPhase,
-      [PHASES.REST]: handleRestPhase
     };
+    tick();
+  }, [settings, speak, playBeep, schedule, updateUI, displayRep]);
 
-    const handler = phaseHandlers[state.phase];
-    if (handler) handler();
-  }, [handleCountdownPhase, handleConcentricPhase, handleEccentricPhase, handleRestPhase]);
+  const startConcentric = useCallback(() => {
+    const { concentricSeconds } = settings;
+    wState.current.phase = PHASES.CONCENTRIC;
+    wState.current.phaseStart = Date.now();
 
-  // --- Timer Control ---
-  const startTimer = useCallback(() => {
-    stopAllTimers();
-    timerRef.current = bgSetInterval(timerTick, TICK_INTERVAL);
-  }, [stopAllTimers, timerTick]);
+    schedule(concentricSeconds * 1000, () => {
+      updateUI({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] });
+      startEccentric();
+    });
+  }, [settings, schedule, updateUI]);
 
-  // --- Workout Control Functions ---
-  const resetWorkoutState = useCallback(() => {
-    workoutState.current = {
+  const startEccentric = useCallback(() => {
+    const { eccentricSeconds, eccentricCountdownEnabled, maxReps } = settings;
+    wState.current.phase = PHASES.ECCENTRIC;
+    wState.current.phaseStart = Date.now();
+    wState.current.lastSpokenSecond = -1;
+
+    /* inner recursive fn -------------------------------------------*/
+    const tick = () => {
+      const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
+      const remaining = eccentricSeconds - elapsed;
+      const whole = Math.ceil(remaining);
+
+      if (
+        eccentricCountdownEnabled &&
+        remaining > 0 &&
+        whole !== wState.current.lastSpokenSecond
+      ) {
+        wState.current.lastSpokenSecond = whole;
+        Speech.stop();
+        speakEccentric(String(whole));
+      }
+
+      if (remaining <= 0) {
+        if (wState.current.rep >= maxReps) {
+          runOnJS(endSet)();     // jump back to JS thread
+        } else {
+          wState.current.rep += 1;
+          displayRep.value = wState.current.rep;
+          speak(String(wState.current.rep));
+          updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] });
+          startConcentric();
+        }
+      } else {
+        schedule(1000 - (Date.now() % 1000), tick);
+      }
+    };
+    tick();
+  }, [settings, speakEccentric, schedule, updateUI, displayRep]);
+
+  const startRest = useCallback(() => {
+    const { restSeconds } = settings;
+    wState.current.phase = PHASES.REST;
+    wState.current.phaseStart = Date.now();
+    wState.current.lastSpokenSecond = -1;
+
+    /* inner recursive fn -------------------------------------------*/
+    const tick = () => {
+      const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
+      const remaining = restSeconds - elapsed;
+      const whole = Math.ceil(remaining);
+
+      updateUI({ statusText: `Rest: ${whole}s` });
+
+      if (whole <= 3 && whole !== wState.current.lastSpokenSecond) {
+        wState.current.lastSpokenSecond = whole;
+        playBeep();
+      }
+
+      if (remaining <= 0) {
+        clearTimer();
+        updateUI({
+          isRunning: false,
+          statusText: `Press Start for Set ${wState.current.set}`,
+        });
+        speak(`Rest complete. Press start for set ${wState.current.set}.`);
+        playBeep(880);
+      } else {
+        schedule(1000 - (Date.now() % 1000), tick);
+      }
+    };
+    tick();
+  }, [settings, playBeep, speak, schedule, updateUI, clearTimer]);
+
+  /*====================================================================
+    Public workout controls
+  ====================================================================*/
+  const resetInternalState = useCallback(() => {
+    wState.current = {
       rep: 0,
       set: 1,
       phase: PHASES.STOPPED,
-      phaseTime: 0,
+      phaseStart: Date.now(),
       lastSpokenSecond: -1,
-      isJumping: false
+      isJumping: false,
     };
     displayRep.value = 0;
     displaySet.value = 1;
   }, [displayRep, displaySet]);
 
   const stopWorkout = useCallback(() => {
-    stopAllTimers();
-    resetWorkoutState();
-    statusText.value = 'Press Start';
-    updateUIState({
+    clearTimer();
+    resetInternalState();
+    updateUI({
       isRunning: false,
       isPaused: false,
-      phase: ''
+      phase: '',
+      statusText: 'Press Start',
     });
-  }, [stopAllTimers, resetWorkoutState, updateUIState, statusText]);
+  }, [clearTimer, resetInternalState, updateUI]);
 
   const endSet = useCallback(() => {
-    const state = workoutState.current;
-    const { maxSets, restSeconds } = settingsRef.current;
-    const nextSet = state.set + 1;
+    const { maxSets, restSeconds } = settings;
+    clearTimer();
+    const next = wState.current.set + 1;
 
-    stopAllTimers();
-
-    if (nextSet > maxSets) {
+    if (next > maxSets) {
       stopWorkout();
-      statusText.value = 'Exercise Complete!';
-      updateUIState({
+      updateUI({
+        statusText: 'Exercise Complete!',
         isExerciseComplete: true,
-        isRunning: false
       });
     } else {
-      state.phase = PHASES.REST;
-      state.phaseTime = 0;
-      state.lastSpokenSecond = -1;
-      state.set = nextSet;
-      state.rep = 0;
-
-      displaySet.value = nextSet;
+      wState.current.set = next;
+      wState.current.rep = 0;
+      displaySet.value = next;
       displayRep.value = 0;
-
-      updateUIState({
+      updateUI({
         phase: PHASE_DISPLAY[PHASES.REST],
-        isRunning: false
+        isRunning: false,
       });
-
       speak(`Set complete. Rest for ${restSeconds} seconds.`);
-      startTimer();
+      startRest();
     }
-  }, [stopAllTimers, stopWorkout, startTimer, speak, displayRep, displaySet, updateUIState, statusText]);
+  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, speak]);
 
   const startWorkout = useCallback(() => {
-    if (state.isRunning && !state.isPaused) return;
+    if (ui.isRunning && !ui.isPaused) return;
+    if (ui.statusText === 'Exercise Complete!') stopWorkout();
 
-    if (statusText.value === 'Exercise Complete!') {
-      stopWorkout();
-    }
-
-    workoutState.current = {
-      ...workoutState.current,
-      set: 1,
-      rep: 0,
-      phase: PHASES.COUNTDOWN,
-      phaseTime: 0,
-      lastSpokenSecond: -1,
-      isJumping: false
-    };
-
-    displaySet.value = 1;
-    displayRep.value = 0;
-
-    updateUIState({
+    updateUI({
       isExerciseComplete: false,
       isRunning: true,
-      isPaused: false
+      isPaused: false,
     });
 
-    speak('Get ready.');
-    startTimer();
-  }, [state, stopWorkout, speak, startTimer, displaySet, displayRep, updateUIState, statusText]);
+    wState.current.rep = 0;
+    wState.current.set = 1;
+    displayRep.value = 0;
+    displaySet.value = 1;
+    startCountdown();
+  }, [ui, stopWorkout, updateUI, displayRep, displaySet, startCountdown]);
 
   const pauseWorkout = useCallback(() => {
-    if (!state.isRunning) return;
-
-    if (state.isPaused) {
-      // Resume
-      workoutState.current.phase = PHASES.COUNTDOWN;
-      workoutState.current.phaseTime = 0;
-      workoutState.current.lastSpokenSecond = -1;
-      workoutState.current.isJumping = true;
-
-      updateUIState({ isPaused: false });
+    if (!ui.isRunning) return;
+    if (ui.isPaused) {
+      // resume
+      wState.current.isJumping = true;
+      updateUI({ isPaused: false });
       speak('Resuming');
-      startTimer();
+      startCountdown(); // quick 3-2-1 resume
     } else {
-      // Pause
-      stopAllTimers();
-      statusText.value = 'Paused';
-      updateUIState({
-        isPaused: true
-      });
+      clearTimer();
+      updateUI({ isPaused: true, statusText: 'Paused' });
       speak('Paused');
     }
-  }, [state, speak, startTimer, stopAllTimers, updateUIState, statusText]);
+  }, [ui, updateUI, speak, clearTimer, startCountdown]);
 
-  const jumpToRep = useCallback((rep) => {
-    stopAllTimers();
-
-    const state = workoutState.current;
-    state.rep = rep;
-    state.phase = PHASES.COUNTDOWN;
-    state.phaseTime = 0;
-    state.lastSpokenSecond = -1;
-    state.isJumping = true;
-
-    if (state.set < 1) {
-      state.set = 1;
-      displaySet.value = 1;
-    }
-
-    displayRep.value = rep;
-
-    updateUIState({
-      isRunning: true,
-      isPaused: false
-    });
-
-    speak(`Jumping to rep ${rep}. Get ready.`);
-    startTimer();
-  }, [speak, startTimer, stopAllTimers, displayRep, displaySet, updateUIState]);
+  const jumpToRep = useCallback(
+    (rep) => {
+      clearTimer();
+      wState.current.rep = rep;
+      wState.current.isJumping = true;
+      displayRep.value = rep;
+      updateUI({ isRunning: true, isPaused: false });
+      speak(`Jumping to rep ${rep}. Get ready.`);
+      startCountdown();
+    },
+    [clearTimer, displayRep, updateUI, speak, startCountdown],
+  );
 
   const runNextSet = useCallback(() => {
-    stopAllTimers();
-
-    workoutState.current.phase = PHASES.COUNTDOWN;
-    workoutState.current.phaseTime = 0;
-    workoutState.current.lastSpokenSecond = -1;
-    workoutState.current.isJumping = false;
-
-    updateUIState({
-      isRunning: true,
-      isPaused: false
-    });
-
+    clearTimer();
+    wState.current.isJumping = false;
+    updateUI({ isRunning: true, isPaused: false });
     speak('Get ready.');
-    startTimer();
-  }, [speak, startTimer, stopAllTimers, updateUIState]);
+    startCountdown();
+  }, [clearTimer, updateUI, speak, startCountdown]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return stopAllTimers;
-  }, [stopAllTimers]);
+  /* ----------------------------------------
+     unmount cleanup
+  ---------------------------------------- */
+  useEffect(() => clearTimer, [clearTimer]);
 
-  // Memoize return value to prevent unnecessary re-renders
-  return useMemo(() => ({
-    currentRep: displayRep,
-    currentSet: displaySet,
-    isRunning: state.isRunning,
-    isPaused: state.isPaused,
-    isResting: state.phase === PHASE_DISPLAY[PHASES.REST],
-    phase: state.phase,
-    statusText,
-    isExerciseComplete: state.isExerciseComplete,
-    startWorkout,
-    pauseWorkout,
-    stopWorkout,
-    runNextSet,
-    jumpToRep,
-    endSet,
-    setStatusText: (text) => { statusText.value = text; },
-    resetExerciseCompleteFlag: () => updateUIState({ isExerciseComplete: false })
-  }), [
-    displayRep, displaySet, state, startWorkout, pauseWorkout,
-    stopWorkout, runNextSet, jumpToRep, endSet, updateUIState, statusText
-  ]);
-};
+  /* ----------------------------------------
+     public API
+  ---------------------------------------- */
+  return useMemo(
+    () => ({
+      currentRep: displayRep,
+      currentSet: displaySet,
+      isRunning: ui.isRunning,
+      isPaused: ui.isPaused,
+      isResting: ui.phase === PHASE_DISPLAY[PHASES.REST],
+      phase: ui.phase,
+      statusText: ui.statusText,
+      isExerciseComplete: ui.isExerciseComplete,
+      startWorkout,
+      pauseWorkout,
+      stopWorkout,
+      runNextSet,
+      jumpToRep,
+      endSet,
+      setStatusText: (text) => updateUI({ statusText: text }),
+      resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),
+    }),
+    [
+      displayRep,
+      displaySet,
+      ui,
+      startWorkout,
+      pauseWorkout,
+      stopWorkout,
+      runNextSet,
+      jumpToRep,
+      endSet,
+      updateUI,
+    ],
+  );
+}
