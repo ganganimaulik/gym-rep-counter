@@ -1,10 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+// useAudio.js - improved with speech queue management
+
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 
 export const useAudio = (settings) => {
   const [femaleVoice, setFemaleVoice] = useState(null);
   const soundRef = useRef();
+  const speechQueueRef = useRef([]);
+  const isSpeakingRef = useRef(false);
 
   const findFemaleVoice = async () => {
     const voices = await Speech.getAvailableVoicesAsync();
@@ -12,7 +16,9 @@ export const useAudio = (settings) => {
       v =>
         v.name.includes('Female') ||
         v.name.includes('Samantha') ||
-        v.name.includes('Serena'),
+        v.name.includes('Serena') ||
+        v.name.includes('Karen') ||
+        v.name.includes('Victoria'),
     );
     if (foundVoice) {
       setFemaleVoice(foundVoice.identifier);
@@ -21,24 +27,25 @@ export const useAudio = (settings) => {
 
   useEffect(() => {
     const setupAudio = async () => {
-        try {
-            await Audio.setAudioModeAsync({
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: true,
-                interruptionModeIOS: 2, // MixWithOthers
-                shouldDuckAndroid: true,
-                interruptionModeAndroid: 2, // DuckOthers
-                playThroughEarpieceAndroid: false,
-            });
-            await findFemaleVoice();
-        } catch (error) {
-            console.error("Failed to set up audio mode", error)
-        }
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          interruptionModeIOS: 2, // MixWithOthers
+          shouldDuckAndroid: true,
+          interruptionModeAndroid: 2, // DuckOthers
+          playThroughEarpieceAndroid: false,
+        });
+        await findFemaleVoice();
+      } catch (error) {
+        console.error("Failed to set up audio mode", error);
+      }
     };
     setupAudio();
 
     return () => {
       unloadSound();
+      Speech.stop();
     };
   }, []);
 
@@ -61,21 +68,84 @@ export const useAudio = (settings) => {
     }
   };
 
-  const speak = (text, options) => {
+  // Process speech queue
+  const processNextSpeech = useCallback(() => {
+    if (speechQueueRef.current.length === 0) {
+      isSpeakingRef.current = false;
+      return;
+    }
+
+    isSpeakingRef.current = true;
+    const { text, options } = speechQueueRef.current.shift();
+
+    Speech.speak(text, {
+      ...options,
+      onDone: () => {
+        isSpeakingRef.current = false;
+        // Process next item after a small delay
+        setTimeout(() => processNextSpeech(), 50);
+      },
+      onError: () => {
+        isSpeakingRef.current = false;
+        setTimeout(() => processNextSpeech(), 50);
+      },
+    });
+  }, []);
+
+  // Queue-based speak function
+  const queueSpeak = useCallback((text, options = {}) => {
+    // If priority, clear queue and stop current speech
+    if (options.priority) {
+      Speech.stop();
+      speechQueueRef.current = [];
+      isSpeakingRef.current = false;
+    }
+
+    const speechOptions = {
+      volume: settings.volume,
+      rate: 1.2,
+      ...options,
+    };
+
+    // Add to queue
+    speechQueueRef.current.push({ text, options: speechOptions });
+
+    // Start processing if not already speaking
+    if (!isSpeakingRef.current) {
+      processNextSpeech();
+    }
+  }, [settings.volume, processNextSpeech]);
+
+  // Regular speak (non-queued, for backwards compatibility)
+  const speak = useCallback((text, options = {}) => {
     Speech.speak(text, {
       volume: settings.volume,
       rate: 1.2,
       ...options,
     });
-  };
+  }, [settings.volume]);
 
-  const speakEccentric = text => {
-    Speech.speak(text, {
-      volume: settings.volume,
-      rate: 1.2,
-      voice: femaleVoice,
-    });
-  };
+  // Special eccentric voice with collision detection
+  const speakEccentric = useCallback(async (text) => {
+    // Check if we're already speaking
+    const isSpeaking = await Speech.isSpeakingAsync();
 
-  return { playBeep, unloadSound, speak, speakEccentric };
+    // Only speak if not currently speaking or if this is critical
+    if (!isSpeaking) {
+      Speech.speak(text, {
+        volume: settings.volume,
+        rate: 1.2,
+        voice: femaleVoice,
+        // Don't queue eccentrics, they're time-sensitive
+      });
+    }
+  }, [settings.volume, femaleVoice]);
+
+  return {
+    playBeep,
+    unloadSound,
+    speak,
+    speakEccentric,
+    queueSpeak
+  };
 };

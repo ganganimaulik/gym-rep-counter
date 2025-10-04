@@ -1,3 +1,5 @@
+// useWorkoutTimer.ts - improved audio handling version
+
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import * as Speech from 'expo-speech';
 import {
@@ -26,13 +28,11 @@ const PHASE_DISPLAY = {
 /*--------------------------------------------------------------------
   Hook
 --------------------------------------------------------------------*/
-export function useWorkoutTimer(
-  settings, handlers
-) {
+export function useWorkoutTimer(settings, handlers) {
   /* ----------------------------------------
      External helpers
   ---------------------------------------- */
-  const { speak, speakEccentric, playBeep } = handlers;
+  const { speak, speakEccentric, playBeep, queueSpeak } = handlers;
 
   /* ----------------------------------------
      Reanimated shared values
@@ -63,7 +63,7 @@ export function useWorkoutTimer(
     rep: 0,
     set: 1,
     phase: PHASES.STOPPED,
-    phaseStart: Date.now(),      // absolute start time of current phase
+    phaseStart: Date.now(),
     lastSpokenSecond: -1,
     isJumping: false,
   });
@@ -76,31 +76,26 @@ export function useWorkoutTimer(
     if (timeoutRef.current != null) {
       try {
         bgClearTimeout(timeoutRef.current);
-      } catch {/* ignore “timeout not found” */ }
+      } catch {/* ignore "timeout not found" */ }
       timeoutRef.current = null;
     }
     Speech.stop();
   }, []);
-
 
   /*====================================================================
     Small helper that schedules the next *absolute* event.
   ====================================================================*/
   const schedule = useCallback(
     (ms, cb) => {
-      clearTimer();                                      // cancel previous
-
-      // Wrap the real callback so we null-out the ref BEFORE user code runs.
+      clearTimer();
       const id = bgSetTimeout(() => {
-        timeoutRef.current = null;                       // <-- important
+        timeoutRef.current = null;
         cb();
       }, ms);
-
       timeoutRef.current = id;
     },
     [clearTimer],
   );
-
 
   /*====================================================================
     Phase handlers
@@ -112,23 +107,28 @@ export function useWorkoutTimer(
     wState.current.lastSpokenSecond = -1;
     updateUI({ phase: 'Get Ready', statusText: `Get Ready… ${countdownSeconds}` });
 
-    speak('Get ready.');
+    // Use queueSpeak for initial announcement
+    queueSpeak('Get ready.', { priority: true });
 
-    /* inner recursive fn -------------------------------------------*/
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
       const remaining = countdownSeconds - elapsed;
       const whole = Math.ceil(remaining);
 
+      // Only speak if it's a new second and we have at least 1 second left
       if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
         wState.current.lastSpokenSecond = whole;
-        speak(String(whole));
         updateUI({ statusText: `Get Ready… ${whole}` });
+
+        // Only speak countdown for 3, 2, 1 to avoid overlapping
+        if (whole <= 3) {
+          queueSpeak(String(whole));
+        }
       }
 
       if (remaining <= 0) {
         playBeep(880);
-        speak('Go!');
+        queueSpeak('Go!', { priority: true });
         if (!wState.current.isJumping && wState.current.rep === 0)
           wState.current.rep = 1;
         displayRep.value = wState.current.rep;
@@ -138,11 +138,13 @@ export function useWorkoutTimer(
         });
         startConcentric();
       } else {
-        schedule(1000 - (Date.now() % 1000), tick);  // schedule at next second boundary
+        // Add slight buffer to ensure speech completes
+        const nextTick = Math.max(500, 1000 - (Date.now() % 1000));
+        schedule(nextTick, tick);
       }
     };
     tick();
-  }, [settings, speak, playBeep, schedule, updateUI, displayRep]);
+  }, [settings, queueSpeak, playBeep, schedule, updateUI, displayRep]);
 
   const startConcentric = useCallback(() => {
     const { concentricSeconds } = settings;
@@ -161,38 +163,46 @@ export function useWorkoutTimer(
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
 
-    /* inner recursive fn -------------------------------------------*/
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
       const remaining = eccentricSeconds - elapsed;
       const whole = Math.ceil(remaining);
 
+      // Only countdown last 5 seconds to avoid audio overlap
       if (
         eccentricCountdownEnabled &&
         remaining > 0 &&
-        whole !== wState.current.lastSpokenSecond
+        whole !== wState.current.lastSpokenSecond &&
+        whole <= 5
       ) {
         wState.current.lastSpokenSecond = whole;
-        Speech.stop();
+        // Use special eccentric voice without interrupting
         speakEccentric(String(whole));
       }
 
       if (remaining <= 0) {
         if (wState.current.rep >= maxReps) {
-          runOnJS(endSet)();     // jump back to JS thread
+          runOnJS(endSet)();
         } else {
           wState.current.rep += 1;
           displayRep.value = wState.current.rep;
-          speak(String(wState.current.rep));
+
+          // Small delay ensures eccentric countdown completes
+          setTimeout(() => {
+            queueSpeak(String(wState.current.rep));
+          }, 150);
+
           updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] });
           startConcentric();
         }
       } else {
-        schedule(1000 - (Date.now() % 1000), tick);
+        // Ensure adequate spacing between speech
+        const nextTick = Math.max(600, 1000 - (Date.now() % 1000));
+        schedule(nextTick, tick);
       }
     };
     tick();
-  }, [settings, speakEccentric, schedule, updateUI, displayRep]);
+  }, [settings, speakEccentric, queueSpeak, schedule, updateUI, displayRep]);
 
   const startRest = useCallback(() => {
     const { restSeconds } = settings;
@@ -200,7 +210,6 @@ export function useWorkoutTimer(
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
 
-    /* inner recursive fn -------------------------------------------*/
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
       const remaining = restSeconds - elapsed;
@@ -208,7 +217,8 @@ export function useWorkoutTimer(
 
       updateUI({ statusText: `Rest: ${whole}s` });
 
-      if (whole <= 3 && whole !== wState.current.lastSpokenSecond) {
+      // Only beep for last 3 seconds
+      if (whole <= 3 && whole > 0 && whole !== wState.current.lastSpokenSecond) {
         wState.current.lastSpokenSecond = whole;
         playBeep();
       }
@@ -219,14 +229,14 @@ export function useWorkoutTimer(
           isRunning: false,
           statusText: `Press Start for Set ${wState.current.set}`,
         });
-        speak(`Rest complete. Press start for set ${wState.current.set}.`);
+        queueSpeak(`Rest complete. Press start for set ${wState.current.set}.`, { priority: true });
         playBeep(880);
       } else {
         schedule(1000 - (Date.now() % 1000), tick);
       }
     };
     tick();
-  }, [settings, playBeep, speak, schedule, updateUI, clearTimer]);
+  }, [settings, playBeep, queueSpeak, schedule, updateUI, clearTimer]);
 
   /*====================================================================
     Public workout controls
@@ -271,14 +281,15 @@ export function useWorkoutTimer(
       wState.current.rep = 0;
       displaySet.value = next;
       displayRep.value = 0;
+      // ✅ FIX: Keep isRunning=true and set initial rest status text
       updateUI({
         phase: PHASE_DISPLAY[PHASES.REST],
-        isRunning: false,
+        statusText: `Rest: ${restSeconds}s`,
       });
-      speak(`Set complete. Rest for ${restSeconds} seconds.`);
+      queueSpeak(`Set complete. Rest for ${restSeconds} seconds.`, { priority: true });
       startRest();
     }
-  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, speak]);
+  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, queueSpeak]);
 
   const startWorkout = useCallback(() => {
     if (ui.isRunning && !ui.isPaused) return;
@@ -300,17 +311,16 @@ export function useWorkoutTimer(
   const pauseWorkout = useCallback(() => {
     if (!ui.isRunning) return;
     if (ui.isPaused) {
-      // resume
       wState.current.isJumping = true;
       updateUI({ isPaused: false });
-      speak('Resuming');
-      startCountdown(); // quick 3-2-1 resume
+      queueSpeak('Resuming', { priority: true });
+      startCountdown();
     } else {
       clearTimer();
       updateUI({ isPaused: true, statusText: 'Paused' });
-      speak('Paused');
+      queueSpeak('Paused', { priority: true });
     }
-  }, [ui, updateUI, speak, clearTimer, startCountdown]);
+  }, [ui, updateUI, queueSpeak, clearTimer, startCountdown]);
 
   const jumpToRep = useCallback(
     (rep) => {
@@ -319,28 +329,22 @@ export function useWorkoutTimer(
       wState.current.isJumping = true;
       displayRep.value = rep;
       updateUI({ isRunning: true, isPaused: false });
-      speak(`Jumping to rep ${rep}. Get ready.`);
+      queueSpeak(`Jumping to rep ${rep}. Get ready.`, { priority: true });
       startCountdown();
     },
-    [clearTimer, displayRep, updateUI, speak, startCountdown],
+    [clearTimer, displayRep, updateUI, queueSpeak, startCountdown],
   );
 
   const runNextSet = useCallback(() => {
     clearTimer();
     wState.current.isJumping = false;
     updateUI({ isRunning: true, isPaused: false });
-    speak('Get ready.');
+    queueSpeak('Get ready.', { priority: true });
     startCountdown();
-  }, [clearTimer, updateUI, speak, startCountdown]);
+  }, [clearTimer, updateUI, queueSpeak, startCountdown]);
 
-  /* ----------------------------------------
-     unmount cleanup
-  ---------------------------------------- */
   useEffect(() => clearTimer, [clearTimer]);
 
-  /* ----------------------------------------
-     public API
-  ---------------------------------------- */
   return useMemo(
     () => ({
       currentRep: displayRep,
