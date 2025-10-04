@@ -28,14 +28,14 @@ export const useWorkoutTimer = (
   // --- Reanimated Shared Values ---
   const displayRep = useSharedValue(0);
   const displaySet = useSharedValue(1);
+  const statusText = useSharedValue('Press Start');
 
   // --- State Management ---
   const [state, setState] = useState({
     isExerciseComplete: false,
     isRunning: false,
     isPaused: false,
-    phase: '',
-    statusText: 'Press Start'
+    phase: ''
   });
 
   // --- Internal State Ref ---
@@ -80,7 +80,7 @@ export const useWorkoutTimer = (
     if (currentSecond > state.lastSpokenSecond && remaining > 0) {
       state.lastSpokenSecond = currentSecond;
       const numToSpeak = Math.ceil(remaining);
-      updateUIState({ statusText: `Get Ready... ${numToSpeak}` });
+      statusText.value = `Get Ready... ${numToSpeak}`;
       speak(String(numToSpeak));
     }
 
@@ -101,12 +101,12 @@ export const useWorkoutTimer = (
       speak(String(state.rep));
       displayRep.value = state.rep;
 
+      statusText.value = 'In Progress';
       updateUIState({
-        statusText: 'In Progress',
         phase: PHASE_DISPLAY[PHASES.CONCENTRIC]
       });
     }
-  }, [speak, playBeep, displayRep, updateUIState]);
+  }, [speak, playBeep, displayRep, updateUIState, statusText]);
 
   const handleConcentricPhase = useCallback(() => {
     const state = workoutState.current;
@@ -157,7 +157,7 @@ export const useWorkoutTimer = (
     const remaining = restSeconds - state.phaseTime;
     const currentSecond = Math.floor(state.phaseTime);
 
-    updateUIState({ statusText: `Rest: ${Math.ceil(remaining)}s` });
+    statusText.value = `Rest: ${Math.ceil(remaining)}s`;
 
     // Rest countdown beeps
     if (remaining <= 3 && currentSecond > state.lastSpokenSecond) {
@@ -168,14 +168,14 @@ export const useWorkoutTimer = (
     // Rest complete
     if (remaining <= 0) {
       stopAllTimers();
+      statusText.value = `Press Start for Set ${state.set}`;
       updateUIState({
-        isRunning: false,
-        statusText: `Press Start for Set ${state.set}`
+        isRunning: false
       });
       speak(`Rest complete. Press start for set ${state.set}.`);
       playBeep(880);
     }
-  }, [speak, playBeep, stopAllTimers, updateUIState]);
+  }, [speak, playBeep, stopAllTimers, updateUIState, statusText]);
 
   // --- Main Timer Tick ---
   const timerTick = useCallback(() => {
@@ -216,13 +216,13 @@ export const useWorkoutTimer = (
   const stopWorkout = useCallback(() => {
     stopAllTimers();
     resetWorkoutState();
+    statusText.value = 'Press Start';
     updateUIState({
       isRunning: false,
       isPaused: false,
-      phase: '',
-      statusText: 'Press Start'
+      phase: ''
     });
-  }, [stopAllTimers, resetWorkoutState, updateUIState]);
+  }, [stopAllTimers, resetWorkoutState, updateUIState, statusText]);
 
   const endSet = useCallback(() => {
     const state = workoutState.current;
@@ -233,8 +233,8 @@ export const useWorkoutTimer = (
 
     if (nextSet > maxSets) {
       stopWorkout();
+      statusText.value = 'Exercise Complete!';
       updateUIState({
-        statusText: 'Exercise Complete!',
         isExerciseComplete: true,
         isRunning: false
       });
@@ -256,12 +256,12 @@ export const useWorkoutTimer = (
       speak(`Set complete. Rest for ${restSeconds} seconds.`);
       startTimer();
     }
-  }, [stopAllTimers, stopWorkout, startTimer, speak, displayRep, displaySet, updateUIState]);
+  }, [stopAllTimers, stopWorkout, startTimer, speak, displayRep, displaySet, updateUIState, statusText]);
 
   const startWorkout = useCallback(() => {
     if (state.isRunning && !state.isPaused) return;
 
-    if (state.statusText === 'Exercise Complete!') {
+    if (statusText.value === 'Exercise Complete!') {
       stopWorkout();
     }
 
@@ -286,7 +286,7 @@ export const useWorkoutTimer = (
 
     speak('Get ready.');
     startTimer();
-  }, [state, stopWorkout, speak, startTimer, displaySet, displayRep, updateUIState]);
+  }, [state, stopWorkout, speak, startTimer, displaySet, displayRep, updateUIState, statusText]);
 
   const pauseWorkout = useCallback(() => {
     if (!state.isRunning) return;
@@ -304,13 +304,13 @@ export const useWorkoutTimer = (
     } else {
       // Pause
       stopAllTimers();
+      statusText.value = 'Paused';
       updateUIState({
-        isPaused: true,
-        statusText: 'Paused'
+        isPaused: true
       });
       speak('Paused');
     }
-  }, [state, speak, startTimer, stopAllTimers, updateUIState]);
+  }, [state, speak, startTimer, stopAllTimers, updateUIState, statusText]);
 
   const jumpToRep = useCallback((rep) => {
     stopAllTimers();
@@ -368,7 +368,7 @@ export const useWorkoutTimer = (
     isPaused: state.isPaused,
     isResting: state.phase === PHASE_DISPLAY[PHASES.REST],
     phase: state.phase,
-    statusText: state.statusText,
+    statusText,
     isExerciseComplete: state.isExerciseComplete,
     startWorkout,
     pauseWorkout,
@@ -376,10 +376,10 @@ export const useWorkoutTimer = (
     runNextSet,
     jumpToRep,
     endSet,
-    setStatusText: (text) => updateUIState({ statusText: text }),
+    setStatusText: (text) => { statusText.value = text; },
     resetExerciseCompleteFlag: () => updateUIState({ isExerciseComplete: false })
   }), [
     displayRep, displaySet, state, startWorkout, pauseWorkout,
-    stopWorkout, runNextSet, jumpToRep, endSet, updateUIState
+    stopWorkout, runNextSet, jumpToRep, endSet, updateUIState, statusText
   ]);
 };
