@@ -39,6 +39,7 @@ export function useWorkoutTimer(settings, handlers) {
   ---------------------------------------- */
   const displayRep = useSharedValue(0);
   const displaySet = useSharedValue(1);
+  const statusText = useSharedValue('Press Start');
 
   /* ----------------------------------------
      React state for UI
@@ -48,7 +49,6 @@ export function useWorkoutTimer(settings, handlers) {
     isRunning: false,
     isPaused: false,
     phase: '',
-    statusText: 'Press Start',
   });
   const updateUI = useCallback(
     (patch) =>
@@ -105,7 +105,8 @@ export function useWorkoutTimer(settings, handlers) {
     wState.current.phase = PHASES.COUNTDOWN;
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
-    updateUI({ phase: 'Get Ready', statusText: `Get Ready… ${countdownSeconds}` });
+    updateUI({ phase: 'Get Ready' });
+    statusText.value = `Get Ready… ${countdownSeconds}`;
 
     // Use queueSpeak for initial announcement
     queueSpeak('Get ready.', { priority: true });
@@ -118,7 +119,7 @@ export function useWorkoutTimer(settings, handlers) {
       // Only speak if it's a new second and we have at least 1 second left
       if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
         wState.current.lastSpokenSecond = whole;
-        updateUI({ statusText: `Get Ready… ${whole}` });
+        statusText.value = `Get Ready… ${whole}`;
 
         // Only speak countdown for 3, 2, 1 to avoid overlapping
         if (whole <= 3) {
@@ -134,8 +135,8 @@ export function useWorkoutTimer(settings, handlers) {
         displayRep.value = wState.current.rep;
         updateUI({
           phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
-          statusText: 'In Progress',
         });
+        statusText.value = 'In Progress';
         startConcentric();
       } else {
         // Add slight buffer to ensure speech completes
@@ -144,7 +145,7 @@ export function useWorkoutTimer(settings, handlers) {
       }
     };
     tick();
-  }, [settings, queueSpeak, playBeep, schedule, updateUI, displayRep]);
+  }, [settings, queueSpeak, playBeep, schedule, updateUI, displayRep, statusText]);
 
   const startConcentric = useCallback(() => {
     const { concentricSeconds } = settings;
@@ -215,7 +216,7 @@ export function useWorkoutTimer(settings, handlers) {
       const remaining = restSeconds - elapsed;
       const whole = Math.ceil(remaining);
 
-      updateUI({ statusText: `Rest: ${whole}s` });
+      statusText.value = `Rest: ${whole}s`;
 
       // Only beep for last 3 seconds
       if (whole <= 3 && whole > 0 && whole !== wState.current.lastSpokenSecond) {
@@ -225,10 +226,8 @@ export function useWorkoutTimer(settings, handlers) {
 
       if (remaining <= 0) {
         clearTimer();
-        updateUI({
-          isRunning: false,
-          statusText: `Press Start for Set ${wState.current.set}`,
-        });
+        updateUI({ isRunning: false });
+        statusText.value = `Press Start for Set ${wState.current.set}`;
         queueSpeak(`Rest complete. Press start for set ${wState.current.set}.`, { priority: true });
         playBeep(880);
       } else {
@@ -236,7 +235,7 @@ export function useWorkoutTimer(settings, handlers) {
       }
     };
     tick();
-  }, [settings, playBeep, queueSpeak, schedule, updateUI, clearTimer]);
+  }, [settings, playBeep, queueSpeak, schedule, updateUI, clearTimer, statusText]);
 
   /*====================================================================
     Public workout controls
@@ -261,9 +260,9 @@ export function useWorkoutTimer(settings, handlers) {
       isRunning: false,
       isPaused: false,
       phase: '',
-      statusText: 'Press Start',
     });
-  }, [clearTimer, resetInternalState, updateUI]);
+    statusText.value = 'Press Start';
+  }, [clearTimer, resetInternalState, updateUI, statusText]);
 
   const endSet = useCallback(() => {
     const { maxSets, restSeconds } = settings;
@@ -273,9 +272,9 @@ export function useWorkoutTimer(settings, handlers) {
     if (next > maxSets) {
       stopWorkout();
       updateUI({
-        statusText: 'Exercise Complete!',
         isExerciseComplete: true,
       });
+      statusText.value = 'Exercise Complete!';
     } else {
       wState.current.set = next;
       wState.current.rep = 0;
@@ -284,16 +283,16 @@ export function useWorkoutTimer(settings, handlers) {
       // ✅ FIX: Keep isRunning=true and set initial rest status text
       updateUI({
         phase: PHASE_DISPLAY[PHASES.REST],
-        statusText: `Rest: ${restSeconds}s`,
       });
+      statusText.value = `Rest: ${restSeconds}s`;
       queueSpeak(`Set complete. Rest for ${restSeconds} seconds.`, { priority: true });
       startRest();
     }
-  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, queueSpeak]);
+  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, queueSpeak, statusText]);
 
   const startWorkout = useCallback(() => {
     if (ui.isRunning && !ui.isPaused) return;
-    if (ui.statusText === 'Exercise Complete!') stopWorkout();
+    if (statusText.value === 'Exercise Complete!') stopWorkout();
 
     updateUI({
       isExerciseComplete: false,
@@ -306,7 +305,7 @@ export function useWorkoutTimer(settings, handlers) {
     displayRep.value = 0;
     displaySet.value = 1;
     startCountdown();
-  }, [ui, stopWorkout, updateUI, displayRep, displaySet, startCountdown]);
+  }, [ui, stopWorkout, updateUI, displayRep, displaySet, startCountdown, statusText]);
 
   const pauseWorkout = useCallback(() => {
     if (!ui.isRunning) return;
@@ -317,10 +316,11 @@ export function useWorkoutTimer(settings, handlers) {
       startCountdown();
     } else {
       clearTimer();
-      updateUI({ isPaused: true, statusText: 'Paused' });
+      updateUI({ isPaused: true });
+      statusText.value = 'Paused';
       queueSpeak('Paused', { priority: true });
     }
-  }, [ui, updateUI, queueSpeak, clearTimer, startCountdown]);
+  }, [ui, updateUI, queueSpeak, clearTimer, startCountdown, statusText]);
 
   const jumpToRep = useCallback(
     (rep) => {
@@ -353,7 +353,7 @@ export function useWorkoutTimer(settings, handlers) {
       isPaused: ui.isPaused,
       isResting: ui.phase === PHASE_DISPLAY[PHASES.REST],
       phase: ui.phase,
-      statusText: ui.statusText,
+      statusText,
       isExerciseComplete: ui.isExerciseComplete,
       startWorkout,
       pauseWorkout,
@@ -361,13 +361,16 @@ export function useWorkoutTimer(settings, handlers) {
       runNextSet,
       jumpToRep,
       endSet,
-      setStatusText: (text) => updateUI({ statusText: text }),
+      setStatusText: (text) => {
+        statusText.value = text;
+      },
       resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),
     }),
     [
       displayRep,
       displaySet,
       ui,
+      statusText,
       startWorkout,
       pauseWorkout,
       stopWorkout,
