@@ -24,10 +24,10 @@ const RepJumper = ({ maxReps, currentRep, jumpToRep }) => {
 
   return (
     <StyledView>
-      <StyledText className="text-sm font-medium text-gray-400 mb-2 text-center">
+      <StyledText className="text-sm font-medium text-gray-400 mb-4 text-center">
         Jump to Rep
       </StyledText>
-      <StyledView className="flex-row flex-wrap justify-center gap-2">
+      <StyledView className="flex-row flex-wrap justify-center gap-4">
         {renderNumberButtons()}
       </StyledView>
     </StyledView>

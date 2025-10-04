@@ -13,14 +13,14 @@ const UserProfile = ({ user, disconnectAccount }) => {
   }
 
   return (
-    <StyledView className="flex-row items-center justify-between bg-gray-700 rounded-lg p-3">
-      <StyledView className="flex-row items-center space-x-3">
+    <StyledView className="flex-row items-center justify-between bg-gray-700 rounded-lg p-4">
+      <StyledView className="flex-row items-center space-x-4">
         <Image
           source={{ uri: user.photoURL }}
-          className="w-10 h-10 rounded-full"
+          className="w-12 h-12 rounded-full"
         />
         <StyledView>
-          <StyledText className="text-white font-semibold">
+          <StyledText className="text-white font-semibold text-lg">
             {user.displayName}
           </StyledText>
           <StyledText className="text-gray-400 text-sm">
@@ -30,9 +30,9 @@ const UserProfile = ({ user, disconnectAccount }) => {
       </StyledView>
       <StyledTouchableOpacity
         onPress={disconnectAccount}
-        className="p-2 bg-red-600 rounded-lg"
+        className="p-3 bg-red-600 rounded-lg"
       >
-        <LogOut color="white" size={20} />
+        <LogOut color="white" size={24} />
       </StyledTouchableOpacity>
     </StyledView>
   );

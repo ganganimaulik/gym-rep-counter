@@ -19,10 +19,12 @@ const NumberButton = ({ number, onPress, currentRep }) => {
   return (
     <StyledTouchableOpacity
       onPress={onPress}
-      className="p-2 border-2 rounded-md items-center justify-center"
+      className="p-3 border-2 rounded-lg items-center justify-center w-14 h-14"
       style={animatedStyle}
     >
-      <StyledText className="text-white">{number}</StyledText>
+      <StyledText className="text-white text-lg font-bold">
+        {number}
+      </StyledText>
     </StyledTouchableOpacity>
   );
 };

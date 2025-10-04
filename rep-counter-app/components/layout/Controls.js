@@ -24,7 +24,7 @@ const Controls = ({
             <StyledTouchableOpacity
               key="start"
               onPress={isResting ? runNextSet : startWorkout}
-              className="py-3 px-4 bg-green-600 rounded-lg flex-1 items-center"
+              className="p-4 bg-green-600 rounded-lg flex-1 items-center"
             >
               <StyledText className="text-lg font-semibold text-white">
                 Start
@@ -33,7 +33,7 @@ const Controls = ({
             <StyledTouchableOpacity
               key="stop"
               onPress={stopWorkout}
-              className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center"
+              className="p-4 bg-red-600 rounded-lg flex-1 items-center"
             >
               <StyledText className="text-lg font-semibold text-white">
                 Stop
@@ -46,7 +46,7 @@ const Controls = ({
             <StyledTouchableOpacity
               key="resume"
               onPress={pauseWorkout}
-              className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center"
+              className="p-4 bg-yellow-500 rounded-lg flex-1 items-center"
             >
               <StyledText className="text-lg font-semibold text-white">
                 Resume
@@ -55,7 +55,7 @@ const Controls = ({
             <StyledTouchableOpacity
               key="stop-paused"
               onPress={stopWorkout}
-              className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center"
+              className="p-4 bg-red-600 rounded-lg flex-1 items-center"
             >
               <StyledText className="text-lg font-semibold text-white">
                 Stop
@@ -68,7 +68,7 @@ const Controls = ({
           <StyledTouchableOpacity
             key="pause"
             onPress={pauseWorkout}
-            className="py-3 px-4 bg-yellow-500 rounded-lg flex-1 items-center"
+            className="p-4 bg-yellow-500 rounded-lg flex-1 items-center"
           >
             <StyledText className="text-lg font-semibold text-white">
               Pause
@@ -77,7 +77,7 @@ const Controls = ({
           <StyledTouchableOpacity
             key="end-set"
             onPress={endSet}
-            className="py-3 px-4 bg-blue-600 rounded-lg flex-1 items-center"
+            className="p-4 bg-blue-600 rounded-lg flex-1 items-center"
           >
             <StyledText className="text-lg font-semibold text-white">
               End Set
@@ -86,7 +86,7 @@ const Controls = ({
           <StyledTouchableOpacity
             key="stop-running"
             onPress={stopWorkout}
-            className="py-3 px-4 bg-red-600 rounded-lg flex-1 items-center"
+            className="p-4 bg-red-600 rounded-lg flex-1 items-center"
           >
             <StyledText className="text-lg font-semibold text-white">
               Stop
