@@ -30,9 +30,19 @@ export interface Workout {
   exercises: Exercise[]
 }
 
+export interface SetCompletion {
+  date: string
+  completed: number[]
+}
+
+export interface SetCompletions {
+  [exerciseId: string]: SetCompletion
+}
+
 export interface DataHook {
   settings: Settings
   workouts: Workout[]
+  setCompletions: SetCompletions
   loadSettings: () => Promise<Settings>
   saveSettings: (
     newSettings: Settings,
@@ -43,10 +53,22 @@ export interface DataHook {
     newWorkouts: Workout[],
     user: FirebaseUser | null,
   ) => Promise<void>
+  loadSetCompletions: () => Promise<SetCompletions>
+  saveSetCompletions: (
+    newCompletions: SetCompletions,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  markSetAsCompleted: (
+    exerciseId: string,
+    setNumber: number,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  isSetCompleted: (exerciseId: string, setNumber: number) => boolean
   syncUserData: (
     firebaseUser: FirebaseUser,
     localSettings: Settings,
     localWorkouts: Workout[],
+    localSetCompletions: SetCompletions,
   ) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
@@ -68,6 +90,7 @@ export const useData = (): DataHook => {
   const [workouts, setWorkouts] = useState<Workout[]>(() =>
     getDefaultWorkouts(),
   )
+  const [setCompletions, setSetCompletions] = useState<SetCompletions>({})
 
   const loadSettings = useCallback(async (): Promise<Settings> => {
     try {
@@ -143,11 +166,92 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const loadSetCompletions = useCallback(async (): Promise<SetCompletions> => {
+    try {
+      const saved = await AsyncStorage.getItem('setCompletions')
+      if (saved) {
+        const parsed: SetCompletions = JSON.parse(saved)
+        const today = new Date().toISOString().slice(0, 10)
+        // Reset completions if the date is not today
+        Object.keys(parsed).forEach((exerciseId) => {
+          if (parsed[exerciseId].date !== today) {
+            delete parsed[exerciseId]
+          }
+        })
+        setSetCompletions(parsed)
+        return parsed
+      }
+      return {}
+    } catch (e) {
+      console.error('Failed to load set completions.', e)
+      return {}
+    }
+  }, [])
+
+  const saveSetCompletions = useCallback(
+    async (newCompletions: SetCompletions, user: FirebaseUser | null) => {
+      try {
+        setSetCompletions(newCompletions)
+        await AsyncStorage.setItem(
+          'setCompletions',
+          JSON.stringify(newCompletions),
+        )
+        if (user) {
+          const userDocRef = doc(db, 'users', user.uid)
+          await setDoc(
+            userDocRef,
+            { setCompletions: newCompletions },
+            { merge: true },
+          )
+        }
+      } catch (e) {
+        console.error('Failed to save set completions', e)
+      }
+    },
+    [],
+  )
+
+  const markSetAsCompleted = useCallback(
+    async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
+      const today = new Date().toISOString().slice(0, 10)
+      const newCompletions = { ...setCompletions }
+
+      if (
+        !newCompletions[exerciseId] ||
+        newCompletions[exerciseId].date !== today
+      ) {
+        newCompletions[exerciseId] = { date: today, completed: [] }
+      }
+
+      if (!newCompletions[exerciseId].completed.includes(setNumber)) {
+        newCompletions[exerciseId].completed.push(setNumber)
+        newCompletions[exerciseId].completed.sort((a, b) => a - b)
+      }
+
+      await saveSetCompletions(newCompletions, user)
+    },
+    [setCompletions, saveSetCompletions],
+  )
+
+  const isSetCompleted = useCallback(
+    (exerciseId: string, setNumber: number): boolean => {
+      const today = new Date().toISOString().slice(0, 10)
+      const completion = setCompletions[exerciseId]
+      return (
+        completion &&
+        completion.date === today &&
+        completion.completed.includes(setNumber)
+      )
+    },
+    [setCompletions],
+  )
+
   const syncUserData = useCallback(
     async (
       firebaseUser: FirebaseUser,
       localSettings: Settings,
       localWorkouts: Workout[],
+      localSetCompletions: SetCompletions,
     ) => {
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       try {
@@ -155,6 +259,7 @@ export const useData = (): DataHook => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data()
+          // Sync Settings
           if (userData.settings) {
             setSettings(userData.settings)
             await AsyncStorage.setItem(
@@ -162,6 +267,7 @@ export const useData = (): DataHook => {
               JSON.stringify(userData.settings),
             )
           }
+          // Sync Workouts
           if (
             userData.workouts &&
             Array.isArray(userData.workouts) &&
@@ -185,12 +291,22 @@ export const useData = (): DataHook => {
               { merge: true },
             )
           }
+          // Sync Set Completions
+          if (userData.setCompletions) {
+            setSetCompletions(userData.setCompletions)
+            await AsyncStorage.setItem(
+              'setCompletions',
+              JSON.stringify(userData.setCompletions),
+            )
+          }
         } else {
+          // New user, upload local data
           await setDoc(userDocRef, {
             email: firebaseUser.email,
             name: firebaseUser.displayName,
             settings: localSettings,
             workouts: localWorkouts,
+            setCompletions: localSetCompletions,
           })
         }
       } catch (error) {
@@ -203,10 +319,15 @@ export const useData = (): DataHook => {
   return {
     settings,
     workouts,
+    setCompletions,
     loadSettings,
     saveSettings,
     loadWorkouts,
     saveWorkouts,
+    loadSetCompletions,
+    saveSetCompletions,
+    markSetAsCompleted,
+    isSetCompleted,
     syncUserData,
     setWorkouts,
     setSettings,
