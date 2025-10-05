@@ -23,7 +23,7 @@ const SetTracker: React.FC<SetTrackerProps> = ({
   totalSets,
   isSetCompleted,
 }) => (
-  <StyledView className="flex-row justify-center items-center flex-wrap gap-2 my-2">
+  <StyledView className="flex-row justify-end items-center flex-wrap gap-2">
     {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => {
       const completed = isSetCompleted(setNumber)
       return (
@@ -95,16 +95,18 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
           <StyledText className="text-sm text-gray-400">
             Current Exercise:
           </StyledText>
-          <StyledText className="text-lg font-medium text-white">
-            {currentWorkout.exercises[currentExerciseIndex]?.name}
-          </StyledText>
-          <SetTracker
-            totalSets={settings.maxSets}
-            isSetCompleted={(setNumber) =>
-              isSetCompleted(activeExerciseId ?? '', setNumber)
-            }
-          />
-          <StyledView className="flex-row justify-between items-center mt-1">
+          <StyledView className="flex-row justify-between items-center mt-2">
+            <StyledText className="text-lg font-medium text-white flex-shrink mr-2">
+              {currentWorkout.exercises[currentExerciseIndex]?.name}
+            </StyledText>
+            <SetTracker
+              totalSets={settings.maxSets}
+              isSetCompleted={(setNumber) =>
+                isSetCompleted(activeExerciseId ?? '', setNumber)
+              }
+            />
+          </StyledView>
+          <StyledView className="flex-row justify-between items-center mt-2">
             <StyledText className="text-sm text-gray-400">
               Exercise {currentExerciseIndex + 1} of{' '}
               {currentWorkout.exercises.length}
