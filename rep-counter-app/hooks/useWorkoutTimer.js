@@ -153,7 +153,10 @@ export function useWorkoutTimer(settings, handlers) {
         statusText.value = 'In Progress';
         startConcentric();
       } else {
-        schedule(1000 - (Date.now() % 1000), tick);
+        // Must set stopSpeech to false, otherwise the schedule call will clear the timer
+        // and immediately call Speech.stop(), cutting off the announcement.
+        const stopSpeech = false;
+        schedule(1000 - (Date.now() % 1000), tick, stopSpeech);
       }
     };
     tick();
