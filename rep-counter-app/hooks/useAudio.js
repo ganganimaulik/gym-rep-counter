@@ -86,7 +86,7 @@ export const useAudio = (settings) => {
 
     const speechOptions = {
       volume: settings.volume,
-      rate: 1.6,
+      rate: 1.4,
       ...options,
     };
 
@@ -103,7 +103,7 @@ export const useAudio = (settings) => {
   const speak = useCallback((text, options = {}) => {
     Speech.speak(text, {
       volume: settings.volume,
-      rate: 1.6,
+      rate: 1.4,
       ...options,
     });
   }, [settings.volume]);
@@ -114,7 +114,7 @@ export const useAudio = (settings) => {
     // This is more reliable than calling Speech.stop() directly.
     queueSpeak(text, {
       priority: true,
-      rate: 1.6, // Using a slightly faster rate helps ensure the word fits within the 1-second window
+      rate: 1.4, // Using a slightly faster rate helps ensure the word fits within the 1-second window
       voice: femaleVoice,
     });
   }, [queueSpeak, femaleVoice]);
