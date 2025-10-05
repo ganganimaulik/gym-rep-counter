@@ -1,9 +1,10 @@
-const generateId = () => {
-    // Simple ID generator
+import { Workout } from '../hooks/useData';
+
+const generateId = (): string => {
     return Math.random().toString(36).substring(2, 11);
 };
 
-export const getDefaultWorkouts = () => {
+export const getDefaultWorkouts = (): Workout[] => {
     return [
       {
         id: generateId(),

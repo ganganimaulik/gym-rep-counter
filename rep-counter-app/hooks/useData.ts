@@ -1,4 +1,4 @@
-import { useState, Dispatch, SetStateAction } from 'react';
+import { useState, Dispatch, SetStateAction, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../utils/firebase';
@@ -57,7 +57,7 @@ export const useData = (): DataHook => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
 
-  const loadSettings = async (): Promise<Settings> => {
+  const loadSettings = useCallback(async (): Promise<Settings> => {
     try {
       const savedSettings = await AsyncStorage.getItem('repCounterSettings');
       if (savedSettings) {
@@ -71,9 +71,9 @@ export const useData = (): DataHook => {
       console.error('Failed to load settings.', e);
       return defaultSettings;
     }
-  };
+  }, []);
 
-  const saveSettings = async (newSettings: Settings, user: FirebaseUser | null) => {
+  const saveSettings = useCallback(async (newSettings: Settings, user: FirebaseUser | null) => {
     try {
       setSettings(newSettings);
       await AsyncStorage.setItem('repCounterSettings', JSON.stringify(newSettings));
@@ -85,15 +85,17 @@ export const useData = (): DataHook => {
     } catch (e) {
       console.error('Failed to save settings.', e);
     }
-  };
+  }, []);
 
-  const loadWorkouts = async (): Promise<Workout[]> => {
+  const loadWorkouts = useCallback(async (): Promise<Workout[]> => {
     try {
       const savedWorkouts = await AsyncStorage.getItem('workouts');
       if (savedWorkouts) {
         const parsed = JSON.parse(savedWorkouts);
-        setWorkouts(parsed);
-        return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setWorkouts(parsed);
+          return parsed;
+        }
       }
       const defaultWorkouts = getDefaultWorkouts();
       setWorkouts(defaultWorkouts);
@@ -101,11 +103,13 @@ export const useData = (): DataHook => {
       return defaultWorkouts;
     } catch (e) {
       console.error('Failed to load workouts.', e);
-      return [];
+      const defaultWorkouts = getDefaultWorkouts();
+      setWorkouts(defaultWorkouts);
+      return defaultWorkouts;
     }
-  };
+  }, []);
 
-  const saveWorkouts = async (newWorkouts: Workout[], user: FirebaseUser | null) => {
+  const saveWorkouts = useCallback(async (newWorkouts: Workout[], user: FirebaseUser | null) => {
     try {
       setWorkouts(newWorkouts);
       await AsyncStorage.setItem('workouts', JSON.stringify(newWorkouts));
@@ -116,9 +120,9 @@ export const useData = (): DataHook => {
     } catch (e) {
       console.error('Failed to save workouts', e);
     }
-  };
+  }, []);
 
-  const syncUserData = async (firebaseUser: FirebaseUser, localSettings: Settings, localWorkouts: Workout[]) => {
+  const syncUserData = useCallback(async (firebaseUser: FirebaseUser, localSettings: Settings, localWorkouts: Workout[]) => {
     const userDocRef = doc(db, 'users', firebaseUser.uid);
     try {
       const userDoc = await getDoc(userDocRef);
@@ -129,9 +133,14 @@ export const useData = (): DataHook => {
           setSettings(userData.settings);
           await AsyncStorage.setItem('repCounterSettings', JSON.stringify(userData.settings));
         }
-        if (userData.workouts) {
+        if (userData.workouts && Array.isArray(userData.workouts) && userData.workouts.length > 0) {
           setWorkouts(userData.workouts);
           await AsyncStorage.setItem('workouts', JSON.stringify(userData.workouts));
+        } else {
+          const defaultWorkouts = getDefaultWorkouts();
+          setWorkouts(defaultWorkouts);
+          await AsyncStorage.setItem('workouts', JSON.stringify(defaultWorkouts));
+          await setDoc(userDocRef, { workouts: defaultWorkouts }, { merge: true });
         }
       } else {
         await setDoc(userDocRef, {
@@ -144,7 +153,7 @@ export const useData = (): DataHook => {
     } catch (error) {
       console.error('Error syncing user data:', error);
     }
-  };
+  }, []);
 
   return {
     settings,
