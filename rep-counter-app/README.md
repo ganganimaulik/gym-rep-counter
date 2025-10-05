@@ -48,7 +48,7 @@ This is a React Native application built with Expo that helps you count exercise
 
 -   `App.js`: The main entry point of the application. It contains the core logic and ties all the components together.
 -   `components/`: This directory contains all the reusable React components used throughout the application.
--   `assets/`: This directory contains static assets like the `beep.mp3` sound file.
+-   `assets/`: This directory contains static assets like images and icons.
 -   `tailwind.config.js`: Configuration file for NativeWind (Tailwind CSS for React Native).
 -   `babel.config.js`: Babel configuration, which includes the `nativewind/babel` plugin.
 -   `package.json`: Lists all the project dependencies and scripts.

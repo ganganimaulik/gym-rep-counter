@@ -6,7 +6,6 @@ import * as Speech from 'expo-speech';
 
 export const useAudio = (settings) => {
   const [femaleVoice, setFemaleVoice] = useState(null);
-  const soundRef = useRef();
   const speechQueueRef = useRef([]);
   const isSpeakingRef = useRef(false);
 
@@ -44,29 +43,9 @@ export const useAudio = (settings) => {
     setupAudio();
 
     return () => {
-      unloadSound();
       Speech.stop();
     };
   }, []);
-
-  const playBeep = async (freq = 440) => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../assets/beep.mp3'),
-        { shouldPlay: true, volume: settings.volume },
-      );
-      soundRef.current = sound;
-      await sound.playAsync();
-    } catch (error) {
-      console.error('Error playing sound:', error);
-    }
-  };
-
-  const unloadSound = async () => {
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync();
-    }
-  };
 
   // Process speech queue
   const processNextSpeech = useCallback(() => {
@@ -103,7 +82,7 @@ export const useAudio = (settings) => {
 
     const speechOptions = {
       volume: settings.volume,
-      rate: 1.2,
+      rate: 1.6,
       ...options,
     };
 
@@ -120,30 +99,28 @@ export const useAudio = (settings) => {
   const speak = useCallback((text, options = {}) => {
     Speech.speak(text, {
       volume: settings.volume,
-      rate: 1.2,
+      rate: 1.6,
       ...options,
     });
   }, [settings.volume]);
 
   // Special eccentric voice with collision detection
-  const speakEccentric = useCallback(async (text) => {
-    // Check if we're already speaking
-    const isSpeaking = await Speech.isSpeakingAsync();
+  const speakEccentric = useCallback((text) => {
+    // Immediately stop any ongoing speech (like the previous number)
+    // to prioritize the time-sensitive countdown.
+    Speech.stop();
 
-    // Only speak if not currently speaking or if this is critical
-    if (!isSpeaking) {
-      Speech.speak(text, {
-        volume: settings.volume,
-        rate: 1.2,
-        voice: femaleVoice,
-        // Don't queue eccentrics, they're time-sensitive
-      });
-    }
+    // Speak the new number without checking if anything else was playing.
+    Speech.speak(text, {
+      volume: settings.volume,
+      rate: 1.6, // Using a slightly faster rate helps ensure the word fits within the 1-second window
+      voice: femaleVoice,
+    });
   }, [settings.volume, femaleVoice]);
 
+
+
   return {
-    playBeep,
-    unloadSound,
     speak,
     speakEccentric,
     queueSpeak
