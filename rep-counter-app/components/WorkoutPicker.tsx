@@ -2,18 +2,25 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, SafeAreaView, StatusBar } from 'react-native';
 import { styled } from 'nativewind';
 import { ChevronDown } from 'lucide-react-native';
+import { Workout } from '../hooks/useData';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledSafeAreaView = styled(SafeAreaView);
 
-const WorkoutPicker = ({ selectedValue, onValueChange, workouts }) => {
+interface WorkoutPickerProps {
+  selectedValue: string | null;
+  onValueChange: (value: string | null) => void;
+  workouts: Workout[];
+}
+
+const WorkoutPicker: React.FC<WorkoutPickerProps> = ({ selectedValue, onValueChange, workouts }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
   const selectedWorkout = workouts.find(w => w.id === selectedValue);
 
-  const handleSelect = (value) => {
+  const handleSelect = (value: string | null) => {
     onValueChange(value);
     setModalVisible(false);
   };

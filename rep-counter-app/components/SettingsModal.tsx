@@ -13,6 +13,8 @@ import Slider from '@react-native-community/slider';
 import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { X, Check } from 'lucide-react-native';
 import SyncStatus from './SyncStatus';
+import { Settings } from '../hooks/useData';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -21,7 +23,18 @@ const StyledSwitch = styled(Switch);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 
-const SettingsModal = ({
+interface SettingsModalProps {
+  visible: boolean;
+  onClose: () => void;
+  settings: Settings;
+  onSave: (settings: Settings) => void;
+  onGoogleButtonPress: () => void;
+  user: FirebaseUser | null;
+  disconnectAccount: () => void;
+  isSigningIn: boolean;
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
   onClose,
   settings,
@@ -31,7 +44,7 @@ const SettingsModal = ({
   disconnectAccount,
   isSigningIn,
 }) => {
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localSettings, setLocalSettings] = useState<Settings>(settings);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -42,7 +55,7 @@ const SettingsModal = ({
     onClose();
   };
 
-  const handleValueChange = (key, value) => {
+  const handleValueChange = (key: keyof Settings, value: any) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
   };
 

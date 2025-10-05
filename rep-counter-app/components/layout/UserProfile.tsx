@@ -2,12 +2,18 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { styled } from 'nativewind';
 import { LogOut } from 'lucide-react-native';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
-const UserProfile = ({ user, disconnectAccount }) => {
+interface UserProfileProps {
+  user: FirebaseUser | null;
+  disconnectAccount: () => void;
+}
+
+const UserProfile: React.FC<UserProfileProps> = ({ user, disconnectAccount }) => {
   if (!user) {
     return null;
   }
@@ -15,10 +21,12 @@ const UserProfile = ({ user, disconnectAccount }) => {
   return (
     <StyledView className="flex-row items-center justify-between bg-gray-700 rounded-lg p-4">
       <StyledView className="flex-row items-center space-x-4">
-        <Image
-          source={{ uri: user.photoURL }}
-          className="w-12 h-12 rounded-full"
-        />
+        {user.photoURL && (
+          <Image
+            source={{ uri: user.photoURL }}
+            className="w-12 h-12 rounded-full"
+          />
+        )}
         <StyledView>
           <StyledText className="text-white font-semibold text-lg">
             {user.displayName}

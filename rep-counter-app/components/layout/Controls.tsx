@@ -6,7 +6,18 @@ const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
-const Controls = ({
+interface ControlsProps {
+  isRunning: boolean;
+  isResting: boolean;
+  isPaused: boolean;
+  runNextSet: () => void;
+  startWorkout: () => void;
+  stopWorkout: () => void;
+  pauseWorkout: () => void;
+  endSet: () => void;
+}
+
+const Controls: React.FC<ControlsProps> = ({
   isRunning,
   isResting,
   isPaused,

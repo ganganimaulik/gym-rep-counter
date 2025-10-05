@@ -3,12 +3,24 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { styled } from 'nativewind';
 import { Edit, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import WorkoutPicker from '../WorkoutPicker';
+import { Workout, Settings } from '../../hooks/useData';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
-const WorkoutSelector = ({
+interface WorkoutSelectorProps {
+  workouts: Workout[];
+  currentWorkout: Workout | null;
+  currentExerciseIndex: number;
+  settings: Settings;
+  selectWorkout: (workoutId: string | null) => void;
+  setModalVisible: (visible: boolean) => void;
+  prevExercise: () => void;
+  nextExercise: () => void;
+}
+
+const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   workouts,
   currentWorkout,
   currentExerciseIndex,
@@ -35,7 +47,7 @@ const WorkoutSelector = ({
         </StyledTouchableOpacity>
       </StyledView>
       <WorkoutPicker
-        selectedValue={currentWorkout?.id}
+        selectedValue={currentWorkout?.id || null}
         onValueChange={itemValue => selectWorkout(itemValue)}
         workouts={workouts}
       />

@@ -1,44 +1,49 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import { styled } from 'nativewind';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { X, Trash2, Plus, GripVertical } from 'lucide-react-native';
-import DraggableFlatList from 'react-native-draggable-flatlist';
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Workout, Exercise } from '../hooks/useData';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTextInput = styled(TextInput);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 
-const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => {
+interface WorkoutManagementModalProps {
+  visible: boolean;
+  onClose: () => void;
+  workouts: Workout[];
+  setWorkouts: (workouts: Workout[]) => void;
+}
+
+const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible, onClose, workouts, setWorkouts }) => {
   const [newWorkoutName, setNewWorkoutName] = useState('');
 
   const generateId = () => {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   };
 
-  const addWorkout = async () => {
+  const addWorkout = () => {
     if (newWorkoutName.trim()) {
-      const newWorkout = {
+      const newWorkout: Workout = {
         id: generateId(),
         name: newWorkoutName.trim(),
         exercises: [],
       };
       const updatedWorkouts = [...workouts, newWorkout];
       setWorkouts(updatedWorkouts);
-      await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
       setNewWorkoutName('');
     }
   };
 
-  const deleteWorkout = async (id) => {
+  const deleteWorkout = (id: string) => {
     const updatedWorkouts = workouts.filter(w => w.id !== id);
     setWorkouts(updatedWorkouts);
-    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
   };
 
-  const addExercise = async (workoutId, exerciseName, sets, reps) => {
+  const addExercise = (workoutId: string, exerciseName: string, sets: number, reps: number) => {
     if (exerciseName.trim()) {
       const updatedWorkouts = workouts.map(w => {
         if (w.id === workoutId) {
@@ -50,11 +55,10 @@ const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => 
         return w;
       });
       setWorkouts(updatedWorkouts);
-      await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
     }
   };
 
-  const deleteExercise = async (workoutId, exerciseId) => {
+  const deleteExercise = (workoutId: string, exerciseId: string) => {
     const updatedWorkouts = workouts.map(w => {
       if (w.id === workoutId) {
         return {
@@ -65,10 +69,9 @@ const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => 
       return w;
     });
     setWorkouts(updatedWorkouts);
-    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
   };
 
-  const updateExerciseOrder = async (workoutId, reorderedExercises) => {
+  const updateExerciseOrder = (workoutId: string, reorderedExercises: Exercise[]) => {
     const updatedWorkouts = workouts.map(w => {
       if (w.id === workoutId) {
         return { ...w, exercises: reorderedExercises };
@@ -76,20 +79,19 @@ const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => 
       return w;
     });
     setWorkouts(updatedWorkouts);
-    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
   };
 
-  const WorkoutItem = ({ workout }) => {
+  const WorkoutItem = ({ workout }: { workout: Workout }) => {
     const [exerciseName, setExerciseName] = useState('');
     const [sets, setSets] = useState('3');
     const [reps, setReps] = useState('12');
 
     const handleAddExercise = () => {
-      addExercise(workout.id, exerciseName, parseInt(sets), parseInt(reps));
+      addExercise(workout.id, exerciseName, parseInt(sets, 10), parseInt(reps, 10));
       setExerciseName('');
     };
 
-    const renderExercise = ({ item: ex, drag, isActive, getIndex }) => (
+    const renderExercise = ({ item: ex, drag, isActive, getIndex }: RenderItemParams<Exercise>) => (
       <StyledTouchableOpacity
         onLongPress={drag}
         disabled={isActive}
@@ -97,7 +99,7 @@ const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => 
       >
         <StyledView className="flex-row items-center flex-1">
           <GripVertical color="#9ca3af" size={20} className="mr-2" />
-          <StyledText className="text-sm font-medium text-white flex-1">{getIndex() + 1}. {ex.name}</StyledText>
+          <StyledText className="text-sm font-medium text-white flex-1">{getIndex()! + 1}. {ex.name}</StyledText>
         </StyledView>
         <StyledText className="text-xs text-gray-400 font-mono mx-3">{ex.sets}x{ex.reps}</StyledText>
         <StyledTouchableOpacity onPress={() => deleteExercise(workout.id, ex.id)} className="p-1">
@@ -119,6 +121,7 @@ const WorkoutManagementModal = ({ visible, onClose, workouts, setWorkouts }) => 
           renderItem={renderExercise}
           keyExtractor={(item) => item.id}
           onDragEnd={({ data }) => updateExerciseOrder(workout.id, data)}
+          containerStyle={{ flex: 1 }}
         />
         <StyledView className="pt-2">
           <StyledView className="flex-row gap-2">

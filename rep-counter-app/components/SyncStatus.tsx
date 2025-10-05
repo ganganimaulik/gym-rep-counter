@@ -2,28 +2,33 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { styled } from 'nativewind';
 import { Cloud, Smartphone } from 'lucide-react-native';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 
-const SyncStatus = ({ user }) => {
+interface SyncStatusProps {
+  user: FirebaseUser | null;
+}
+
+const SyncStatus: React.FC<SyncStatusProps> = ({ user }) => {
   const statusConfig = user
     ? {
-      Icon: Cloud,
-      iconColor: '#4ade80', // green-400
-      textColor: 'text-green-400',
-      bgColor: 'bg-green-500/10',
-      borderColor: 'border-green-500/20',
-      text: 'Settings are synced to your account.',
-    }
+        Icon: Cloud,
+        iconColor: '#4ade80', // green-400
+        textColor: 'text-green-400',
+        bgColor: 'bg-green-500/10',
+        borderColor: 'border-green-500/20',
+        text: 'Settings are synced to your account.',
+      }
     : {
-      Icon: Smartphone,
-      iconColor: '#facc15', // yellow-400
-      textColor: 'text-yellow-400',
-      bgColor: 'bg-yellow-500/10',
-      borderColor: 'border-yellow-500/20',
-      text: 'Settings are saved on this device only.',
-    };
+        Icon: Smartphone,
+        iconColor: '#facc15', // yellow-400
+        textColor: 'text-yellow-400',
+        bgColor: 'bg-yellow-500/10',
+        borderColor: 'border-yellow-500/20',
+        text: 'Settings are saved on this device only.',
+      };
 
   return (
     <StyledView
