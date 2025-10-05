@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { useState, useEffect } from "react";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithCredential,
   User as FirebaseUser,
-} from 'firebase/auth';
-import { auth } from '../utils/firebase'; // Assuming firebase is configured and exported from this path
+} from "firebase/auth";
+import { auth } from "../utils/firebase"; // Assuming firebase is configured and exported from this path
 
 // Interfaces
 export interface AuthHook {
@@ -45,22 +45,24 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   const onGoogleButtonPress = async () => {
     setIsSigningIn(true);
     try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const { idToken } = await GoogleSignin.signIn();
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
+      const signInResponse = await GoogleSignin.signIn();
+      const idToken = signInResponse.data?.idToken;
 
       if (!idToken) {
-        throw new Error('Google Sign-In failed: No ID token received.');
+        throw new Error("Google Sign-In failed: No ID token received.");
       }
 
       const googleCredential = GoogleAuthProvider.credential(idToken);
       await signInWithCredential(auth, googleCredential);
-
     } catch (error: any) {
       // Known error codes for user cancellation
-      if (error.code === '12501' || error.code === 'SIGN_IN_CANCELLED') {
-        console.log('User cancelled the Google Sign-In flow.');
+      if (error.code === "12501" || error.code === "SIGN_IN_CANCELLED") {
+        console.log("User cancelled the Google Sign-In flow.");
       } else {
-        console.error('Google Sign-In error:', error);
+        console.error("Google Sign-In error:", error);
       }
     } finally {
       setIsSigningIn(false);
@@ -72,9 +74,15 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
       await GoogleSignin.signOut();
       await auth.signOut();
     } catch (error) {
-      console.error('Error disconnecting account:', error);
+      console.error("Error disconnecting account:", error);
     }
   };
 
-  return { user, initializing, isSigningIn, onGoogleButtonPress, disconnectAccount };
+  return {
+    user,
+    initializing,
+    isSigningIn,
+    onGoogleButtonPress,
+    disconnectAccount,
+  };
 };
