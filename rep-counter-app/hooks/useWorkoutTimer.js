@@ -64,6 +64,7 @@ export function useWorkoutTimer(settings, handlers) {
     set: 1,
     phase: PHASES.STOPPED,
     phaseStart: Date.now(),
+    remainingTime: 0, // Time left when paused
     lastSpokenSecond: -1,
     isJumping: false,
   });
@@ -100,28 +101,35 @@ export function useWorkoutTimer(settings, handlers) {
   /*====================================================================
     Phase handlers
   ====================================================================*/
+  // We need to define these later to avoid circular dependencies
+  // so we declare them here and assign them later.
+  let startConcentric, startEccentric, startRest, endSet, stopWorkout;
+
   const startCountdown = useCallback(() => {
-    const { countdownSeconds } = settings;
+    const duration =
+      wState.current.remainingTime > 0
+        ? wState.current.remainingTime / 1000
+        : settings.countdownSeconds;
+    wState.current.remainingTime = 0;
+
     wState.current.phase = PHASES.COUNTDOWN;
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
     updateUI({ phase: 'Get Ready' });
-    statusText.value = `Get Ready… ${countdownSeconds}`;
 
-    // Use queueSpeak for initial announcement
-    queueSpeak('Get ready.', { priority: true });
+    if (!ui.isPaused) {
+      queueSpeak('Get ready.', { priority: true });
+    }
 
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
-      const remaining = countdownSeconds - elapsed;
+      const remaining = duration - elapsed;
       const whole = Math.ceil(remaining);
 
-      // Only speak if it's a new second and we have at least 1 second left
+      statusText.value = `Get Ready… ${Math.max(0, whole)}`;
+
       if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
         wState.current.lastSpokenSecond = whole;
-        statusText.value = `Get Ready… ${whole}`;
-
-        // Only speak countdown for 3, 2, 1 to avoid overlapping
         if (whole <= 3) {
           queueSpeak(String(whole));
         }
@@ -140,37 +148,45 @@ export function useWorkoutTimer(settings, handlers) {
         statusText.value = 'In Progress';
         startConcentric();
       } else {
-        // Add slight buffer to ensure speech completes
-        const nextTick = Math.max(500, 1000 - (Date.now() % 1000));
-        schedule(nextTick, tick);
+        schedule(1000 - (Date.now() % 1000), tick);
       }
     };
     tick();
-  }, [settings, queueSpeak, schedule, updateUI, displayRep, statusText]);
+  }, [settings, ui.isPaused, queueSpeak, schedule, updateUI, displayRep, statusText]);
 
-  const startConcentric = useCallback(() => {
-    const { concentricSeconds } = settings;
+  startConcentric = useCallback(() => {
+    const duration =
+      wState.current.remainingTime > 0
+        ? wState.current.remainingTime
+        : settings.concentricSeconds * 1000;
+    wState.current.remainingTime = 0;
+
     wState.current.phase = PHASES.CONCENTRIC;
     wState.current.phaseStart = Date.now();
 
-    schedule(concentricSeconds * 1000, () => {
+    schedule(duration, () => {
       updateUI({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] });
       startEccentric();
     });
   }, [settings, schedule, updateUI]);
 
-  const startEccentric = useCallback(() => {
-    const { eccentricSeconds, eccentricCountdownEnabled, maxReps } = settings;
+  startEccentric = useCallback(() => {
+    const duration =
+      wState.current.remainingTime > 0
+        ? wState.current.remainingTime / 1000
+        : settings.eccentricSeconds;
+    wState.current.remainingTime = 0;
+
+    const { eccentricCountdownEnabled, maxReps } = settings;
     wState.current.phase = PHASES.ECCENTRIC;
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
 
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
-      const remaining = eccentricSeconds - elapsed;
+      const remaining = duration - elapsed;
       const whole = Math.ceil(remaining);
 
-      // Only countdown last 5 seconds to avoid audio overlap
       if (
         eccentricCountdownEnabled &&
         remaining > 0 &&
@@ -178,7 +194,6 @@ export function useWorkoutTimer(settings, handlers) {
         whole <= 5
       ) {
         wState.current.lastSpokenSecond = whole;
-        // Use special eccentric voice without interrupting
         speakEccentric(String(whole));
       }
 
@@ -188,17 +203,13 @@ export function useWorkoutTimer(settings, handlers) {
         } else {
           wState.current.rep += 1;
           displayRep.value = wState.current.rep;
-
-          // Small delay ensures eccentric countdown completes
           setTimeout(() => {
             queueSpeak(String(wState.current.rep));
           }, 150);
-
           updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] });
           startConcentric();
         }
       } else {
-        // Ensure adequate spacing between speech
         const nextTick = Math.max(600, 1000 - (Date.now() % 1000));
         schedule(nextTick, tick);
       }
@@ -206,34 +217,44 @@ export function useWorkoutTimer(settings, handlers) {
     tick();
   }, [settings, speakEccentric, queueSpeak, schedule, updateUI, displayRep]);
 
-  const startRest = useCallback(() => {
-    const { restSeconds } = settings;
+  startRest = useCallback(() => {
+    const duration =
+      wState.current.remainingTime > 0
+        ? wState.current.remainingTime / 1000
+        : settings.restSeconds;
+    wState.current.remainingTime = 0;
+
     wState.current.phase = PHASES.REST;
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
 
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
-      const remaining = restSeconds - elapsed;
+      const remaining = duration - elapsed;
       const whole = Math.ceil(remaining);
 
-      if (remaining > 0) {
-        statusText.value = `Rest: ${whole}s`;
+      statusText.value = `Rest: ${Math.max(0, whole)}s`;
 
-        // Only beep for last 3 seconds
-        if (whole <= 3 && whole > 0 && whole !== wState.current.lastSpokenSecond) {
+      if (remaining > 0) {
+        if (
+          whole <= 3 &&
+          whole > 0 &&
+          whole !== wState.current.lastSpokenSecond
+        ) {
           wState.current.lastSpokenSecond = whole;
+          // No beeping sound, per user request memory
         }
         schedule(1000 - (Date.now() % 1000), tick);
       } else {
-        // When timer finishes, don't auto-start. Just update the text.
         clearTimer();
         statusText.value = `Press Start for Set ${wState.current.set}`;
-        queueSpeak(`Rest complete. Press start for set ${wState.current.set}.`, { priority: true });
+        queueSpeak(`Rest complete. Press start for set ${wState.current.set}.`, {
+          priority: true,
+        });
       }
     };
     tick();
-  }, [settings, queueSpeak, schedule, updateUI, clearTimer, statusText]);
+  }, [settings, queueSpeak, schedule, clearTimer, statusText]);
 
   /*====================================================================
     Public workout controls
@@ -244,6 +265,7 @@ export function useWorkoutTimer(settings, handlers) {
       set: 1,
       phase: PHASES.STOPPED,
       phaseStart: Date.now(),
+      remainingTime: 0,
       lastSpokenSecond: -1,
       isJumping: false,
     };
@@ -251,7 +273,7 @@ export function useWorkoutTimer(settings, handlers) {
     displaySet.value = 1;
   }, [displayRep, displaySet]);
 
-  const stopWorkout = useCallback(() => {
+  stopWorkout = useCallback(() => {
     clearTimer();
     resetInternalState();
     updateUI({
@@ -262,39 +284,38 @@ export function useWorkoutTimer(settings, handlers) {
     statusText.value = 'Press Start';
   }, [clearTimer, resetInternalState, updateUI, statusText]);
 
-  const endSet = useCallback(() => {
+  endSet = useCallback(() => {
     const { maxSets } = settings;
     clearTimer();
-    const next = wState.current.set + 1;
+    const nextSet = wState.current.set + 1;
 
-    if (next > maxSets) {
+    if (nextSet > maxSets) {
       stopWorkout();
       updateUI({
         isExerciseComplete: true,
       });
       statusText.value = 'Exercise Complete!';
     } else {
-      wState.current.set = next;
+      wState.current.set = nextSet;
       wState.current.rep = 0;
-      displaySet.value = next;
+      displaySet.value = nextSet;
       displayRep.value = 0;
 
-      // Keep the "Start" button visible but start the rest countdown.
       updateUI({
         isRunning: false,
         isPaused: false,
         phase: PHASE_DISPLAY[PHASES.REST],
       });
-
-      // Announce the rest period and start the visual countdown.
       queueSpeak(`Set complete. Rest now.`, { priority: true });
       startRest();
     }
-  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, queueSpeak, statusText]);
+  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, queueSpeak, statusText]);
 
   const startWorkout = useCallback(() => {
-    if (ui.isRunning && !ui.isPaused) return;
-    if (statusText.value === 'Exercise Complete!') stopWorkout();
+    if (wState.current.phase !== PHASES.STOPPED) return;
+    if (statusText.value === 'Exercise Complete!') {
+      resetInternalState();
+    }
 
     updateUI({
       isExerciseComplete: false,
@@ -307,34 +328,83 @@ export function useWorkoutTimer(settings, handlers) {
     displayRep.value = 0;
     displaySet.value = 1;
     startCountdown();
-  }, [ui, stopWorkout, updateUI, displayRep, displaySet, startCountdown, statusText]);
+  }, [updateUI, displayRep, displaySet, startCountdown, statusText, resetInternalState]);
 
   const pauseWorkout = useCallback(() => {
     if (!ui.isRunning) return;
+
     if (ui.isPaused) {
-      wState.current.isJumping = true;
       updateUI({ isPaused: false });
       queueSpeak('Resuming', { priority: true });
-      startCountdown();
+
+      switch (wState.current.phase) {
+        case PHASES.COUNTDOWN:
+          startCountdown();
+          break;
+        case PHASES.CONCENTRIC:
+          startConcentric();
+          break;
+        case PHASES.ECCENTRIC:
+          startEccentric();
+          break;
+        case PHASES.REST:
+          startRest();
+          break;
+        default:
+          stopWorkout();
+      }
     } else {
       clearTimer();
+      let duration;
+      switch (wState.current.phase) {
+        case PHASES.COUNTDOWN:
+          duration = settings.countdownSeconds * 1000;
+          break;
+        case PHASES.CONCENTRIC:
+          duration = settings.concentricSeconds * 1000;
+          break;
+        case PHASES.ECCENTRIC:
+          duration = settings.eccentricSeconds * 1000;
+          break;
+        case PHASES.REST:
+          duration = settings.restSeconds * 1000;
+          break;
+        default:
+          duration = 0;
+      }
+      const elapsed = Date.now() - wState.current.phaseStart;
+      wState.current.remainingTime = Math.max(0, duration - elapsed);
+
       updateUI({ isPaused: true });
       statusText.value = 'Paused';
       queueSpeak('Paused', { priority: true });
     }
-  }, [ui, updateUI, queueSpeak, clearTimer, startCountdown, statusText]);
+  }, [
+    ui,
+    settings,
+    updateUI,
+    queueSpeak,
+    clearTimer,
+    statusText,
+    startCountdown
+  ]);
 
   const jumpToRep = useCallback(
     (rep) => {
       clearTimer();
       wState.current.rep = rep;
       wState.current.isJumping = true;
+      wState.current.remainingTime = 0;
       displayRep.value = rep;
-      updateUI({ isRunning: true, isPaused: false });
-      queueSpeak(`Jumping to rep ${rep}. Get ready.`, { priority: true });
-      startCountdown();
+      updateUI({
+        isRunning: true,
+        isPaused: false,
+        phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
+      });
+      queueSpeak(`Rep ${rep}.`, { priority: true });
+      startConcentric();
     },
-    [clearTimer, displayRep, updateUI, queueSpeak, startCountdown],
+    [clearTimer, displayRep, updateUI, queueSpeak],
   );
 
   const runNextSet = useCallback(() => {
