@@ -32,7 +32,7 @@ export function useWorkoutTimer(settings, handlers) {
   /* ----------------------------------------
      External helpers
   ---------------------------------------- */
-  const { speak, speakEccentric, playBeep, queueSpeak } = handlers;
+  const { speak, speakEccentric, queueSpeak } = handlers;
 
   /* ----------------------------------------
      Reanimated shared values
@@ -128,7 +128,6 @@ export function useWorkoutTimer(settings, handlers) {
       }
 
       if (remaining <= 0) {
-        playBeep(880);
         queueSpeak('Go!', { priority: true });
         if (!wState.current.isJumping && wState.current.rep === 0) {
           wState.current.rep = 1;
@@ -147,7 +146,7 @@ export function useWorkoutTimer(settings, handlers) {
       }
     };
     tick();
-  }, [settings, queueSpeak, playBeep, schedule, updateUI, displayRep, statusText]);
+  }, [settings, queueSpeak, schedule, updateUI, displayRep, statusText]);
 
   const startConcentric = useCallback(() => {
     const { concentricSeconds } = settings;
@@ -224,7 +223,6 @@ export function useWorkoutTimer(settings, handlers) {
         // Only beep for last 3 seconds
         if (whole <= 3 && whole > 0 && whole !== wState.current.lastSpokenSecond) {
           wState.current.lastSpokenSecond = whole;
-          playBeep();
         }
         schedule(1000 - (Date.now() % 1000), tick);
       } else {
@@ -232,11 +230,10 @@ export function useWorkoutTimer(settings, handlers) {
         clearTimer();
         statusText.value = `Press Start for Set ${wState.current.set}`;
         queueSpeak(`Rest complete. Press start for set ${wState.current.set}.`, { priority: true });
-        playBeep(880);
       }
     };
     tick();
-  }, [settings, playBeep, queueSpeak, schedule, updateUI, clearTimer, statusText]);
+  }, [settings, queueSpeak, schedule, updateUI, clearTimer, statusText]);
 
   /*====================================================================
     Public workout controls

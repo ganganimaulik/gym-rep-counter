@@ -6,7 +6,6 @@ import * as Speech from 'expo-speech';
 
 export const useAudio = (settings) => {
   const [femaleVoice, setFemaleVoice] = useState(null);
-  const soundRef = useRef();
   const speechQueueRef = useRef([]);
   const isSpeakingRef = useRef(false);
 
@@ -44,29 +43,9 @@ export const useAudio = (settings) => {
     setupAudio();
 
     return () => {
-      unloadSound();
       Speech.stop();
     };
   }, []);
-
-  const playBeep = async (freq = 440) => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../assets/beep.mp3'),
-        { shouldPlay: true, volume: settings.volume },
-      );
-      soundRef.current = sound;
-      await sound.playAsync();
-    } catch (error) {
-      console.error('Error playing sound:', error);
-    }
-  };
-
-  const unloadSound = async () => {
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync();
-    }
-  };
 
   // Process speech queue
   const processNextSpeech = useCallback(() => {
@@ -142,8 +121,6 @@ export const useAudio = (settings) => {
   }, [settings.volume, femaleVoice]);
 
   return {
-    playBeep,
-    unloadSound,
     speak,
     speakEccentric,
     queueSpeak
