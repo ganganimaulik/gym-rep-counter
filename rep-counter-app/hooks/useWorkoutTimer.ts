@@ -69,7 +69,7 @@ export interface WorkoutTimerHook {
   runNextSet: () => void
   jumpToRep: (rep: number) => void
   jumpToSet: (set: number) => void
-  endSet: () => void
+  endSet: () => Promise<void>
   setStatusText: (text: string) => void
   resetExerciseCompleteFlag: () => void
 }
@@ -378,9 +378,9 @@ export function useWorkoutTimer(
     statusText.value = `Press Start for Set ${wState.current.set}`
   }, [clearTimer, displayRep, updateUI, statusText])
 
-  endSet = useCallback(() => {
+  endSet = useCallback(async () => {
     if (activeExercise) {
-      markSetAsCompleted(activeExercise.id, wState.current.set, user)
+      await markSetAsCompleted(activeExercise.id, wState.current.set, user)
     }
 
     const { maxSets } = settings
