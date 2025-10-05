@@ -1,5 +1,3 @@
-// useWorkoutTimer.ts - improved audio handling version
-
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import * as Speech from 'expo-speech';
 import {
