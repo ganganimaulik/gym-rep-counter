@@ -85,6 +85,14 @@ const defaultSettings: Settings = {
   volume: 1.0,
 }
 
+const getLocalDateString = () => {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export const useData = (): DataHook => {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [workouts, setWorkouts] = useState<Workout[]>(() =>
@@ -171,7 +179,7 @@ export const useData = (): DataHook => {
       const saved = await AsyncStorage.getItem('setCompletions')
       if (saved) {
         const parsed: SetCompletions = JSON.parse(saved)
-        const today = new Date().toISOString().slice(0, 10)
+        const today = getLocalDateString()
         // Reset completions if the date is not today
         Object.keys(parsed).forEach((exerciseId) => {
           if (parsed[exerciseId].date !== today) {
@@ -213,7 +221,7 @@ export const useData = (): DataHook => {
 
   const markSetAsCompleted = useCallback(
     async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = getLocalDateString()
       const newCompletions = { ...setCompletions }
 
       if (
@@ -235,7 +243,7 @@ export const useData = (): DataHook => {
 
   const isSetCompleted = useCallback(
     (exerciseId: string, setNumber: number): boolean => {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = getLocalDateString()
       const completion = setCompletions[exerciseId]
       return (
         completion &&
