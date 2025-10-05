@@ -282,15 +282,18 @@ export function useWorkoutTimer(settings, handlers) {
       wState.current.rep = 0;
       displaySet.value = next;
       displayRep.value = 0;
-      // ✅ FIX: Keep isRunning=true and set initial rest status text
+
+      // Transition to a state where the user must press "Start" for the next set.
       updateUI({
-        phase: PHASE_DISPLAY[PHASES.REST],
+        isRunning: false, // This will show the "Start" button
+        isPaused: false,
+        phase: PHASE_DISPLAY[PHASES.REST], // So "Start" knows to run the next set
       });
-      statusText.value = `Rest: ${restSeconds}s`;
-      queueSpeak(`Set complete. Rest for ${restSeconds} seconds.`, { priority: true });
-      startRest();
+
+      statusText.value = `Press Start for Set ${next}`;
+      queueSpeak(`Set complete. Press start for set ${next}.`, { priority: true });
     }
-  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, queueSpeak, statusText]);
+  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, queueSpeak, statusText]);
 
   const startWorkout = useCallback(() => {
     if (ui.isRunning && !ui.isPaused) return;
