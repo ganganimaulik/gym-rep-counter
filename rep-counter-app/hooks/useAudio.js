@@ -106,17 +106,14 @@ export const useAudio = (settings) => {
 
   // Special eccentric voice with collision detection
   const speakEccentric = useCallback((text) => {
-    // Immediately stop any ongoing speech (like the previous number)
-    // to prioritize the time-sensitive countdown.
-    Speech.stop();
-
-    // Speak the new number without checking if anything else was playing.
-    Speech.speak(text, {
-      volume: settings.volume,
+    // Use the high-priority queue to interrupt other speech and play immediately.
+    // This is more reliable than calling Speech.stop() directly.
+    queueSpeak(text, {
+      priority: true,
       rate: 1.6, // Using a slightly faster rate helps ensure the word fits within the 1-second window
       voice: femaleVoice,
     });
-  }, [settings.volume, femaleVoice]);
+  }, [queueSpeak, femaleVoice]);
 
 
 

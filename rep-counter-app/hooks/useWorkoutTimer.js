@@ -73,13 +73,23 @@ export function useWorkoutTimer(settings, handlers) {
      One single timeout at any moment
   ---------------------------------------- */
   const timeoutRef = useRef(null);
+  const audioTimeoutRef = useRef(null); // Ref for the eccentric audio timer
+
   // 1. Modify clearTimer to accept an option to prevent stopping speech
   const clearTimer = useCallback((stopSpeech = true) => {
+    // Clear the main phase timer
     if (timeoutRef.current != null) {
       try {
         bgClearTimeout(timeoutRef.current);
       } catch {/* ignore "timeout not found" */ }
       timeoutRef.current = null;
+    }
+    // Clear the audio feedback timer
+    if (audioTimeoutRef.current != null) {
+      try {
+        bgClearTimeout(audioTimeoutRef.current);
+      } catch {/* ignore "timeout not found" */ }
+      audioTimeoutRef.current = null;
     }
     // Only stop speech if the flag is true
     if (stopSpeech) {
@@ -238,7 +248,7 @@ export function useWorkoutTimer(settings, handlers) {
         if (remaining > 1) {
           // NOTE: We don't use the main `schedule` function here, to avoid clearing
           // the main `onPhaseEnd` timeout we set earlier.
-          bgSetTimeout(audioTick, 1000 - (Date.now() % 1000));
+          audioTimeoutRef.current = bgSetTimeout(audioTick, 1000 - (Date.now() % 1000));
         }
       };
       audioTick();
