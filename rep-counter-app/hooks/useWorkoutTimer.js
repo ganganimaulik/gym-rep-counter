@@ -248,7 +248,7 @@ export function useWorkoutTimer(settings, handlers) {
         if (remaining > 1) {
           // NOTE: We don't use the main `schedule` function here, to avoid clearing
           // the main `onPhaseEnd` timeout we set earlier.
-          audioTimeoutRef.current = bgSetTimeout(audioTick, 1000 - (Date.now() % 1000));
+          audioTimeoutRef.current = bgSetTimeout(audioTick, 1000);
         }
       };
       audioTick();
