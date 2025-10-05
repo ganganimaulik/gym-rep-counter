@@ -5,6 +5,8 @@ import * as Speech from 'expo-speech';
 import {
   bgSetTimeout,
   bgClearTimeout,
+  enableBackgroundExecution,
+  disableBackgroundExecution,
 } from 'expo-background-timer';
 import { useSharedValue, runOnJS } from 'react-native-reanimated';
 
@@ -33,6 +35,10 @@ export function useWorkoutTimer(settings, handlers) {
      External helpers
   ---------------------------------------- */
   const { speak, speakEccentric, queueSpeak } = handlers;
+
+  useEffect(() => {
+    enableBackgroundExecution();
+  }, []);
 
   /* ----------------------------------------
      Reanimated shared values
@@ -320,6 +326,7 @@ export function useWorkoutTimer(settings, handlers) {
       phase: '',
     });
     statusText.value = 'Press Start';
+    // disableBackgroundExecution();
   }, [clearTimer, resetInternalState, updateUI, statusText]);
 
   endSet = useCallback(() => {
@@ -358,6 +365,7 @@ export function useWorkoutTimer(settings, handlers) {
     if (statusText.value === 'Exercise Complete!') {
       resetInternalState();
     }
+
 
     updateUI({
       isExerciseComplete: false,
