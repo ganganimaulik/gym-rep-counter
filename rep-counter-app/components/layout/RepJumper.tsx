@@ -1,21 +1,25 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { styled } from 'nativewind';
-import NumberButton from '../NumberButton';
-import { SharedValue } from 'react-native-reanimated';
+import React from 'react'
+import { View, Text } from 'react-native'
+import { styled } from 'nativewind'
+import NumberButton from '../NumberButton'
+import { SharedValue } from 'react-native-reanimated'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
+const StyledView = styled(View)
+const StyledText = styled(Text)
 
 interface RepJumperProps {
-  maxReps: number;
-  currentRep: SharedValue<number>;
-  jumpToRep: (rep: number) => void;
+  maxReps: number
+  currentRep: SharedValue<number>
+  jumpToRep: (rep: number) => void
 }
 
-const RepJumper: React.FC<RepJumperProps> = ({ maxReps, currentRep, jumpToRep }) => {
+const RepJumper: React.FC<RepJumperProps> = ({
+  maxReps,
+  currentRep,
+  jumpToRep,
+}) => {
   const renderNumberButtons = () => {
-    let buttons = [];
+    let buttons = []
     for (let i = 1; i <= maxReps; i++) {
       buttons.push(
         <NumberButton
@@ -24,10 +28,10 @@ const RepJumper: React.FC<RepJumperProps> = ({ maxReps, currentRep, jumpToRep })
           onPress={() => jumpToRep(i)}
           currentRep={currentRep}
         />,
-      );
+      )
     }
-    return buttons;
-  };
+    return buttons
+  }
 
   return (
     <StyledView>
@@ -38,7 +42,7 @@ const RepJumper: React.FC<RepJumperProps> = ({ maxReps, currentRep, jumpToRep })
         {renderNumberButtons()}
       </StyledView>
     </StyledView>
-  );
-};
+  )
+}
 
-export default RepJumper;
+export default RepJumper

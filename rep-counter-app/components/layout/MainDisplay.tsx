@@ -1,38 +1,46 @@
-import React from 'react';
-import { View, Text, TextInput } from 'react-native';
-import { styled } from 'nativewind';
-import Animated, { useAnimatedProps, SharedValue } from 'react-native-reanimated';
+import React from 'react'
+import { View, Text, TextInput } from 'react-native'
+import { styled } from 'nativewind'
+import Animated, {
+  useAnimatedProps,
+  SharedValue,
+} from 'react-native-reanimated'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
-const StyledAnimatedTextInput = styled(AnimatedTextInput);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput)
+const StyledAnimatedTextInput = styled(AnimatedTextInput)
 
 interface MainDisplayProps {
-  statusText: SharedValue<string>;
-  currentRep: SharedValue<number>;
-  currentSet: SharedValue<number>;
-  phase: string;
+  statusText: SharedValue<string>
+  currentRep: SharedValue<number>
+  currentSet: SharedValue<number>
+  phase: string
 }
 
-const MainDisplay: React.FC<MainDisplayProps> = ({ statusText, currentRep, currentSet, phase }) => {
+const MainDisplay: React.FC<MainDisplayProps> = ({
+  statusText,
+  currentRep,
+  currentSet,
+  phase,
+}) => {
   const animatedRepProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentRep.value)),
-    } as any;
-  }, []);
+    } as any
+  }, [])
 
   const animatedSetProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentSet.value)),
-    } as any;
-  }, []);
+    } as any
+  }, [])
 
   const animatedStatusProps = useAnimatedProps(() => {
     return {
       text: statusText.value,
-    } as any;
-  }, []);
+    } as any
+  }, [])
 
   return (
     <StyledView className="items-center space-y-4">
@@ -64,7 +72,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({ statusText, currentRep, curre
       </StyledView>
       <StyledText className="text-xl text-gray-400">{phase || ' '}</StyledText>
     </StyledView>
-  );
-};
+  )
+}
 
-export default MainDisplay;
+export default MainDisplay

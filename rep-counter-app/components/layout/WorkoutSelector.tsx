@@ -1,23 +1,23 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { styled } from 'nativewind';
-import { Edit, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import WorkoutPicker from '../WorkoutPicker';
-import { Workout, Settings } from '../../hooks/useData';
+import React from 'react'
+import { View, Text, TouchableOpacity } from 'react-native'
+import { styled } from 'nativewind'
+import { Edit, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import WorkoutPicker from '../WorkoutPicker'
+import { Workout, Settings } from '../../hooks/useData'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface WorkoutSelectorProps {
-  workouts: Workout[];
-  currentWorkout: Workout | null;
-  currentExerciseIndex: number;
-  settings: Settings;
-  selectWorkout: (workoutId: string | null) => void;
-  setModalVisible: (visible: boolean) => void;
-  prevExercise: () => void;
-  nextExercise: () => void;
+  workouts: Workout[]
+  currentWorkout: Workout | null
+  currentExerciseIndex: number
+  settings: Settings
+  selectWorkout: (workoutId: string | null) => void
+  setModalVisible: (visible: boolean) => void
+  prevExercise: () => void
+  nextExercise: () => void
 }
 
 const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
@@ -38,8 +38,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
         </StyledText>
         <StyledTouchableOpacity
           onPress={() => setModalVisible(true)}
-          className="flex-row items-center space-x-2 rounded-lg bg-gray-600 p-3"
-        >
+          className="flex-row items-center space-x-2 rounded-lg bg-gray-600 p-3">
           <Edit color="#d1d5db" size={16} />
           <StyledText className="text-sm font-semibold text-white">
             Manage
@@ -48,7 +47,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
       </StyledView>
       <WorkoutPicker
         selectedValue={currentWorkout?.id || null}
-        onValueChange={itemValue => selectWorkout(itemValue)}
+        onValueChange={(itemValue) => selectWorkout(itemValue)}
         workouts={workouts}
       />
       {currentWorkout && (
@@ -75,8 +74,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
           <StyledTouchableOpacity
             onPress={prevExercise}
             disabled={currentExerciseIndex === 0}
-            className="p-3 bg-gray-600 rounded-lg flex-1 items-center"
-          >
+            className="p-3 bg-gray-600 rounded-lg flex-1 items-center">
             <ChevronLeft
               color={currentExerciseIndex === 0 ? '#4b5563' : 'white'}
               size={24}
@@ -87,8 +85,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
             disabled={
               currentExerciseIndex >= currentWorkout.exercises.length - 1
             }
-            className="p-3 bg-gray-600 rounded-lg flex-1 items-center"
-          >
+            className="p-3 bg-gray-600 rounded-lg flex-1 items-center">
             <ChevronRight
               color={
                 currentExerciseIndex >= currentWorkout.exercises.length - 1
@@ -101,7 +98,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
         </StyledView>
       )}
     </StyledView>
-  );
-};
+  )
+}
 
-export default WorkoutSelector;
+export default WorkoutSelector

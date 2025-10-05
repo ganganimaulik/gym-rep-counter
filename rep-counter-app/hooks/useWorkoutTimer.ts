@@ -1,13 +1,13 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import * as Speech from 'expo-speech';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import * as Speech from 'expo-speech'
 import {
   bgSetTimeout,
   bgClearTimeout,
   enableBackgroundExecution,
-} from 'expo-background-timer';
-import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated';
-import { Settings } from './useData';
-import { AudioHandler } from './useAudio';
+} from 'expo-background-timer'
+import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated'
+import { Settings } from './useData'
+import { AudioHandler } from './useAudio'
 
 // Constants
 const PHASES = {
@@ -16,76 +16,78 @@ const PHASES = {
   CONCENTRIC: 'concentric',
   ECCENTRIC: 'eccentric',
   REST: 'rest',
-} as const;
+} as const
 
-type Phase = typeof PHASES[keyof typeof PHASES];
+type Phase = (typeof PHASES)[keyof typeof PHASES]
 
 const PHASE_DISPLAY: Record<string, string> = {
   [PHASES.CONCENTRIC]: 'Concentric',
   [PHASES.ECCENTRIC]: 'Eccentric',
   [PHASES.REST]: 'Rest',
-};
+}
 
 // Interfaces
 interface UIState {
-  isExerciseComplete: boolean;
-  isRunning: boolean;
-  isPaused: boolean;
-  phase: string;
+  isExerciseComplete: boolean
+  isRunning: boolean
+  isPaused: boolean
+  phase: string
 }
 
 interface WorkoutState {
-  rep: number;
-  set: number;
-  phase: Phase;
-  phaseStart: number;
-  remainingTime: number;
-  lastSpokenSecond: number;
-  isJumping: boolean;
+  rep: number
+  set: number
+  phase: Phase
+  phaseStart: number
+  remainingTime: number
+  lastSpokenSecond: number
+  isJumping: boolean
 }
 
 export interface WorkoutTimerHook {
-  currentRep: SharedValue<number>;
-  currentSet: SharedValue<number>;
-  isRunning: boolean;
-  isPaused: boolean;
-  isResting: boolean;
-  phase: string;
-  statusText: SharedValue<string>;
-  isExerciseComplete: boolean;
-  startWorkout: () => void;
-  pauseWorkout: () => void;
-  stopWorkout: () => void;
-  runNextSet: () => void;
-  jumpToRep: (rep: number) => void;
-  endSet: () => void;
-  setStatusText: (text: string) => void;
-  resetExerciseCompleteFlag: () => void;
+  currentRep: SharedValue<number>
+  currentSet: SharedValue<number>
+  isRunning: boolean
+  isPaused: boolean
+  isResting: boolean
+  phase: string
+  statusText: SharedValue<string>
+  isExerciseComplete: boolean
+  startWorkout: () => void
+  pauseWorkout: () => void
+  stopWorkout: () => void
+  runNextSet: () => void
+  jumpToRep: (rep: number) => void
+  endSet: () => void
+  setStatusText: (text: string) => void
+  resetExerciseCompleteFlag: () => void
 }
 
 // Hook
-export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): WorkoutTimerHook {
-  const { queueSpeak, speakEccentric } = handlers;
+export function useWorkoutTimer(
+  settings: Settings,
+  handlers: AudioHandler,
+): WorkoutTimerHook {
+  const { queueSpeak, speakEccentric } = handlers
 
   useEffect(() => {
-    enableBackgroundExecution();
-  }, []);
+    enableBackgroundExecution()
+  }, [])
 
-  const displayRep = useSharedValue(0);
-  const displaySet = useSharedValue(1);
-  const statusText = useSharedValue('Press Start');
+  const displayRep = useSharedValue(0)
+  const displaySet = useSharedValue(1)
+  const statusText = useSharedValue('Press Start')
 
   const [ui, setUI] = useState<UIState>({
     isExerciseComplete: false,
     isRunning: false,
     isPaused: false,
     phase: '',
-  });
+  })
   const updateUI = useCallback(
-    (patch: Partial<UIState>) =>
-      setUI(prev => ({ ...prev, ...patch })),
+    (patch: Partial<UIState>) => setUI((prev) => ({ ...prev, ...patch })),
     [],
-  );
+  )
 
   const wState = useRef<WorkoutState>({
     rep: 0,
@@ -95,182 +97,207 @@ export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): Wor
     remainingTime: 0,
     lastSpokenSecond: -1,
     isJumping: false,
-  });
+  })
 
-  const timeoutRef = useRef<number | null>(null);
-  const audioTimeoutRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null)
+  const audioTimeoutRef = useRef<number | null>(null)
 
   const clearTimer = useCallback((stopSpeech = true) => {
     if (timeoutRef.current != null) {
       try {
-        bgClearTimeout(timeoutRef.current);
-      } catch { /* ignore */ }
-      timeoutRef.current = null;
+        bgClearTimeout(timeoutRef.current)
+      } catch {
+        /* ignore */
+      }
+      timeoutRef.current = null
     }
     if (audioTimeoutRef.current != null) {
       try {
-        bgClearTimeout(audioTimeoutRef.current);
-      } catch { /* ignore */ }
-      audioTimeoutRef.current = null;
+        bgClearTimeout(audioTimeoutRef.current)
+      } catch {
+        /* ignore */
+      }
+      audioTimeoutRef.current = null
     }
     if (stopSpeech) {
-      Speech.stop();
+      Speech.stop()
     }
-  }, []);
+  }, [])
 
   const schedule = useCallback(
     (ms: number, cb: () => void, stopSpeech = true) => {
-      clearTimer(stopSpeech);
+      clearTimer(stopSpeech)
       const id = bgSetTimeout(() => {
-        timeoutRef.current = null;
-        cb();
-      }, ms);
-      timeoutRef.current = id;
+        timeoutRef.current = null
+        cb()
+      }, ms)
+      timeoutRef.current = id
     },
     [clearTimer],
-  );
+  )
 
   let startConcentric: () => void,
     startEccentric: () => void,
     startRest: () => void,
     endSet: () => void,
-    stopWorkout: () => void;
+    stopWorkout: () => void
 
   const startCountdown = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
-        : settings.countdownSeconds;
-    wState.current.remainingTime = 0;
+        : settings.countdownSeconds
+    wState.current.remainingTime = 0
 
-    wState.current.phase = PHASES.COUNTDOWN;
-    wState.current.phaseStart = Date.now();
-    wState.current.lastSpokenSecond = -1;
-    updateUI({ phase: 'Get Ready' });
+    wState.current.phase = PHASES.COUNTDOWN
+    wState.current.phaseStart = Date.now()
+    wState.current.lastSpokenSecond = -1
+    updateUI({ phase: 'Get Ready' })
 
     if (!ui.isPaused) {
-      queueSpeak('Get ready.', { priority: true });
+      queueSpeak('Get ready.', { priority: true })
     }
 
     const tick = () => {
-      const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
-      const remaining = duration - elapsed;
-      const whole = Math.ceil(remaining);
+      const elapsed = (Date.now() - wState.current.phaseStart) / 1000
+      const remaining = duration - elapsed
+      const whole = Math.ceil(remaining)
 
-      statusText.value = `Get Ready… ${Math.max(0, whole)}`;
+      statusText.value = `Get Ready… ${Math.max(0, whole)}`
 
       if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
-        wState.current.lastSpokenSecond = whole;
+        wState.current.lastSpokenSecond = whole
         if (whole <= 10) {
-          queueSpeak(String(whole));
+          queueSpeak(String(whole))
         }
       }
 
       if (remaining <= 0) {
-        queueSpeak('Go!', { priority: true });
+        queueSpeak('Go!', { priority: true })
         if (!wState.current.isJumping && wState.current.rep === 0) {
-          wState.current.rep = 1;
-          queueSpeak('1');
+          wState.current.rep = 1
+          queueSpeak('1')
         }
-        displayRep.value = wState.current.rep;
+        displayRep.value = wState.current.rep
         updateUI({
           phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
-        });
-        statusText.value = 'In Progress';
-        startConcentric();
+        })
+        statusText.value = 'In Progress'
+        startConcentric()
       } else {
-        const stopSpeech = false;
-        schedule(1000 - (Date.now() % 1000), tick, stopSpeech);
+        const stopSpeech = false
+        schedule(1000 - (Date.now() % 1000), tick, stopSpeech)
       }
-    };
-    tick();
-  }, [settings, ui.isPaused, queueSpeak, schedule, updateUI, displayRep, statusText]);
+    }
+    tick()
+  }, [
+    settings,
+    ui.isPaused,
+    queueSpeak,
+    schedule,
+    updateUI,
+    displayRep,
+    statusText,
+  ])
 
   startConcentric = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime
-        : settings.concentricSeconds * 1000;
-    wState.current.remainingTime = 0;
+        : settings.concentricSeconds * 1000
+    wState.current.remainingTime = 0
 
-    wState.current.phase = PHASES.CONCENTRIC;
-    wState.current.phaseStart = Date.now();
+    wState.current.phase = PHASES.CONCENTRIC
+    wState.current.phaseStart = Date.now()
 
-    const stopSpeechOnClear = false;
-    schedule(duration, () => {
-      updateUI({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] });
-      startEccentric();
-    }, stopSpeechOnClear);
-  }, [settings, schedule, updateUI]);
+    const stopSpeechOnClear = false
+    schedule(
+      duration,
+      () => {
+        updateUI({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] })
+        startEccentric()
+      },
+      stopSpeechOnClear,
+    )
+  }, [settings, schedule, updateUI])
 
   startEccentric = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
-        : settings.eccentricSeconds;
-    wState.current.remainingTime = 0;
+        : settings.eccentricSeconds
+    wState.current.remainingTime = 0
 
-    const { eccentricCountdownEnabled, maxReps } = settings;
-    wState.current.phase = PHASES.ECCENTRIC;
-    wState.current.phaseStart = Date.now();
-    wState.current.lastSpokenSecond = -1;
+    const { eccentricCountdownEnabled, maxReps } = settings
+    wState.current.phase = PHASES.ECCENTRIC
+    wState.current.phaseStart = Date.now()
+    wState.current.lastSpokenSecond = -1
 
     const onPhaseEnd = () => {
       if (wState.current.rep >= maxReps) {
-        runOnJS(endSet)();
+        runOnJS(endSet)()
       } else {
-        wState.current.rep += 1;
-        displayRep.value = wState.current.rep;
+        wState.current.rep += 1
+        displayRep.value = wState.current.rep
         setTimeout(() => {
-          queueSpeak(String(wState.current.rep));
-        }, 150);
-        updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] });
-        startConcentric();
+          queueSpeak(String(wState.current.rep))
+        }, 150)
+        updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] })
+        startConcentric()
       }
-    };
+    }
 
-    schedule(duration * 1000, onPhaseEnd);
+    schedule(duration * 1000, onPhaseEnd)
 
     if (eccentricCountdownEnabled) {
       const audioTick = () => {
-        const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
-        const remaining = duration - elapsed;
-        const whole = Math.ceil(remaining);
+        const elapsed = (Date.now() - wState.current.phaseStart) / 1000
+        const remaining = duration - elapsed
+        const whole = Math.ceil(remaining)
 
         if (
           remaining > 0 &&
           whole !== wState.current.lastSpokenSecond &&
           whole <= 5
         ) {
-          wState.current.lastSpokenSecond = whole;
-          speakEccentric(String(whole));
+          wState.current.lastSpokenSecond = whole
+          speakEccentric(String(whole))
         }
 
         if (remaining > 1) {
-          audioTimeoutRef.current = bgSetTimeout(audioTick, 1000);
+          audioTimeoutRef.current = bgSetTimeout(audioTick, 1000)
         }
-      };
-      audioTick();
+      }
+      audioTick()
     }
-  }, [settings, speakEccentric, queueSpeak, schedule, updateUI, displayRep, endSet, startConcentric]);
+  }, [
+    settings,
+    speakEccentric,
+    queueSpeak,
+    schedule,
+    updateUI,
+    displayRep,
+    endSet,
+    startConcentric,
+  ])
 
   startRest = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
-        : settings.restSeconds;
-    wState.current.remainingTime = 0;
+        : settings.restSeconds
+    wState.current.remainingTime = 0
 
-    wState.current.phase = PHASES.REST;
-    wState.current.phaseStart = Date.now();
-    wState.current.lastSpokenSecond = -1;
+    wState.current.phase = PHASES.REST
+    wState.current.phaseStart = Date.now()
+    wState.current.lastSpokenSecond = -1
 
     const tick = () => {
-      const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
-      const remaining = duration - elapsed;
-      const whole = Math.ceil(remaining);
+      const elapsed = (Date.now() - wState.current.phaseStart) / 1000
+      const remaining = duration - elapsed
+      const whole = Math.ceil(remaining)
 
-      statusText.value = `Rest: ${Math.max(0, whole)}s`;
+      statusText.value = `Rest: ${Math.max(0, whole)}s`
 
       if (remaining > 0) {
         if (
@@ -278,19 +305,22 @@ export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): Wor
           whole > 0 &&
           whole !== wState.current.lastSpokenSecond
         ) {
-          wState.current.lastSpokenSecond = whole;
+          wState.current.lastSpokenSecond = whole
         }
-        schedule(1000 - (Date.now() % 1000), tick);
+        schedule(1000 - (Date.now() % 1000), tick)
       } else {
-        clearTimer();
-        statusText.value = `Press Start for Set ${wState.current.set}`;
-        queueSpeak(`Rest complete. Press start for set ${wState.current.set}.`, {
-          priority: true,
-        });
+        clearTimer()
+        statusText.value = `Press Start for Set ${wState.current.set}`
+        queueSpeak(
+          `Rest complete. Press start for set ${wState.current.set}.`,
+          {
+            priority: true,
+          },
+        )
       }
-    };
-    tick();
-  }, [settings, queueSpeak, schedule, clearTimer, statusText]);
+    }
+    tick()
+  }, [settings, queueSpeak, schedule, clearTimer, statusText])
 
   const resetInternalState = useCallback(() => {
     wState.current = {
@@ -301,118 +331,135 @@ export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): Wor
       remainingTime: 0,
       lastSpokenSecond: -1,
       isJumping: false,
-    };
-    displayRep.value = 0;
-    displaySet.value = 1;
-  }, [displayRep, displaySet]);
+    }
+    displayRep.value = 0
+    displaySet.value = 1
+  }, [displayRep, displaySet])
 
   stopWorkout = useCallback(() => {
-    clearTimer();
-    resetInternalState();
+    clearTimer()
+    resetInternalState()
     updateUI({
       isRunning: false,
       isPaused: false,
       phase: '',
-    });
-    statusText.value = 'Press Start';
-  }, [clearTimer, resetInternalState, updateUI, statusText]);
+    })
+    statusText.value = 'Press Start'
+  }, [clearTimer, resetInternalState, updateUI, statusText])
 
   endSet = useCallback(() => {
-    const { maxSets } = settings;
-    clearTimer(false);
-    const nextSet = wState.current.set + 1;
+    const { maxSets } = settings
+    clearTimer(false)
+    const nextSet = wState.current.set + 1
 
     if (nextSet > maxSets) {
-      stopWorkout();
+      stopWorkout()
       updateUI({
         isExerciseComplete: true,
-      });
-      statusText.value = 'Exercise Complete!';
+      })
+      statusText.value = 'Exercise Complete!'
     } else {
-      wState.current.set = nextSet;
-      wState.current.rep = 0;
-      displaySet.value = nextSet;
-      displayRep.value = 0;
+      wState.current.set = nextSet
+      wState.current.rep = 0
+      displaySet.value = nextSet
+      displayRep.value = 0
 
       updateUI({
         isRunning: false,
         isPaused: false,
         phase: PHASE_DISPLAY[PHASES.REST],
-      });
+      })
       queueSpeak(`Set complete. Rest now.`, {
         priority: true,
         onDone: startRest,
-      });
+      })
     }
-  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, queueSpeak, statusText, startRest]);
+  }, [
+    settings,
+    clearTimer,
+    stopWorkout,
+    updateUI,
+    displayRep,
+    displaySet,
+    queueSpeak,
+    statusText,
+    startRest,
+  ])
 
   const startWorkout = useCallback(() => {
-    if (wState.current.phase !== PHASES.STOPPED) return;
+    if (wState.current.phase !== PHASES.STOPPED) return
     if (statusText.value === 'Exercise Complete!') {
-      resetInternalState();
+      resetInternalState()
     }
 
     updateUI({
       isExerciseComplete: false,
       isRunning: true,
       isPaused: false,
-    });
+    })
 
-    wState.current.rep = 0;
-    wState.current.set = 1;
-    displayRep.value = 0;
-    displaySet.value = 1;
-    startCountdown();
-  }, [updateUI, displayRep, displaySet, startCountdown, statusText, resetInternalState]);
+    wState.current.rep = 0
+    wState.current.set = 1
+    displayRep.value = 0
+    displaySet.value = 1
+    startCountdown()
+  }, [
+    updateUI,
+    displayRep,
+    displaySet,
+    startCountdown,
+    statusText,
+    resetInternalState,
+  ])
 
   const pauseWorkout = useCallback(() => {
-    if (!ui.isRunning) return;
+    if (!ui.isRunning) return
 
     if (ui.isPaused) {
-      updateUI({ isPaused: false });
-      queueSpeak('Resuming', { priority: true });
+      updateUI({ isPaused: false })
+      queueSpeak('Resuming', { priority: true })
 
       switch (wState.current.phase) {
         case PHASES.COUNTDOWN:
-          startCountdown();
-          break;
+          startCountdown()
+          break
         case PHASES.CONCENTRIC:
-          startConcentric();
-          break;
+          startConcentric()
+          break
         case PHASES.ECCENTRIC:
-          startEccentric();
-          break;
+          startEccentric()
+          break
         case PHASES.REST:
-          startRest();
-          break;
+          startRest()
+          break
         default:
-          stopWorkout();
+          stopWorkout()
       }
     } else {
-      clearTimer();
-      let duration: number;
+      clearTimer()
+      let duration: number
       switch (wState.current.phase) {
         case PHASES.COUNTDOWN:
-          duration = settings.countdownSeconds * 1000;
-          break;
+          duration = settings.countdownSeconds * 1000
+          break
         case PHASES.CONCENTRIC:
-          duration = settings.concentricSeconds * 1000;
-          break;
+          duration = settings.concentricSeconds * 1000
+          break
         case PHASES.ECCENTRIC:
-          duration = settings.eccentricSeconds * 1000;
-          break;
+          duration = settings.eccentricSeconds * 1000
+          break
         case PHASES.REST:
-          duration = settings.restSeconds * 1000;
-          break;
+          duration = settings.restSeconds * 1000
+          break
         default:
-          duration = 0;
+          duration = 0
       }
-      const elapsed = Date.now() - wState.current.phaseStart;
-      wState.current.remainingTime = Math.max(0, duration - elapsed);
+      const elapsed = Date.now() - wState.current.phaseStart
+      wState.current.remainingTime = Math.max(0, duration - elapsed)
 
-      updateUI({ isPaused: true });
-      statusText.value = 'Paused';
-      queueSpeak('Paused', { priority: true });
+      updateUI({ isPaused: true })
+      statusText.value = 'Paused'
+      queueSpeak('Paused', { priority: true })
     }
   }, [
     ui,
@@ -426,35 +473,35 @@ export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): Wor
     startEccentric,
     startRest,
     stopWorkout,
-  ]);
+  ])
 
   const jumpToRep = useCallback(
     (rep: number) => {
-      clearTimer();
-      wState.current.rep = rep;
-      wState.current.isJumping = true;
-      wState.current.remainingTime = 0;
-      displayRep.value = rep;
+      clearTimer()
+      wState.current.rep = rep
+      wState.current.isJumping = true
+      wState.current.remainingTime = 0
+      displayRep.value = rep
       updateUI({
         isRunning: true,
         isPaused: false,
         phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
-      });
-      queueSpeak(`Rep ${rep}.`, { priority: true });
-      startConcentric();
+      })
+      queueSpeak(`Rep ${rep}.`, { priority: true })
+      startConcentric()
     },
     [clearTimer, displayRep, updateUI, queueSpeak, startConcentric],
-  );
+  )
 
   const runNextSet = useCallback(() => {
-    clearTimer();
-    wState.current.isJumping = false;
-    updateUI({ isRunning: true, isPaused: false });
-    queueSpeak('Get ready.', { priority: true });
-    startCountdown();
-  }, [clearTimer, updateUI, queueSpeak, startCountdown]);
+    clearTimer()
+    wState.current.isJumping = false
+    updateUI({ isRunning: true, isPaused: false })
+    queueSpeak('Get ready.', { priority: true })
+    startCountdown()
+  }, [clearTimer, updateUI, queueSpeak, startCountdown])
 
-  useEffect(() => clearTimer, [clearTimer]);
+  useEffect(() => clearTimer, [clearTimer])
 
   return useMemo(
     () => ({
@@ -473,7 +520,7 @@ export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): Wor
       jumpToRep,
       endSet,
       setStatusText: (text: string) => {
-        statusText.value = text;
+        statusText.value = text
       },
       resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),
     }),
@@ -490,5 +537,5 @@ export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): Wor
       endSet,
       updateUI,
     ],
-  );
+  )
 }

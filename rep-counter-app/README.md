@@ -16,39 +16,43 @@ This is a React Native application built with Expo that helps you count exercise
 
 2.  **Navigate to the Project Directory**:
     Open your terminal and change into the app's directory:
+
     ```bash
     cd rep-counter-app
     ```
 
 3.  **Install Dependencies**:
     Install all the necessary npm packages. This command will read the `package.json` file and install everything the project needs.
+
     ```bash
     npm install
     ```
 
 4.  **Run the Application on the iOS Simulator**:
     Once the dependencies are installed, you can start the application on the iOS simulator with the following command:
+
     ```bash
     npm run ios
     ```
+
     This will do a few things:
-    -   Start the Expo development server.
-    -   If you have Xcode installed correctly, it will automatically open the iOS simulator.
-    -   The app will be installed and launched on the simulator.
+    - Start the Expo development server.
+    - If you have Xcode installed correctly, it will automatically open the iOS simulator.
+    - The app will be installed and launched on the simulator.
 
     You can now interact with the app as you would on a real device. Any changes you make to the source code will automatically reload in the simulator.
 
 5.  **Running on a Physical iOS Device (Optional)**:
-    -   Ensure your iPhone is on the same Wi-Fi network as your computer.
-    -   Install the "Expo Go" app from the App Store on your iPhone.
-    -   When you run `npm start` or `npm run ios`, a QR code will be displayed in the terminal.
-    -   Open the Camera app on your iPhone and scan the QR code. This will open the project in the Expo Go app.
+    - Ensure your iPhone is on the same Wi-Fi network as your computer.
+    - Install the "Expo Go" app from the App Store on your iPhone.
+    - When you run `npm start` or `npm run ios`, a QR code will be displayed in the terminal.
+    - Open the Camera app on your iPhone and scan the QR code. This will open the project in the Expo Go app.
 
 ## Project Structure
 
--   `App.js`: The main entry point of the application. It contains the core logic and ties all the components together.
--   `components/`: This directory contains all the reusable React components used throughout the application.
--   `assets/`: This directory contains static assets like images and icons.
--   `tailwind.config.js`: Configuration file for NativeWind (Tailwind CSS for React Native).
--   `babel.config.js`: Babel configuration, which includes the `nativewind/babel` plugin.
--   `package.json`: Lists all the project dependencies and scripts.
+- `App.js`: The main entry point of the application. It contains the core logic and ties all the components together.
+- `components/`: This directory contains all the reusable React components used throughout the application.
+- `assets/`: This directory contains static assets like images and icons.
+- `tailwind.config.js`: Configuration file for NativeWind (Tailwind CSS for React Native).
+- `babel.config.js`: Babel configuration, which includes the `nativewind/babel` plugin.
+- `package.json`: Lists all the project dependencies and scripts.

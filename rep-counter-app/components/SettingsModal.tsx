@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
   Modal,
   View,
@@ -7,31 +7,31 @@ import {
   Switch,
   TouchableOpacity,
   ScrollView,
-} from 'react-native';
-import { styled } from 'nativewind';
-import Slider from '@react-native-community/slider';
-import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
-import { X, Check } from 'lucide-react-native';
-import SyncStatus from './SyncStatus';
-import { Settings } from '../hooks/useData';
-import type { User as FirebaseUser } from 'firebase/auth';
+} from 'react-native'
+import { styled } from 'nativewind'
+import Slider from '@react-native-community/slider'
+import { GoogleSigninButton } from '@react-native-google-signin/google-signin'
+import { X, Check } from 'lucide-react-native'
+import SyncStatus from './SyncStatus'
+import { Settings } from '../hooks/useData'
+import type { User as FirebaseUser } from 'firebase/auth'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTextInput = styled(TextInput);
-const StyledSwitch = styled(Switch);
-const StyledTouchableOpacity = styled(TouchableOpacity);
-const StyledScrollView = styled(ScrollView);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTextInput = styled(TextInput)
+const StyledSwitch = styled(Switch)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
 
 interface SettingsModalProps {
-  visible: boolean;
-  onClose: () => void;
-  settings: Settings;
-  onSave: (settings: Settings) => void;
-  onGoogleButtonPress: () => void;
-  user: FirebaseUser | null;
-  disconnectAccount: () => void;
-  isSigningIn: boolean;
+  visible: boolean
+  onClose: () => void
+  settings: Settings
+  onSave: (settings: Settings) => void
+  onGoogleButtonPress: () => void
+  user: FirebaseUser | null
+  disconnectAccount: () => void
+  isSigningIn: boolean
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -44,28 +44,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   disconnectAccount,
   isSigningIn,
 }) => {
-  const [localSettings, setLocalSettings] = useState<Settings>(settings);
+  const [localSettings, setLocalSettings] = useState<Settings>(settings)
 
   useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
+    setLocalSettings(settings)
+  }, [settings])
 
   const handleSave = () => {
-    onSave(localSettings);
-    onClose();
-  };
+    onSave(localSettings)
+    onClose()
+  }
 
   const handleValueChange = (key: keyof Settings, value: any) => {
-    setLocalSettings(prev => ({ ...prev, [key]: value }));
-  };
+    setLocalSettings((prev) => ({ ...prev, [key]: value }))
+  }
 
   return (
     <Modal
       animationType="slide"
       transparent={true}
       visible={visible}
-      onRequestClose={onClose}
-    >
+      onRequestClose={onClose}>
       <StyledView className="flex-1 justify-center items-center bg-black/50 p-4">
         <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-4 w-full max-w-lg max-h-[90vh]">
           <StyledView className="flex-row justify-between items-center pb-4 border-b border-gray-700">
@@ -89,7 +88,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
                     value={String(localSettings.countdownSeconds)}
-                    onChangeText={text =>
+                    onChangeText={(text) =>
                       handleValueChange('countdownSeconds', Number(text))
                     }
                   />
@@ -102,7 +101,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
                     value={String(localSettings.restSeconds)}
-                    onChangeText={text =>
+                    onChangeText={(text) =>
                       handleValueChange('restSeconds', Number(text))
                     }
                   />
@@ -115,7 +114,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
                     value={String(localSettings.maxReps)}
-                    onChangeText={text =>
+                    onChangeText={(text) =>
                       handleValueChange('maxReps', Number(text))
                     }
                   />
@@ -128,7 +127,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
                     value={String(localSettings.maxSets)}
-                    onChangeText={text =>
+                    onChangeText={(text) =>
                       handleValueChange('maxSets', Number(text))
                     }
                   />
@@ -141,7 +140,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="decimal-pad"
                     value={String(localSettings.concentricSeconds)}
-                    onChangeText={text =>
+                    onChangeText={(text) =>
                       handleValueChange('concentricSeconds', Number(text))
                     }
                   />
@@ -154,7 +153,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="decimal-pad"
                     value={String(localSettings.eccentricSeconds)}
-                    onChangeText={text =>
+                    onChangeText={(text) =>
                       handleValueChange('eccentricSeconds', Number(text))
                     }
                   />
@@ -165,7 +164,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </StyledText>
                   <StyledSwitch
                     value={localSettings.eccentricCountdownEnabled}
-                    onValueChange={value =>
+                    onValueChange={(value) =>
                       handleValueChange('eccentricCountdownEnabled', value)
                     }
                   />
@@ -181,7 +180,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       maximumValue={1}
                       step={0.05}
                       value={localSettings.volume}
-                      onValueChange={value => handleValueChange('volume', value)}
+                      onValueChange={(value) =>
+                        handleValueChange('volume', value)
+                      }
                       minimumTrackTintColor="#3b82f6"
                       maximumTrackTintColor="#4b5563"
                       thumbTintColor="#3b82f6"
@@ -204,8 +205,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 ) : (
                   <StyledTouchableOpacity
                     onPress={disconnectAccount}
-                    className="py-3 px-6 bg-red-600 rounded-lg"
-                  >
+                    className="py-3 px-6 bg-red-600 rounded-lg">
                     <StyledText className="font-semibold text-white">
                       Disconnect Account
                     </StyledText>
@@ -218,26 +218,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           <StyledView className="flex-row justify-end pt-4 mt-4 border-t border-gray-700">
             <StyledTouchableOpacity
               onPress={onClose}
-              className="py-2 px-6 bg-gray-600 rounded-lg mr-2"
-            >
+              className="py-2 px-6 bg-gray-600 rounded-lg mr-2">
               <StyledText className="font-semibold text-white">
                 Cancel
               </StyledText>
             </StyledTouchableOpacity>
             <StyledTouchableOpacity
               onPress={handleSave}
-              className="py-2 px-6 bg-blue-600 rounded-lg flex-row items-center"
-            >
+              className="py-2 px-6 bg-blue-600 rounded-lg flex-row items-center">
               <Check color="white" size={18} className="mr-2" />
-              <StyledText className="font-semibold text-white">
-                Save
-              </StyledText>
+              <StyledText className="font-semibold text-white">Save</StyledText>
             </StyledTouchableOpacity>
           </StyledView>
         </StyledView>
       </StyledView>
     </Modal>
-  );
-};
+  )
+}
 
-export default SettingsModal;
+export default SettingsModal

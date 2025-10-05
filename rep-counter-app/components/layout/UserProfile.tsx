@@ -1,21 +1,24 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
-import { styled } from 'nativewind';
-import { LogOut } from 'lucide-react-native';
-import type { User as FirebaseUser } from 'firebase/auth';
+import React from 'react'
+import { View, Text, Image, TouchableOpacity } from 'react-native'
+import { styled } from 'nativewind'
+import { LogOut } from 'lucide-react-native'
+import type { User as FirebaseUser } from 'firebase/auth'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface UserProfileProps {
-  user: FirebaseUser | null;
-  disconnectAccount: () => void;
+  user: FirebaseUser | null
+  disconnectAccount: () => void
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ user, disconnectAccount }) => {
+const UserProfile: React.FC<UserProfileProps> = ({
+  user,
+  disconnectAccount,
+}) => {
   if (!user) {
-    return null;
+    return null
   }
 
   return (
@@ -38,12 +41,11 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, disconnectAccount }) =>
       </StyledView>
       <StyledTouchableOpacity
         onPress={disconnectAccount}
-        className="p-3 bg-red-600 rounded-lg"
-      >
+        className="p-3 bg-red-600 rounded-lg">
         <LogOut color="white" size={24} />
       </StyledTouchableOpacity>
     </StyledView>
-  );
-};
+  )
+}
 
-export default UserProfile;
+export default UserProfile

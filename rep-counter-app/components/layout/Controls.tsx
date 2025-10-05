@@ -1,20 +1,20 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { styled } from 'nativewind';
+import React from 'react'
+import { View, Text, TouchableOpacity } from 'react-native'
+import { styled } from 'nativewind'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface ControlsProps {
-  isRunning: boolean;
-  isResting: boolean;
-  isPaused: boolean;
-  runNextSet: () => void;
-  startWorkout: () => void;
-  stopWorkout: () => void;
-  pauseWorkout: () => void;
-  endSet: () => void;
+  isRunning: boolean
+  isResting: boolean
+  isPaused: boolean
+  runNextSet: () => void
+  startWorkout: () => void
+  stopWorkout: () => void
+  pauseWorkout: () => void
+  endSet: () => void
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -35,8 +35,7 @@ const Controls: React.FC<ControlsProps> = ({
             <StyledTouchableOpacity
               key="start"
               onPress={isResting ? runNextSet : startWorkout}
-              className="p-4 bg-green-600 rounded-lg flex-1 items-center"
-            >
+              className="p-4 bg-green-600 rounded-lg flex-1 items-center">
               <StyledText className="text-lg font-semibold text-white">
                 Start
               </StyledText>
@@ -44,21 +43,19 @@ const Controls: React.FC<ControlsProps> = ({
             <StyledTouchableOpacity
               key="stop"
               onPress={stopWorkout}
-              className="p-4 bg-red-600 rounded-lg flex-1 items-center"
-            >
+              className="p-4 bg-red-600 rounded-lg flex-1 items-center">
               <StyledText className="text-lg font-semibold text-white">
                 Stop
               </StyledText>
             </StyledTouchableOpacity>,
-          ];
+          ]
         }
         if (isPaused) {
           return [
             <StyledTouchableOpacity
               key="resume"
               onPress={pauseWorkout}
-              className="p-4 bg-yellow-500 rounded-lg flex-1 items-center"
-            >
+              className="p-4 bg-yellow-500 rounded-lg flex-1 items-center">
               <StyledText className="text-lg font-semibold text-white">
                 Resume
               </StyledText>
@@ -66,21 +63,19 @@ const Controls: React.FC<ControlsProps> = ({
             <StyledTouchableOpacity
               key="stop-paused"
               onPress={stopWorkout}
-              className="p-4 bg-red-600 rounded-lg flex-1 items-center"
-            >
+              className="p-4 bg-red-600 rounded-lg flex-1 items-center">
               <StyledText className="text-lg font-semibold text-white">
                 Stop
               </StyledText>
             </StyledTouchableOpacity>,
-          ];
+          ]
         }
         // isRunning && !isPaused
         return [
           <StyledTouchableOpacity
             key="pause"
             onPress={pauseWorkout}
-            className="p-4 bg-yellow-500 rounded-lg flex-1 items-center"
-          >
+            className="p-4 bg-yellow-500 rounded-lg flex-1 items-center">
             <StyledText className="text-lg font-semibold text-white">
               Pause
             </StyledText>
@@ -88,8 +83,7 @@ const Controls: React.FC<ControlsProps> = ({
           <StyledTouchableOpacity
             key="end-set"
             onPress={endSet}
-            className="p-4 bg-blue-600 rounded-lg flex-1 items-center"
-          >
+            className="p-4 bg-blue-600 rounded-lg flex-1 items-center">
             <StyledText className="text-lg font-semibold text-white">
               End Set
             </StyledText>
@@ -97,16 +91,15 @@ const Controls: React.FC<ControlsProps> = ({
           <StyledTouchableOpacity
             key="stop-running"
             onPress={stopWorkout}
-            className="p-4 bg-red-600 rounded-lg flex-1 items-center"
-          >
+            className="p-4 bg-red-600 rounded-lg flex-1 items-center">
             <StyledText className="text-lg font-semibold text-white">
               Stop
             </StyledText>
           </StyledTouchableOpacity>,
-        ];
+        ]
       })()}
     </StyledView>
-  );
-};
+  )
+}
 
-export default Controls;
+export default Controls

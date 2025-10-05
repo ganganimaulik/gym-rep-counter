@@ -1,14 +1,14 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { styled } from 'nativewind';
-import { Cloud, Smartphone } from 'lucide-react-native';
-import type { User as FirebaseUser } from 'firebase/auth';
+import React from 'react'
+import { View, Text } from 'react-native'
+import { styled } from 'nativewind'
+import { Cloud, Smartphone } from 'lucide-react-native'
+import type { User as FirebaseUser } from 'firebase/auth'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
+const StyledView = styled(View)
+const StyledText = styled(Text)
 
 interface SyncStatusProps {
-  user: FirebaseUser | null;
+  user: FirebaseUser | null
 }
 
 const SyncStatus: React.FC<SyncStatusProps> = ({ user }) => {
@@ -28,18 +28,18 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ user }) => {
         bgColor: 'bg-yellow-500/10',
         borderColor: 'border-yellow-500/20',
         text: 'Settings are saved on this device only.',
-      };
+      }
 
   return (
     <StyledView
-      className={`flex-row items-center p-3 rounded-lg border ${statusConfig.bgColor} ${statusConfig.borderColor}`}
-    >
+      className={`flex-row items-center p-3 rounded-lg border ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
       <statusConfig.Icon color={statusConfig.iconColor} size={20} />
-      <StyledText className={`ml-3 text-sm font-medium ${statusConfig.textColor}`}>
+      <StyledText
+        className={`ml-3 text-sm font-medium ${statusConfig.textColor}`}>
         {statusConfig.text}
       </StyledText>
     </StyledView>
-  );
-};
+  )
+}
 
-export default SyncStatus;
+export default SyncStatus
