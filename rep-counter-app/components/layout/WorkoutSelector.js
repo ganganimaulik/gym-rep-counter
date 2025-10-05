@@ -26,7 +26,7 @@ const WorkoutSelector = ({
         </StyledText>
         <StyledTouchableOpacity
           onPress={() => setModalVisible(true)}
-          className="flex-row items-center space-x-2 rounded-lg bg-gray-600 px-3 py-2"
+          className="flex-row items-center space-x-2 rounded-lg bg-gray-600 p-3"
         >
           <Edit color="#d1d5db" size={16} />
           <StyledText className="text-sm font-semibold text-white">
@@ -63,10 +63,11 @@ const WorkoutSelector = ({
           <StyledTouchableOpacity
             onPress={prevExercise}
             disabled={currentExerciseIndex === 0}
-            className="py-2 px-4 bg-gray-600 rounded-lg flex-1 items-center"
+            className="p-3 bg-gray-600 rounded-lg flex-1 items-center"
           >
             <ChevronLeft
               color={currentExerciseIndex === 0 ? '#4b5563' : 'white'}
+              size={24}
             />
           </StyledTouchableOpacity>
           <StyledTouchableOpacity
@@ -74,7 +75,7 @@ const WorkoutSelector = ({
             disabled={
               currentExerciseIndex >= currentWorkout.exercises.length - 1
             }
-            className="py-2 px-4 bg-gray-600 rounded-lg flex-1 items-center"
+            className="p-3 bg-gray-600 rounded-lg flex-1 items-center"
           >
             <ChevronRight
               color={
@@ -82,6 +83,7 @@ const WorkoutSelector = ({
                   ? '#4b5563'
                   : 'white'
               }
+              size={24}
             />
           </StyledTouchableOpacity>
         </StyledView>

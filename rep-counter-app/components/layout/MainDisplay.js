@@ -28,40 +28,33 @@ const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
   }, []);
 
   return (
-    <StyledView className="items-center mt-4">
+    <StyledView className="items-center space-y-4">
       <StyledAnimatedTextInput
-        className="text-2xl font-medium text-blue-400 mb-2 text-center"
+        className="text-2xl font-medium text-blue-400 text-center"
         editable={false}
         animatedProps={animatedStatusProps}
-        value={statusText.value}
       />
-      <StyledView className="flex-row justify-center items-end space-x-6">
-        <StyledView>
+      <StyledView className="flex-row justify-center items-end space-x-4">
+        <StyledView className="items-center">
           <StyledAnimatedTextInput
             className="text-8xl font-bold tracking-tight text-white"
             editable={false}
             animatedProps={animatedRepProps}
             value={String(Math.round(currentRep.value))} // Initial value
           />
-          <StyledText className="text-lg text-gray-400 text-center">
-            REP
-          </StyledText>
+          <StyledText className="text-lg text-gray-400">REP</StyledText>
         </StyledView>
-        <StyledView className="pb-2">
+        <StyledView className="items-center pb-2">
           <StyledAnimatedTextInput
             className="text-6xl font-bold tracking-tight text-white"
             editable={false}
             animatedProps={animatedSetProps}
             value={String(Math.round(currentSet.value))} // Initial value
           />
-          <StyledText className="text-lg text-gray-400 text-center">
-            SET
-          </StyledText>
+          <StyledText className="text-lg text-gray-400">SET</StyledText>
         </StyledView>
       </StyledView>
-      <StyledText className="text-xl text-gray-400 mt-2">
-        {phase || ' '}
-      </StyledText>
+      <StyledText className="text-xl text-gray-400">{phase || ' '}</StyledText>
     </StyledView>
   );
 };
