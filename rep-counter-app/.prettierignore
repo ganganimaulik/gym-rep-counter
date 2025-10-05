@@ -1,0 +1,18 @@
+# Ignore artifacts:
+build
+dist
+node_modules
+
+# Ignore lockfiles
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore misc
+.expo
+.expo-shared
+coverage
+.DS_Store
+.env
+.env.*
+!.env.example

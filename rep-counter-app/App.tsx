@@ -1,5 +1,5 @@
-import 'react-native-gesture-handler';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import 'react-native-gesture-handler'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   SafeAreaView,
   View,
@@ -9,43 +9,43 @@ import {
   StatusBar,
   AppState,
   AppStateStatus,
-} from 'react-native';
-import { styled } from 'nativewind';
-import { useKeepAwake } from 'expo-keep-awake';
-import { Settings as SettingsIcon } from 'lucide-react-native';
+} from 'react-native'
+import { styled } from 'nativewind'
+import { useKeepAwake } from 'expo-keep-awake'
+import { Settings as SettingsIcon } from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
-} from 'expo-background-timer';
-import type { User as FirebaseUser } from 'firebase/auth';
+} from 'expo-background-timer'
+import type { User as FirebaseUser } from 'firebase/auth'
 
 // Hooks
-import { useAuth } from './hooks/useAuth';
-import { useData, Settings, Workout } from './hooks/useData';
-import { useAudio } from './hooks/useAudio';
-import { useWorkoutTimer } from './hooks/useWorkoutTimer';
+import { useAuth } from './hooks/useAuth'
+import { useData, Settings, Workout } from './hooks/useData'
+import { useAudio } from './hooks/useAudio'
+import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 
 // Components
-import SettingsModal from './components/SettingsModal';
-import WorkoutManagementModal from './components/WorkoutManagementModal';
-import UserProfile from './components/layout/UserProfile';
-import WorkoutSelector from './components/layout/WorkoutSelector';
-import MainDisplay from './components/layout/MainDisplay';
-import Controls from './components/layout/Controls';
-import RepJumper from './components/layout/RepJumper';
+import SettingsModal from './components/SettingsModal'
+import WorkoutManagementModal from './components/WorkoutManagementModal'
+import UserProfile from './components/layout/UserProfile'
+import WorkoutSelector from './components/layout/WorkoutSelector'
+import MainDisplay from './components/layout/MainDisplay'
+import Controls from './components/layout/Controls'
+import RepJumper from './components/layout/RepJumper'
 
-const StyledSafeAreaView = styled(SafeAreaView);
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTouchableOpacity = styled(TouchableOpacity);
-const StyledScrollView = styled(ScrollView);
+const StyledSafeAreaView = styled(SafeAreaView)
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
 
 const App: React.FC = () => {
-  useKeepAwake();
+  useKeepAwake()
 
   // UI State
-  const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
-  const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false);
+  const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
+  const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
 
   // Custom Hooks
   const {
@@ -58,9 +58,9 @@ const App: React.FC = () => {
     syncUserData,
     setWorkouts,
     setSettings: setDataSettings,
-  } = useData();
+  } = useData()
 
-  const audioHandler = useAudio(settings);
+  const audioHandler = useAudio(settings)
 
   const {
     currentRep,
@@ -79,53 +79,67 @@ const App: React.FC = () => {
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
-  } = useWorkoutTimer(settings, audioHandler);
+  } = useWorkoutTimer(settings, audioHandler)
 
-  const { user, initializing, isSigningIn, onGoogleButtonPress, disconnectAccount } = useAuth(onAuthSuccess);
+  const {
+    user,
+    initializing,
+    isSigningIn,
+    onGoogleButtonPress,
+    disconnectAccount,
+  } = useAuth(onAuthSuccess)
 
   // App State
-  const appState = useRef<AppStateStatus>(AppState.currentState);
+  const appState = useRef<AppStateStatus>(AppState.currentState)
 
   // Workout State
-  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
-  const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0);
+  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
 
   // --- Effects ---
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      appState.current = nextAppState;
-    });
+      appState.current = nextAppState
+    })
 
-    enableBackgroundExecution();
+    enableBackgroundExecution()
 
     return () => {
-      subscription.remove();
-      disableBackgroundExecution();
-    };
-  }, []);
-
-  const onAuthSuccess = useCallback(async (firebaseUser: FirebaseUser | null) => {
-    if (firebaseUser) {
-      const localSettings = await loadSettings();
-      const localWorkouts = await loadWorkouts();
-      await syncUserData(firebaseUser, localSettings, localWorkouts);
-    } else {
-      await loadSettings();
-      await loadWorkouts();
+      subscription.remove()
+      disableBackgroundExecution()
     }
-  }, [loadSettings, loadWorkouts, syncUserData]);
+  }, [])
+
+  const onAuthSuccess = useCallback(
+    async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const localSettings = await loadSettings()
+        const localWorkouts = await loadWorkouts()
+        await syncUserData(firebaseUser, localSettings, localWorkouts)
+      } else {
+        await loadSettings()
+        await loadWorkouts()
+      }
+    },
+    [loadSettings, loadWorkouts, syncUserData],
+  )
 
   useEffect(() => {
     if (isExerciseComplete) {
-      if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
-        const nextIndex = currentExerciseIndex + 1;
-        setCurrentExerciseIndex(nextIndex);
-        audioHandler.speak(`Next exercise: ${currentWorkout.exercises[nextIndex].name}`);
+      if (
+        currentWorkout &&
+        currentExerciseIndex < currentWorkout.exercises.length - 1
+      ) {
+        const nextIndex = currentExerciseIndex + 1
+        setCurrentExerciseIndex(nextIndex)
+        audioHandler.speak(
+          `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
+        )
       } else {
-        setStatusText('Workout Complete!');
-        audioHandler.speak('Workout Complete!');
+        setStatusText('Workout Complete!')
+        audioHandler.speak('Workout Complete!')
       }
-      resetExerciseCompleteFlag();
+      resetExerciseCompleteFlag()
     }
   }, [
     isExerciseComplete,
@@ -134,70 +148,77 @@ const App: React.FC = () => {
     setStatusText,
     audioHandler,
     resetExerciseCompleteFlag,
-  ]);
+  ])
 
   useEffect(() => {
     if (currentWorkout && currentWorkout.exercises.length > 0) {
-      const exercise = currentWorkout.exercises[currentExerciseIndex];
+      const exercise = currentWorkout.exercises[currentExerciseIndex]
       if (exercise) {
         setDataSettings((prev: Settings) => ({
           ...prev,
           maxReps: exercise.reps,
           maxSets: exercise.sets,
-        }));
+        }))
       }
     }
-  }, [currentWorkout, currentExerciseIndex, setDataSettings]);
+  }, [currentWorkout, currentExerciseIndex, setDataSettings])
 
   // --- Workout Management ---
   const selectWorkout = (workoutId: string | null) => {
     // BUG FIX: Stop the workout and any timers *before* changing the workout state
     // to prevent race conditions where effects run with stale data.
-    stopWorkout();
+    stopWorkout()
 
     if (workoutId === null) {
-      setCurrentWorkout(null);
-      setCurrentExerciseIndex(0);
-      return;
+      setCurrentWorkout(null)
+      setCurrentExerciseIndex(0)
+      return
     }
 
-    const workout = workouts.find((w: Workout) => w.id === workoutId);
-    setCurrentWorkout(workout || null);
-    setCurrentExerciseIndex(0);
-  };
+    const workout = workouts.find((w: Workout) => w.id === workoutId)
+    setCurrentWorkout(workout || null)
+    setCurrentExerciseIndex(0)
+  }
 
   const nextExercise = () => {
-    if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
-      stopWorkout();
-      const nextIndex = currentExerciseIndex + 1;
-      setCurrentExerciseIndex(nextIndex);
-      audioHandler.speak(`Next exercise: ${currentWorkout.exercises[nextIndex].name}`);
+    if (
+      currentWorkout &&
+      currentExerciseIndex < currentWorkout.exercises.length - 1
+    ) {
+      stopWorkout()
+      const nextIndex = currentExerciseIndex + 1
+      setCurrentExerciseIndex(nextIndex)
+      audioHandler.speak(
+        `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
+      )
     }
-  };
+  }
 
   const prevExercise = () => {
     if (currentWorkout && currentExerciseIndex > 0) {
-      stopWorkout();
-      const prevIndex = currentExerciseIndex - 1;
-      setCurrentExerciseIndex(prevIndex);
-      audioHandler.speak(`Previous exercise: ${currentWorkout.exercises[prevIndex].name}`);
+      stopWorkout()
+      const prevIndex = currentExerciseIndex - 1
+      setCurrentExerciseIndex(prevIndex)
+      audioHandler.speak(
+        `Previous exercise: ${currentWorkout.exercises[prevIndex].name}`,
+      )
     }
-  };
+  }
 
   const handleSaveSettings = (newSettings: Settings) => {
-    saveSettings(newSettings, user);
-  };
+    saveSettings(newSettings, user)
+  }
 
   const handleSaveWorkouts = (newWorkouts: Workout[]) => {
-    saveWorkouts(newWorkouts, user);
-  };
+    saveWorkouts(newWorkouts, user)
+  }
 
   if (initializing) {
     return (
       <StyledSafeAreaView className="flex-1 bg-gray-900 justify-center items-center">
         <StyledText className="text-white text-xl">Loading...</StyledText>
       </StyledSafeAreaView>
-    );
+    )
   }
 
   return (
@@ -206,8 +227,7 @@ const App: React.FC = () => {
       <StyledScrollView
         className="flex-1 p-4"
         contentContainerStyle={{ paddingBottom: 40 }}
-        keyboardShouldPersistTaps="handled"
-      >
+        keyboardShouldPersistTaps="handled">
         <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-4 space-y-4">
           <UserProfile user={user} disconnectAccount={disconnectAccount} />
 
@@ -249,8 +269,7 @@ const App: React.FC = () => {
           <StyledView className="items-center">
             <StyledTouchableOpacity
               onPress={() => setSettingsVisible(!settingsVisible)}
-              className="flex-row items-center space-x-2"
-            >
+              className="flex-row items-center space-x-2">
               <SettingsIcon color="#60a5fa" size={16} />
               <StyledText className="text-blue-400">Settings</StyledText>
             </StyledTouchableOpacity>
@@ -275,7 +294,7 @@ const App: React.FC = () => {
         isSigningIn={isSigningIn}
       />
     </StyledSafeAreaView>
-  );
-};
+  )
+}
 
-export default App;
+export default App

@@ -1,29 +1,43 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
-import { styled } from 'nativewind';
-import { X, Trash2, Plus, GripVertical } from 'lucide-react-native';
-import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Workout, Exercise } from '../hooks/useData';
+import React, { useState } from 'react'
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+} from 'react-native'
+import { styled } from 'nativewind'
+import { X, Trash2, Plus, GripVertical } from 'lucide-react-native'
+import DraggableFlatList, {
+  RenderItemParams,
+} from 'react-native-draggable-flatlist'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { Workout, Exercise } from '../hooks/useData'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTextInput = styled(TextInput);
-const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTextInput = styled(TextInput)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface WorkoutManagementModalProps {
-  visible: boolean;
-  onClose: () => void;
-  workouts: Workout[];
-  setWorkouts: (workouts: Workout[]) => void;
+  visible: boolean
+  onClose: () => void
+  workouts: Workout[]
+  setWorkouts: (workouts: Workout[]) => void
 }
 
-const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible, onClose, workouts, setWorkouts }) => {
-  const [newWorkoutName, setNewWorkoutName] = useState('');
+const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
+  visible,
+  onClose,
+  workouts,
+  setWorkouts,
+}) => {
+  const [newWorkoutName, setNewWorkoutName] = useState('')
 
   const generateId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-  };
+    return Date.now().toString(36) + Math.random().toString(36).substr(2)
+  }
 
   const addWorkout = () => {
     if (newWorkoutName.trim()) {
@@ -31,88 +45,118 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
         id: generateId(),
         name: newWorkoutName.trim(),
         exercises: [],
-      };
-      const updatedWorkouts = [...workouts, newWorkout];
-      setWorkouts(updatedWorkouts);
-      setNewWorkoutName('');
+      }
+      const updatedWorkouts = [...workouts, newWorkout]
+      setWorkouts(updatedWorkouts)
+      setNewWorkoutName('')
     }
-  };
+  }
 
   const deleteWorkout = (id: string) => {
-    const updatedWorkouts = workouts.filter(w => w.id !== id);
-    setWorkouts(updatedWorkouts);
-  };
+    const updatedWorkouts = workouts.filter((w) => w.id !== id)
+    setWorkouts(updatedWorkouts)
+  }
 
-  const addExercise = (workoutId: string, exerciseName: string, sets: number, reps: number) => {
+  const addExercise = (
+    workoutId: string,
+    exerciseName: string,
+    sets: number,
+    reps: number,
+  ) => {
     if (exerciseName.trim()) {
-      const updatedWorkouts = workouts.map(w => {
+      const updatedWorkouts = workouts.map((w) => {
         if (w.id === workoutId) {
           return {
             ...w,
-            exercises: [...w.exercises, { id: generateId(), name: exerciseName.trim(), sets, reps }],
-          };
+            exercises: [
+              ...w.exercises,
+              { id: generateId(), name: exerciseName.trim(), sets, reps },
+            ],
+          }
         }
-        return w;
-      });
-      setWorkouts(updatedWorkouts);
+        return w
+      })
+      setWorkouts(updatedWorkouts)
     }
-  };
+  }
 
   const deleteExercise = (workoutId: string, exerciseId: string) => {
-    const updatedWorkouts = workouts.map(w => {
+    const updatedWorkouts = workouts.map((w) => {
       if (w.id === workoutId) {
         return {
           ...w,
-          exercises: w.exercises.filter(ex => ex.id !== exerciseId),
-        };
+          exercises: w.exercises.filter((ex) => ex.id !== exerciseId),
+        }
       }
-      return w;
-    });
-    setWorkouts(updatedWorkouts);
-  };
+      return w
+    })
+    setWorkouts(updatedWorkouts)
+  }
 
-  const updateExerciseOrder = (workoutId: string, reorderedExercises: Exercise[]) => {
-    const updatedWorkouts = workouts.map(w => {
+  const updateExerciseOrder = (
+    workoutId: string,
+    reorderedExercises: Exercise[],
+  ) => {
+    const updatedWorkouts = workouts.map((w) => {
       if (w.id === workoutId) {
-        return { ...w, exercises: reorderedExercises };
+        return { ...w, exercises: reorderedExercises }
       }
-      return w;
-    });
-    setWorkouts(updatedWorkouts);
-  };
+      return w
+    })
+    setWorkouts(updatedWorkouts)
+  }
 
   const WorkoutItem = ({ workout }: { workout: Workout }) => {
-    const [exerciseName, setExerciseName] = useState('');
-    const [sets, setSets] = useState('3');
-    const [reps, setReps] = useState('12');
+    const [exerciseName, setExerciseName] = useState('')
+    const [sets, setSets] = useState('3')
+    const [reps, setReps] = useState('12')
 
     const handleAddExercise = () => {
-      addExercise(workout.id, exerciseName, parseInt(sets, 10), parseInt(reps, 10));
-      setExerciseName('');
-    };
+      addExercise(
+        workout.id,
+        exerciseName,
+        parseInt(sets, 10),
+        parseInt(reps, 10),
+      )
+      setExerciseName('')
+    }
 
-    const renderExercise = ({ item: ex, drag, isActive, getIndex }: RenderItemParams<Exercise>) => (
+    const renderExercise = ({
+      item: ex,
+      drag,
+      isActive,
+      getIndex,
+    }: RenderItemParams<Exercise>) => (
       <StyledTouchableOpacity
         onLongPress={drag}
         disabled={isActive}
-        className={`flex-row items-center justify-between bg-gray-600/50 p-2 rounded-md mb-2 ${isActive ? 'opacity-50' : ''}`}
-      >
+        className={`flex-row items-center justify-between bg-gray-600/50 p-2 rounded-md mb-2 ${isActive ? 'opacity-50' : ''}`}>
         <StyledView className="flex-row items-center flex-1">
           <GripVertical color="#9ca3af" size={20} className="mr-2" />
-          <StyledText className="text-sm font-medium text-white flex-1">{getIndex()! + 1}. {ex.name}</StyledText>
+          <StyledText className="text-sm font-medium text-white flex-1">
+            {getIndex()! + 1}. {ex.name}
+          </StyledText>
         </StyledView>
-        <StyledText className="text-xs text-gray-400 font-mono mx-3">{ex.sets}x{ex.reps}</StyledText>
-        <StyledTouchableOpacity onPress={() => deleteExercise(workout.id, ex.id)} className="p-1">
+        <StyledText className="text-xs text-gray-400 font-mono mx-3">
+          {ex.sets}x{ex.reps}
+        </StyledText>
+        <StyledTouchableOpacity
+          onPress={() => deleteExercise(workout.id, ex.id)}
+          className="p-1">
           <X color="#f87171" size={16} />
         </StyledTouchableOpacity>
       </StyledTouchableOpacity>
-    );
+    )
 
     return (
       <StyledView className="bg-gray-700 rounded-lg p-3 space-y-2 mb-2">
         <StyledView className="flex-row justify-between items-center">
-          <StyledText className="text-lg font-semibold text-white">{workout.name}</StyledText>
-          <StyledTouchableOpacity onPress={() => deleteWorkout(workout.id)} className="p-1">
+          <StyledText className="text-lg font-semibold text-white">
+            {workout.name}
+          </StyledText>
+          <StyledTouchableOpacity
+            onPress={() => deleteWorkout(workout.id)}
+            className="p-1">
             <Trash2 color="#f87171" size={20} />
           </StyledTouchableOpacity>
         </StyledView>
@@ -151,35 +195,39 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
           </StyledView>
           <StyledTouchableOpacity
             onPress={handleAddExercise}
-            className="mt-2 bg-green-600 hover:bg-green-700 rounded-md py-2 flex-row items-center justify-center space-x-1"
-          >
+            className="mt-2 bg-green-600 hover:bg-green-700 rounded-md py-2 flex-row items-center justify-center space-x-1">
             <Plus color="white" size={16} />
-            <StyledText className="text-sm font-semibold text-white">Add</StyledText>
+            <StyledText className="text-sm font-semibold text-white">
+              Add
+            </StyledText>
           </StyledTouchableOpacity>
         </StyledView>
       </StyledView>
-    );
-  };
+    )
+  }
 
   return (
     <Modal
       animationType="slide"
       transparent={true}
       visible={visible}
-      onRequestClose={onClose}
-    >
+      onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StyledView className="flex-1 justify-center items-center bg-black/50 p-4">
           <StyledView className="bg-gray-800 rounded-2xl shadow-lg p-4 w-full max-w-lg max-h-[90vh]">
             <StyledView className="flex-row justify-between items-center pb-4 border-b border-gray-700">
-              <StyledText className="text-2xl font-bold text-white">Manage Workouts</StyledText>
+              <StyledText className="text-2xl font-bold text-white">
+                Manage Workouts
+              </StyledText>
               <StyledTouchableOpacity onPress={onClose}>
                 <X color="#9ca3af" size={24} />
               </StyledTouchableOpacity>
             </StyledView>
 
             <StyledView className="my-4 bg-gray-700 rounded-lg p-4">
-              <StyledText className="text-lg font-semibold mb-3 text-white">Add New Workout</StyledText>
+              <StyledText className="text-lg font-semibold mb-3 text-white">
+                Add New Workout
+              </StyledText>
               <StyledView className="space-y-3">
                 <StyledTextInput
                   placeholder="Workout name (e.g., Push Day)"
@@ -190,10 +238,11 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
                 />
                 <StyledTouchableOpacity
                   onPress={addWorkout}
-                  className="w-full py-2 px-4 bg-green-600 rounded-lg flex-row items-center justify-center space-x-2"
-                >
+                  className="w-full py-2 px-4 bg-green-600 rounded-lg flex-row items-center justify-center space-x-2">
                   <Plus color="white" size={20} />
-                  <StyledText className="font-semibold text-white">Add Workout</StyledText>
+                  <StyledText className="font-semibold text-white">
+                    Add Workout
+                  </StyledText>
                 </StyledTouchableOpacity>
               </StyledView>
             </StyledView>
@@ -201,7 +250,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
             <FlatList
               data={workouts}
               renderItem={({ item }) => <WorkoutItem workout={item} />}
-              keyExtractor={item => item.id}
+              keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               containerStyle={{ flex: 1 }}
             />
@@ -209,7 +258,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
         </StyledView>
       </GestureHandlerRootView>
     </Modal>
-  );
-};
+  )
+}
 
-export default WorkoutManagementModal;
+export default WorkoutManagementModal

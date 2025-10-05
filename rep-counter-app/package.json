@@ -5,7 +5,9 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "prepare": "husky",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -37,6 +39,12 @@
   "devDependencies": {
     "@types/react": "^19.2.0",
     "@types/react-native": "^0.73.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.3",
+    "prettier": "^3.6.2",
     "typescript": "^5.9.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": "prettier --write"
   }
 }
