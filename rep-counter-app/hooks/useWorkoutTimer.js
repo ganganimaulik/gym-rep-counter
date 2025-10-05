@@ -73,22 +73,27 @@ export function useWorkoutTimer(settings, handlers) {
      One single timeout at any moment
   ---------------------------------------- */
   const timeoutRef = useRef(null);
-  const clearTimer = useCallback(() => {
+  // 1. Modify clearTimer to accept an option to prevent stopping speech
+  const clearTimer = useCallback((stopSpeech = true) => {
     if (timeoutRef.current != null) {
       try {
         bgClearTimeout(timeoutRef.current);
       } catch {/* ignore "timeout not found" */ }
       timeoutRef.current = null;
     }
-    Speech.stop();
+    // Only stop speech if the flag is true
+    if (stopSpeech) {
+      Speech.stop();
+    }
   }, []);
+
 
   /*====================================================================
     Small helper that schedules the next *absolute* event.
   ====================================================================*/
   const schedule = useCallback(
-    (ms, cb) => {
-      clearTimer();
+    (ms, cb, stopSpeech = true) => {
+      clearTimer(stopSpeech); // Pass the flag along
       const id = bgSetTimeout(() => {
         timeoutRef.current = null;
         cb();
@@ -164,10 +169,13 @@ export function useWorkoutTimer(settings, handlers) {
     wState.current.phase = PHASES.CONCENTRIC;
     wState.current.phaseStart = Date.now();
 
+    // When starting the concentric phase, we clear the previous timer
+    // but explicitly tell it NOT to stop speech, allowing "1" to finish.
+    const stopSpeechOnClear = false;
     schedule(duration, () => {
       updateUI({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] });
       startEccentric();
-    });
+    }, stopSpeechOnClear);
   }, [settings, schedule, updateUI]);
 
   startEccentric = useCallback(() => {
@@ -182,40 +190,57 @@ export function useWorkoutTimer(settings, handlers) {
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
 
-    const tick = () => {
-      const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
-      const remaining = duration - elapsed;
-      const whole = Math.ceil(remaining);
-
-      if (
-        eccentricCountdownEnabled &&
-        remaining > 0 &&
-        whole !== wState.current.lastSpokenSecond &&
-        whole <= 5
-      ) {
-        wState.current.lastSpokenSecond = whole;
-        speakEccentric(String(whole));
-      }
-
-      if (remaining <= 0) {
-        if (wState.current.rep >= maxReps) {
-          runOnJS(endSet)();
-        } else {
-          wState.current.rep += 1;
-          displayRep.value = wState.current.rep;
-          setTimeout(() => {
-            queueSpeak(String(wState.current.rep));
-          }, 150);
-          updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] });
-          startConcentric();
-        }
+    // --- SOLUTION ---
+    // 1. Define the logic that runs precisely when the phase ends.
+    const onPhaseEnd = () => {
+      if (wState.current.rep >= maxReps) {
+        // Use runOnJS if calling from a Reanimated worklet, which this isn't, but it's safe.
+        runOnJS(endSet)();
       } else {
-        const nextTick = Math.max(600, 1000 - (Date.now() % 1000));
-        schedule(nextTick, tick);
+        wState.current.rep += 1;
+        displayRep.value = wState.current.rep;
+        // The small delay for the rep number announcement is good.
+        setTimeout(() => {
+          queueSpeak(String(wState.current.rep));
+        }, 150);
+        updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] });
+        startConcentric();
       }
     };
-    tick();
-  }, [settings, speakEccentric, queueSpeak, schedule, updateUI, displayRep]);
+
+    // 2. Schedule the end of the phase with a single, precise timeout.
+    // This is the main timer.
+    schedule(duration * 1000, onPhaseEnd);
+
+
+    // 3. If enabled, start a *separate* recursive tick for audio cues only.
+    if (eccentricCountdownEnabled) {
+      const audioTick = () => {
+        const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
+        const remaining = duration - elapsed;
+        const whole = Math.ceil(remaining);
+
+        // This timer's only job is to speak.
+        if (
+          remaining > 0 &&
+          whole !== wState.current.lastSpokenSecond &&
+          whole <= 5
+        ) {
+          wState.current.lastSpokenSecond = whole;
+          speakEccentric(String(whole));
+        }
+
+        // Only schedule the next audio tick if there's more than a second left.
+        // This prevents it from interfering with the main timer's end event.
+        if (remaining > 1) {
+          // NOTE: We don't use the main `schedule` function here, to avoid clearing
+          // the main `onPhaseEnd` timeout we set earlier.
+          bgSetTimeout(audioTick, 1000 - (Date.now() % 1000));
+        }
+      };
+      audioTick();
+    }
+  }, [settings, speakEccentric, queueSpeak, schedule, updateUI, displayRep, endSet, startConcentric]);
 
   startRest = useCallback(() => {
     const duration =
