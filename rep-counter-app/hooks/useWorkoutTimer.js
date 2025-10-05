@@ -129,8 +129,10 @@ export function useWorkoutTimer(settings, handlers) {
       if (remaining <= 0) {
         playBeep(880);
         queueSpeak('Go!', { priority: true });
-        if (!wState.current.isJumping && wState.current.rep === 0)
+        if (!wState.current.isJumping && wState.current.rep === 0) {
           wState.current.rep = 1;
+          queueSpeak('1');
+        }
         displayRep.value = wState.current.rep;
         updateUI({
           phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
