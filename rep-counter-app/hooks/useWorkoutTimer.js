@@ -324,7 +324,8 @@ export function useWorkoutTimer(settings, handlers) {
 
   endSet = useCallback(() => {
     const { maxSets } = settings;
-    clearTimer();
+    // Clear timer but don't stop speech; the announcement will play, and `onDone` will trigger the rest timer.
+    clearTimer(false);
     const nextSet = wState.current.set + 1;
 
     if (nextSet > maxSets) {
@@ -344,10 +345,13 @@ export function useWorkoutTimer(settings, handlers) {
         isPaused: false,
         phase: PHASE_DISPLAY[PHASES.REST],
       });
-      queueSpeak(`Set complete. Rest now.`, { priority: true });
-      startRest();
+      // Chain the start of the rest timer to the completion of the announcement
+      queueSpeak(`Set complete. Rest now.`, {
+        priority: true,
+        onDone: startRest,
+      });
     }
-  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, queueSpeak, statusText]);
+  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, queueSpeak, statusText, startRest]);
 
   const startWorkout = useCallback(() => {
     if (wState.current.phase !== PHASES.STOPPED) return;

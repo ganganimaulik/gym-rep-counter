@@ -56,11 +56,15 @@ export const useAudio = (settings) => {
 
     isSpeakingRef.current = true;
     const { text, options } = speechQueueRef.current.shift();
+    const { onDone: originalOnDone, ...restOptions } = options;
 
     Speech.speak(text, {
-      ...options,
+      ...restOptions,
       onDone: () => {
         isSpeakingRef.current = false;
+        if (typeof originalOnDone === 'function') {
+          originalOnDone();
+        }
         // Process next item after a small delay
         setTimeout(() => processNextSpeech(), 50);
       },
@@ -82,7 +86,7 @@ export const useAudio = (settings) => {
 
     const speechOptions = {
       volume: settings.volume,
-      rate: 1.6,
+      rate: 1.4,
       ...options,
     };
 
@@ -99,7 +103,7 @@ export const useAudio = (settings) => {
   const speak = useCallback((text, options = {}) => {
     Speech.speak(text, {
       volume: settings.volume,
-      rate: 1.6,
+      rate: 1.4,
       ...options,
     });
   }, [settings.volume]);
@@ -110,7 +114,7 @@ export const useAudio = (settings) => {
     // This is more reliable than calling Speech.stop() directly.
     queueSpeak(text, {
       priority: true,
-      rate: 1.6, // Using a slightly faster rate helps ensure the word fits within the 1-second window
+      rate: 1.4, // Using a slightly faster rate helps ensure the word fits within the 1-second window
       voice: femaleVoice,
     });
   }, [queueSpeak, femaleVoice]);
