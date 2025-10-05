@@ -218,22 +218,21 @@ export function useWorkoutTimer(settings, handlers) {
       const remaining = restSeconds - elapsed;
       const whole = Math.ceil(remaining);
 
-      statusText.value = `Rest: ${whole}s`;
+      if (remaining > 0) {
+        statusText.value = `Rest: ${whole}s`;
 
-      // Only beep for last 3 seconds
-      if (whole <= 3 && whole > 0 && whole !== wState.current.lastSpokenSecond) {
-        wState.current.lastSpokenSecond = whole;
-        playBeep();
-      }
-
-      if (remaining <= 0) {
+        // Only beep for last 3 seconds
+        if (whole <= 3 && whole > 0 && whole !== wState.current.lastSpokenSecond) {
+          wState.current.lastSpokenSecond = whole;
+          playBeep();
+        }
+        schedule(1000 - (Date.now() % 1000), tick);
+      } else {
+        // When timer finishes, don't auto-start. Just update the text.
         clearTimer();
-        updateUI({ isRunning: false });
         statusText.value = `Press Start for Set ${wState.current.set}`;
         queueSpeak(`Rest complete. Press start for set ${wState.current.set}.`, { priority: true });
         playBeep(880);
-      } else {
-        schedule(1000 - (Date.now() % 1000), tick);
       }
     };
     tick();
@@ -267,7 +266,7 @@ export function useWorkoutTimer(settings, handlers) {
   }, [clearTimer, resetInternalState, updateUI, statusText]);
 
   const endSet = useCallback(() => {
-    const { maxSets, restSeconds } = settings;
+    const { maxSets } = settings;
     clearTimer();
     const next = wState.current.set + 1;
 
@@ -283,19 +282,18 @@ export function useWorkoutTimer(settings, handlers) {
       displaySet.value = next;
       displayRep.value = 0;
 
-      // Transition to a state where the user must press "Start" for the next set.
+      // Keep the "Start" button visible but start the rest countdown.
       updateUI({
-        isRunning: false, // This will show the "Start" button
+        isRunning: false,
         isPaused: false,
-        phase: PHASE_DISPLAY[PHASES.REST], // So "Start" knows to run the next set
+        phase: PHASE_DISPLAY[PHASES.REST],
       });
 
-      statusText.value = `Rest: ${restSeconds}s. Press Start`;
-      queueSpeak(`Set complete. Rest for ${restSeconds} seconds, then press start.`, {
-        priority: true,
-      });
+      // Announce the rest period and start the visual countdown.
+      queueSpeak(`Set complete. Rest now.`, { priority: true });
+      startRest();
     }
-  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, queueSpeak, statusText]);
+  }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, startRest, queueSpeak, statusText]);
 
   const startWorkout = useCallback(() => {
     if (ui.isRunning && !ui.isPaused) return;
