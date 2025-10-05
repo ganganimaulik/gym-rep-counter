@@ -161,7 +161,7 @@ export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): Wor
 
       if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
         wState.current.lastSpokenSecond = whole;
-        if (whole <= 3) {
+        if (whole <= 10) {
           queueSpeak(String(whole));
         }
       }
