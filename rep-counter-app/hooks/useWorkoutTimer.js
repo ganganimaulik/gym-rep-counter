@@ -36,6 +36,10 @@ export function useWorkoutTimer(settings, handlers) {
   ---------------------------------------- */
   const { speak, speakEccentric, queueSpeak } = handlers;
 
+  useEffect(() => {
+    enableBackgroundExecution();
+  }, []);
+
   /* ----------------------------------------
      Reanimated shared values
   ---------------------------------------- */
@@ -322,7 +326,7 @@ export function useWorkoutTimer(settings, handlers) {
       phase: '',
     });
     statusText.value = 'Press Start';
-    disableBackgroundExecution();
+    // disableBackgroundExecution();
   }, [clearTimer, resetInternalState, updateUI, statusText]);
 
   endSet = useCallback(() => {
@@ -362,7 +366,6 @@ export function useWorkoutTimer(settings, handlers) {
       resetInternalState();
     }
 
-    enableBackgroundExecution();
 
     updateUI({
       isExerciseComplete: false,
