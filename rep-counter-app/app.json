@@ -16,7 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ganganimaulik.repcounterapp",
       "infoPlist": {
-        "UIBackgroundModes": ["audio", "processing"]
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
@@ -25,7 +25,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.ganganimaulik.repcounterapp"
+      "package": "com.ganganimaulik.repcounterapp",
+      "permissions": [
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "plugins": [
       [

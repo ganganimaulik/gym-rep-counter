@@ -8,6 +8,7 @@ export const useAudio = (settings) => {
   const [femaleVoice, setFemaleVoice] = useState(null);
   const speechQueueRef = useRef([]);
   const isSpeakingRef = useRef(false);
+  const silentSoundRef = useRef(null);
 
   const findFemaleVoice = async () => {
     const voices = await Speech.getAvailableVoicesAsync();
@@ -35,6 +36,15 @@ export const useAudio = (settings) => {
           interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
           playThroughEarpieceAndroid: false,
         });
+
+        // Keep audio session active for expo-speech background playback on iOS
+        const { sound } = await Audio.Sound.createAsync(
+           require('../assets/silence.mp3'),
+           { isLooping: true }
+        );
+        silentSoundRef.current = sound;
+        await sound.playAsync();
+
         await findFemaleVoice();
       } catch (error) {
         console.error("Failed to set up audio mode", error);
@@ -44,6 +54,9 @@ export const useAudio = (settings) => {
 
     return () => {
       Speech.stop();
+      if (silentSoundRef.current) {
+        silentSoundRef.current.unloadAsync();
+      }
     };
   }, []);
 
