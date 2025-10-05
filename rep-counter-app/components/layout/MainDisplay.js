@@ -33,7 +33,6 @@ const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
         className="text-2xl font-medium text-blue-400 text-center"
         editable={false}
         animatedProps={animatedStatusProps}
-        value={statusText.value}
       />
       <StyledView className="flex-row justify-center items-end space-x-4">
         <StyledView className="items-center">
