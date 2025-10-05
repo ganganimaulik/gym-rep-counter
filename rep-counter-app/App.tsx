@@ -47,20 +47,59 @@ const App: React.FC = () => {
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
   const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
 
+  // Workout State
+  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
+
   // Custom Hooks
   const {
     settings,
     workouts,
+    setCompletions,
     loadSettings,
     saveSettings,
     loadWorkouts,
     saveWorkouts,
+    loadSetCompletions,
     syncUserData,
     setWorkouts,
     setSettings: setDataSettings,
+    markSetAsCompleted,
+    isSetCompleted,
   } = useData()
 
+  const onAuthSuccess = useCallback(
+    async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const localSettings = await loadSettings()
+        const localWorkouts = await loadWorkouts()
+        const localSetCompletions = await loadSetCompletions()
+        await syncUserData(
+          firebaseUser,
+          localSettings,
+          localWorkouts,
+          localSetCompletions,
+        )
+      } else {
+        await loadSettings()
+        await loadWorkouts()
+        await loadSetCompletions()
+      }
+    },
+    [loadSettings, loadWorkouts, syncUserData, loadSetCompletions],
+  )
+
+  const {
+    user,
+    initializing,
+    isSigningIn,
+    onGoogleButtonPress,
+    disconnectAccount,
+  } = useAuth(onAuthSuccess)
+
   const audioHandler = useAudio(settings)
+
+  const activeExercise = currentWorkout?.exercises[currentExerciseIndex]
 
   const {
     currentRep,
@@ -79,22 +118,13 @@ const App: React.FC = () => {
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
-  } = useWorkoutTimer(settings, audioHandler)
-
-  const {
-    user,
-    initializing,
-    isSigningIn,
-    onGoogleButtonPress,
-    disconnectAccount,
-  } = useAuth(onAuthSuccess)
+  } = useWorkoutTimer(settings, audioHandler, activeExercise, user, {
+    markSetAsCompleted,
+    isSetCompleted,
+  })
 
   // App State
   const appState = useRef<AppStateStatus>(AppState.currentState)
-
-  // Workout State
-  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
-  const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
 
   // --- Effects ---
   useEffect(() => {
@@ -109,20 +139,6 @@ const App: React.FC = () => {
       disableBackgroundExecution()
     }
   }, [])
-
-  const onAuthSuccess = useCallback(
-    async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        const localSettings = await loadSettings()
-        const localWorkouts = await loadWorkouts()
-        await syncUserData(firebaseUser, localSettings, localWorkouts)
-      } else {
-        await loadSettings()
-        await loadWorkouts()
-      }
-    },
-    [loadSettings, loadWorkouts, syncUserData],
-  )
 
   useEffect(() => {
     if (isExerciseComplete) {
@@ -240,6 +256,8 @@ const App: React.FC = () => {
             setModalVisible={setWorkoutModalVisible}
             prevExercise={prevExercise}
             nextExercise={nextExercise}
+            isSetCompleted={isSetCompleted}
+            activeExerciseId={currentWorkout?.exercises[currentExerciseIndex]?.id}
           />
 
           <MainDisplay
@@ -258,6 +276,10 @@ const App: React.FC = () => {
             stopWorkout={stopWorkout}
             pauseWorkout={pauseWorkout}
             endSet={endSet}
+            isSetCompleted={isSetCompleted(
+              currentWorkout?.exercises[currentExerciseIndex]?.id ?? '',
+              currentSet.value,
+            )}
           />
 
           <RepJumper

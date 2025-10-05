@@ -10,6 +10,7 @@ interface ControlsProps {
   isRunning: boolean
   isResting: boolean
   isPaused: boolean
+  isSetCompleted: boolean
   runNextSet: () => void
   startWorkout: () => void
   stopWorkout: () => void
@@ -21,6 +22,7 @@ const Controls: React.FC<ControlsProps> = ({
   isRunning,
   isResting,
   isPaused,
+  isSetCompleted,
   runNextSet,
   startWorkout,
   stopWorkout,
@@ -31,24 +33,19 @@ const Controls: React.FC<ControlsProps> = ({
     <StyledView className="flex-row gap-4">
       {(() => {
         if (!isRunning) {
-          return [
+          return (
             <StyledTouchableOpacity
               key="start"
               onPress={isResting ? runNextSet : startWorkout}
-              className="p-4 bg-green-600 rounded-lg flex-1 items-center">
+              disabled={isSetCompleted}
+              className={`p-4 rounded-lg flex-1 items-center ${
+                isSetCompleted ? 'bg-gray-500' : 'bg-green-600'
+              }`}>
               <StyledText className="text-lg font-semibold text-white">
-                Start
+                {isResting ? 'Next Set' : 'Start'}
               </StyledText>
-            </StyledTouchableOpacity>,
-            <StyledTouchableOpacity
-              key="stop"
-              onPress={stopWorkout}
-              className="p-4 bg-red-600 rounded-lg flex-1 items-center">
-              <StyledText className="text-lg font-semibold text-white">
-                Stop
-              </StyledText>
-            </StyledTouchableOpacity>,
-          ]
+            </StyledTouchableOpacity>
+          )
         }
         if (isPaused) {
           return [
@@ -65,7 +62,7 @@ const Controls: React.FC<ControlsProps> = ({
               onPress={stopWorkout}
               className="p-4 bg-red-600 rounded-lg flex-1 items-center">
               <StyledText className="text-lg font-semibold text-white">
-                Stop
+                Restart Set
               </StyledText>
             </StyledTouchableOpacity>,
           ]
@@ -93,7 +90,7 @@ const Controls: React.FC<ControlsProps> = ({
             onPress={stopWorkout}
             className="p-4 bg-red-600 rounded-lg flex-1 items-center">
             <StyledText className="text-lg font-semibold text-white">
-              Stop
+              Restart Set
             </StyledText>
           </StyledTouchableOpacity>,
         ]

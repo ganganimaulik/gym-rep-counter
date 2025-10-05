@@ -6,7 +6,8 @@ import {
   enableBackgroundExecution,
 } from 'expo-background-timer'
 import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated'
-import { Settings } from './useData'
+import type { User as FirebaseUser } from 'firebase/auth'
+import { Settings, Exercise } from './useData'
 import { AudioHandler } from './useAudio'
 
 // Constants
@@ -32,6 +33,15 @@ interface UIState {
   isRunning: boolean
   isPaused: boolean
   phase: string
+}
+
+interface DataHandlers {
+  markSetAsCompleted: (
+    exerciseId: string,
+    setNumber: number,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  isSetCompleted: (exerciseId: string, setNumber: number) => boolean
 }
 
 interface WorkoutState {
@@ -67,8 +77,12 @@ export interface WorkoutTimerHook {
 export function useWorkoutTimer(
   settings: Settings,
   handlers: AudioHandler,
+  activeExercise: Exercise | undefined,
+  user: FirebaseUser | null,
+  dataHandlers: DataHandlers,
 ): WorkoutTimerHook {
   const { queueSpeak, speakEccentric } = handlers
+  const { markSetAsCompleted, isSetCompleted } = dataHandlers
 
   useEffect(() => {
     enableBackgroundExecution()
@@ -198,6 +212,7 @@ export function useWorkoutTimer(
     updateUI,
     displayRep,
     statusText,
+    startConcentric,
   ])
 
   startConcentric = useCallback(() => {
@@ -336,7 +351,7 @@ export function useWorkoutTimer(
     displaySet.value = 1
   }, [displayRep, displaySet])
 
-  stopWorkout = useCallback(() => {
+  const fullReset = useCallback(() => {
     clearTimer()
     resetInternalState()
     updateUI({
@@ -347,13 +362,32 @@ export function useWorkoutTimer(
     statusText.value = 'Press Start'
   }, [clearTimer, resetInternalState, updateUI, statusText])
 
+  stopWorkout = useCallback(() => {
+    clearTimer()
+    wState.current.phase = PHASES.STOPPED
+    wState.current.rep = 0
+    wState.current.remainingTime = 0
+    wState.current.isJumping = false
+    displayRep.value = 0
+    updateUI({
+      isRunning: false,
+      isPaused: false,
+      phase: '',
+    })
+    statusText.value = `Press Start for Set ${wState.current.set}`
+  }, [clearTimer, displayRep, updateUI, statusText])
+
   endSet = useCallback(() => {
+    if (activeExercise) {
+      markSetAsCompleted(activeExercise.id, wState.current.set, user)
+    }
+
     const { maxSets } = settings
     clearTimer(false)
     const nextSet = wState.current.set + 1
 
     if (nextSet > maxSets) {
-      stopWorkout()
+      fullReset()
       updateUI({
         isExerciseComplete: true,
       })
@@ -377,17 +411,30 @@ export function useWorkoutTimer(
   }, [
     settings,
     clearTimer,
-    stopWorkout,
+    fullReset,
     updateUI,
     displayRep,
     displaySet,
     queueSpeak,
     statusText,
     startRest,
+    activeExercise,
+    user,
+    markSetAsCompleted,
   ])
 
   const startWorkout = useCallback(() => {
-    if (wState.current.phase !== PHASES.STOPPED) return
+    if (ui.isRunning) return
+
+    if (
+      activeExercise &&
+      isSetCompleted(activeExercise.id, wState.current.set)
+    ) {
+      statusText.value = `Set ${wState.current.set} is already done.`
+      queueSpeak(`Set ${wState.current.set} is already completed for today.`)
+      return
+    }
+
     if (statusText.value === 'Exercise Complete!') {
       resetInternalState()
     }
@@ -399,17 +446,18 @@ export function useWorkoutTimer(
     })
 
     wState.current.rep = 0
-    wState.current.set = 1
     displayRep.value = 0
-    displaySet.value = 1
     startCountdown()
   }, [
+    ui.isRunning,
+    activeExercise,
+    isSetCompleted,
+    statusText,
+    queueSpeak,
+    resetInternalState,
     updateUI,
     displayRep,
-    displaySet,
     startCountdown,
-    statusText,
-    resetInternalState,
   ])
 
   const pauseWorkout = useCallback(() => {
@@ -433,7 +481,7 @@ export function useWorkoutTimer(
           startRest()
           break
         default:
-          stopWorkout()
+          fullReset()
       }
     } else {
       clearTimer()
@@ -472,7 +520,7 @@ export function useWorkoutTimer(
     startConcentric,
     startEccentric,
     startRest,
-    stopWorkout,
+    fullReset,
   ])
 
   const jumpToRep = useCallback(
@@ -494,12 +542,29 @@ export function useWorkoutTimer(
   )
 
   const runNextSet = useCallback(() => {
+    if (
+      activeExercise &&
+      isSetCompleted(activeExercise.id, wState.current.set)
+    ) {
+      statusText.value = `Set ${wState.current.set} is already done.`
+      queueSpeak(`Set ${wState.current.set} is already completed for today.`)
+      return
+    }
+
     clearTimer()
     wState.current.isJumping = false
     updateUI({ isRunning: true, isPaused: false })
     queueSpeak('Get ready.', { priority: true })
     startCountdown()
-  }, [clearTimer, updateUI, queueSpeak, startCountdown])
+  }, [
+    clearTimer,
+    updateUI,
+    queueSpeak,
+    startCountdown,
+    activeExercise,
+    isSetCompleted,
+    statusText,
+  ])
 
   useEffect(() => clearTimer, [clearTimer])
 

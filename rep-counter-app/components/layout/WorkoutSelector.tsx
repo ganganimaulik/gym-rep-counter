@@ -1,13 +1,49 @@
 import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
-import { Edit, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import {
+  Edit,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+} from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
+
+interface SetTrackerProps {
+  totalSets: number
+  isSetCompleted: (setNumber: number) => boolean
+}
+
+const SetTracker: React.FC<SetTrackerProps> = ({
+  totalSets,
+  isSetCompleted,
+}) => (
+  <StyledView className="flex-row justify-end items-center flex-wrap gap-2">
+    {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => {
+      const completed = isSetCompleted(setNumber)
+      return (
+        <StyledView
+          key={setNumber}
+          className={`w-6 h-6 rounded-full justify-center items-center ${
+            completed ? 'bg-green-500' : 'bg-gray-500'
+          }`}>
+          {completed ? (
+            <Check color="white" size={16} />
+          ) : (
+            <StyledText className="text-white text-xs font-bold">
+              {setNumber}
+            </StyledText>
+          )}
+        </StyledView>
+      )
+    })}
+  </StyledView>
+)
 
 interface WorkoutSelectorProps {
   workouts: Workout[]
@@ -18,6 +54,8 @@ interface WorkoutSelectorProps {
   setModalVisible: (visible: boolean) => void
   prevExercise: () => void
   nextExercise: () => void
+  isSetCompleted: (exerciseId: string, setNumber: number) => boolean
+  activeExerciseId: string | undefined
 }
 
 const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
@@ -29,6 +67,8 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   setModalVisible,
   prevExercise,
   nextExercise,
+  isSetCompleted,
+  activeExerciseId,
 }) => {
   return (
     <StyledView className="bg-gray-700 rounded-lg p-4 space-y-4">
@@ -55,16 +95,24 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
           <StyledText className="text-sm text-gray-400">
             Current Exercise:
           </StyledText>
-          <StyledText className="text-lg font-medium text-white">
-            {currentWorkout.exercises[currentExerciseIndex]?.name}
-          </StyledText>
-          <StyledView className="flex-row justify-between items-center mt-1">
+          <StyledView className="flex-row justify-between items-center mt-2">
+            <StyledText className="text-lg font-medium text-white flex-shrink mr-2">
+              {currentWorkout.exercises[currentExerciseIndex]?.name}
+            </StyledText>
+            <SetTracker
+              totalSets={settings.maxSets}
+              isSetCompleted={(setNumber) =>
+                isSetCompleted(activeExerciseId ?? '', setNumber)
+              }
+            />
+          </StyledView>
+          <StyledView className="flex-row justify-between items-center mt-2">
             <StyledText className="text-sm text-gray-400">
               Exercise {currentExerciseIndex + 1} of{' '}
               {currentWorkout.exercises.length}
             </StyledText>
             <StyledText className="text-sm font-semibold text-gray-200">
-              Sets: {settings.maxSets}
+              Reps: {settings.maxReps}
             </StyledText>
           </StyledView>
         </StyledView>
