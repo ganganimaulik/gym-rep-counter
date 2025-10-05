@@ -1,27 +1,53 @@
-// useAudio.js - improved with speech queue management
-
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid, AVPlaybackStatusSuccess } from 'expo-av';
 import * as Speech from 'expo-speech';
+import { Settings } from './useData';
 
-export const useAudio = (settings) => {
-  const [femaleVoice, setFemaleVoice] = useState(null);
-  const speechQueueRef = useRef([]);
-  const isSpeakingRef = useRef(false);
-  const silentSoundRef = useRef(null);
+// Interfaces
+export interface SpeechOptions extends Speech.SpeechOptions {
+  priority?: boolean;
+}
+
+interface SpeechQueueItem {
+  text: string;
+  options: SpeechOptions;
+}
+
+export interface AudioHandler {
+  speak: (text: string, options?: Speech.SpeechOptions) => void;
+  speakEccentric: (text: string) => void;
+  queueSpeak: (text: string, options?: SpeechOptions) => void;
+}
+
+export const useAudio = (settings: Settings): AudioHandler => {
+  const [femaleVoice, setFemaleVoice] = useState<string | null>(null);
+  const speechQueueRef = useRef<SpeechQueueItem[]>([]);
+  const isSpeakingRef = useRef<boolean>(false);
+  const silentSoundRef = useRef<Audio.Sound | null>(null);
 
   const findFemaleVoice = async () => {
-    const voices = await Speech.getAvailableVoicesAsync();
-    const foundVoice = voices.find(
-      v =>
-        v.name.includes('Female') ||
-        v.name.includes('Samantha') ||
-        v.name.includes('Serena') ||
-        v.name.includes('Karen') ||
-        v.name.includes('Victoria'),
-    );
-    if (foundVoice) {
-      setFemaleVoice(foundVoice.identifier);
+    try {
+      const voices = await Speech.getAvailableVoicesAsync();
+      const foundVoice = voices.find(
+        v =>
+          v.quality === Speech.VoiceQuality.Enhanced &&
+          (v.name.includes('Female') ||
+            v.name.includes('Samantha') ||
+            v.name.includes('Serena') ||
+            v.name.includes('Karen') ||
+            v.name.includes('Victoria')),
+      );
+      if (foundVoice) {
+        setFemaleVoice(foundVoice.identifier);
+        return;
+      }
+      // Fallback to any female voice
+      const anyFemale = voices.find(v => v.name.includes('Female'));
+      if (anyFemale) {
+        setFemaleVoice(anyFemale.identifier);
+      }
+    } catch (error) {
+      console.error("Error finding female voice:", error);
     }
   };
 
@@ -37,13 +63,16 @@ export const useAudio = (settings) => {
           playThroughEarpieceAndroid: false,
         });
 
-        // Keep audio session active for expo-speech background playback on iOS
         const { sound } = await Audio.Sound.createAsync(
-           require('../assets/silence.mp3'),
-           { isLooping: true }
+          require('../assets/silence.mp3'),
+          { isLooping: true }
         );
         silentSoundRef.current = sound;
-        await sound.playAsync();
+        const status = await sound.getStatusAsync() as AVPlaybackStatusSuccess;
+        if (status.isLoaded && !status.isPlaying) {
+            await sound.playAsync();
+        }
+
 
         await findFemaleVoice();
       } catch (error) {
@@ -60,7 +89,6 @@ export const useAudio = (settings) => {
     };
   }, []);
 
-  // Process speech queue
   const processNextSpeech = useCallback(() => {
     if (speechQueueRef.current.length === 0) {
       isSpeakingRef.current = false;
@@ -68,7 +96,7 @@ export const useAudio = (settings) => {
     }
 
     isSpeakingRef.current = true;
-    const { text, options } = speechQueueRef.current.shift();
+    const { text, options } = speechQueueRef.current.shift()!;
     const { onDone: originalOnDone, ...restOptions } = options;
 
     Speech.speak(text, {
@@ -78,7 +106,6 @@ export const useAudio = (settings) => {
         if (typeof originalOnDone === 'function') {
           originalOnDone();
         }
-        // Process next item after a small delay
         setTimeout(() => processNextSpeech(), 50);
       },
       onError: () => {
@@ -88,32 +115,27 @@ export const useAudio = (settings) => {
     });
   }, []);
 
-  // Queue-based speak function
-  const queueSpeak = useCallback((text, options = {}) => {
-    // If priority, clear queue and stop current speech
+  const queueSpeak = useCallback((text: string, options: SpeechOptions = {}) => {
     if (options.priority) {
       Speech.stop();
       speechQueueRef.current = [];
       isSpeakingRef.current = false;
     }
 
-    const speechOptions = {
+    const speechOptions: SpeechOptions = {
       volume: settings.volume,
       rate: 1.4,
       ...options,
     };
 
-    // Add to queue
     speechQueueRef.current.push({ text, options: speechOptions });
 
-    // Start processing if not already speaking
     if (!isSpeakingRef.current) {
       processNextSpeech();
     }
   }, [settings.volume, processNextSpeech]);
 
-  // Regular speak (non-queued, for backwards compatibility)
-  const speak = useCallback((text, options = {}) => {
+  const speak = useCallback((text: string, options: Speech.SpeechOptions = {}) => {
     Speech.speak(text, {
       volume: settings.volume,
       rate: 1.4,
@@ -121,18 +143,13 @@ export const useAudio = (settings) => {
     });
   }, [settings.volume]);
 
-  // Special eccentric voice with collision detection
-  const speakEccentric = useCallback((text) => {
-    // Use the high-priority queue to interrupt other speech and play immediately.
-    // This is more reliable than calling Speech.stop() directly.
+  const speakEccentric = useCallback((text: string) => {
     queueSpeak(text, {
       priority: true,
-      rate: 1.4, // Using a slightly faster rate helps ensure the word fits within the 1-second window
-      voice: femaleVoice,
+      rate: 1.4,
+      voice: femaleVoice || undefined,
     });
   }, [queueSpeak, femaleVoice]);
-
-
 
   return {
     speak,

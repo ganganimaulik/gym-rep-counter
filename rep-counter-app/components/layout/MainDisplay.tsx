@@ -1,30 +1,37 @@
 import React from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { styled } from 'nativewind';
-import Animated, { useAnimatedProps } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, SharedValue } from 'react-native-reanimated';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 const StyledAnimatedTextInput = styled(AnimatedTextInput);
 
-const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
+interface MainDisplayProps {
+  statusText: SharedValue<string>;
+  currentRep: SharedValue<number>;
+  currentSet: SharedValue<number>;
+  phase: string;
+}
+
+const MainDisplay: React.FC<MainDisplayProps> = ({ statusText, currentRep, currentSet, phase }) => {
   const animatedRepProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentRep.value)),
-    };
+    } as any;
   }, []);
 
   const animatedSetProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentSet.value)),
-    };
+    } as any;
   }, []);
 
   const animatedStatusProps = useAnimatedProps(() => {
     return {
       text: statusText.value,
-    };
+    } as any;
   }, []);
 
   return (
@@ -33,6 +40,7 @@ const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
         className="text-2xl font-medium text-blue-400 text-center"
         editable={false}
         animatedProps={animatedStatusProps}
+        defaultValue={statusText.value}
       />
       <StyledView className="flex-row justify-center items-end space-x-4">
         <StyledView className="items-center">
@@ -40,7 +48,7 @@ const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
             className="text-8xl font-bold tracking-tight text-white"
             editable={false}
             animatedProps={animatedRepProps}
-            value={String(Math.round(currentRep.value))} // Initial value
+            defaultValue={String(Math.round(currentRep.value))}
           />
           <StyledText className="text-lg text-gray-400">REP</StyledText>
         </StyledView>
@@ -49,7 +57,7 @@ const MainDisplay = ({ statusText, currentRep, currentSet, phase }) => {
             className="text-6xl font-bold tracking-tight text-white"
             editable={false}
             animatedProps={animatedSetProps}
-            value={String(Math.round(currentSet.value))} // Initial value
+            defaultValue={String(Math.round(currentSet.value))}
           />
           <StyledText className="text-lg text-gray-400">SET</StyledText>
         </StyledView>

@@ -1,115 +1,126 @@
-// useWorkoutTimer.ts - improved audio handling version
-
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import * as Speech from 'expo-speech';
 import {
   bgSetTimeout,
   bgClearTimeout,
   enableBackgroundExecution,
-  disableBackgroundExecution,
 } from 'expo-background-timer';
-import { useSharedValue, runOnJS } from 'react-native-reanimated';
+import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated';
+import { Settings } from './useData';
+import { AudioHandler } from './useAudio';
 
-/*--------------------------------------------------------------------
-  Constants
---------------------------------------------------------------------*/
+// Constants
 const PHASES = {
   STOPPED: 'stopped',
   COUNTDOWN: 'countdown',
   CONCENTRIC: 'concentric',
   ECCENTRIC: 'eccentric',
   REST: 'rest',
-};
+} as const;
 
-const PHASE_DISPLAY = {
+type Phase = typeof PHASES[keyof typeof PHASES];
+
+const PHASE_DISPLAY: Record<string, string> = {
   [PHASES.CONCENTRIC]: 'Concentric',
   [PHASES.ECCENTRIC]: 'Eccentric',
   [PHASES.REST]: 'Rest',
 };
 
-/*--------------------------------------------------------------------
-  Hook
---------------------------------------------------------------------*/
-export function useWorkoutTimer(settings, handlers) {
-  /* ----------------------------------------
-     External helpers
-  ---------------------------------------- */
-  const { speak, speakEccentric, queueSpeak } = handlers;
+// Interfaces
+interface UIState {
+  isExerciseComplete: boolean;
+  isRunning: boolean;
+  isPaused: boolean;
+  phase: string;
+}
+
+interface WorkoutState {
+  rep: number;
+  set: number;
+  phase: Phase;
+  phaseStart: number;
+  remainingTime: number;
+  lastSpokenSecond: number;
+  isJumping: boolean;
+}
+
+export interface WorkoutTimerHook {
+  currentRep: SharedValue<number>;
+  currentSet: SharedValue<number>;
+  isRunning: boolean;
+  isPaused: boolean;
+  isResting: boolean;
+  phase: string;
+  statusText: SharedValue<string>;
+  isExerciseComplete: boolean;
+  startWorkout: () => void;
+  pauseWorkout: () => void;
+  stopWorkout: () => void;
+  runNextSet: () => void;
+  jumpToRep: (rep: number) => void;
+  endSet: () => void;
+  setStatusText: (text: string) => void;
+  resetExerciseCompleteFlag: () => void;
+}
+
+// Hook
+export function useWorkoutTimer(settings: Settings, handlers: AudioHandler): WorkoutTimerHook {
+  const { queueSpeak, speakEccentric } = handlers;
 
   useEffect(() => {
     enableBackgroundExecution();
   }, []);
 
-  /* ----------------------------------------
-     Reanimated shared values
-  ---------------------------------------- */
   const displayRep = useSharedValue(0);
   const displaySet = useSharedValue(1);
   const statusText = useSharedValue('Press Start');
 
-  /* ----------------------------------------
-     React state for UI
-  ---------------------------------------- */
-  const [ui, setUI] = useState({
+  const [ui, setUI] = useState<UIState>({
     isExerciseComplete: false,
     isRunning: false,
     isPaused: false,
     phase: '',
   });
   const updateUI = useCallback(
-    (patch) =>
+    (patch: Partial<UIState>) =>
       setUI(prev => ({ ...prev, ...patch })),
     [],
   );
 
-  /* ----------------------------------------
-     Internal mutable state
-  ---------------------------------------- */
-  const wState = useRef({
+  const wState = useRef<WorkoutState>({
     rep: 0,
     set: 1,
     phase: PHASES.STOPPED,
     phaseStart: Date.now(),
-    remainingTime: 0, // Time left when paused
+    remainingTime: 0,
     lastSpokenSecond: -1,
     isJumping: false,
   });
 
-  /* ----------------------------------------
-     One single timeout at any moment
-  ---------------------------------------- */
-  const timeoutRef = useRef(null);
-  const audioTimeoutRef = useRef(null); // Ref for the eccentric audio timer
+  const timeoutRef = useRef<number | null>(null);
+  const audioTimeoutRef = useRef<number | null>(null);
 
-  // 1. Modify clearTimer to accept an option to prevent stopping speech
   const clearTimer = useCallback((stopSpeech = true) => {
-    // Clear the main phase timer
     if (timeoutRef.current != null) {
       try {
         bgClearTimeout(timeoutRef.current);
-      } catch {/* ignore "timeout not found" */ }
+      } catch { /* ignore */ }
       timeoutRef.current = null;
     }
-    // Clear the audio feedback timer
     if (audioTimeoutRef.current != null) {
       try {
         bgClearTimeout(audioTimeoutRef.current);
-      } catch {/* ignore "timeout not found" */ }
+      } catch { /* ignore */ }
       audioTimeoutRef.current = null;
     }
-    // Only stop speech if the flag is true
     if (stopSpeech) {
       Speech.stop();
     }
   }, []);
 
-
-  /*====================================================================
-    Small helper that schedules the next *absolute* event.
-  ====================================================================*/
   const schedule = useCallback(
-    (ms, cb, stopSpeech = true) => {
-      clearTimer(stopSpeech); // Pass the flag along
+    (ms: number, cb: () => void, stopSpeech = true) => {
+      clearTimer(stopSpeech);
       const id = bgSetTimeout(() => {
         timeoutRef.current = null;
         cb();
@@ -119,12 +130,11 @@ export function useWorkoutTimer(settings, handlers) {
     [clearTimer],
   );
 
-  /*====================================================================
-    Phase handlers
-  ====================================================================*/
-  // We need to define these later to avoid circular dependencies
-  // so we declare them here and assign them later.
-  let startConcentric, startEccentric, startRest, endSet, stopWorkout;
+  let startConcentric: () => void,
+    startEccentric: () => void,
+    startRest: () => void,
+    endSet: () => void,
+    stopWorkout: () => void;
 
   const startCountdown = useCallback(() => {
     const duration =
@@ -169,8 +179,6 @@ export function useWorkoutTimer(settings, handlers) {
         statusText.value = 'In Progress';
         startConcentric();
       } else {
-        // Must set stopSpeech to false, otherwise the schedule call will clear the timer
-        // and immediately call Speech.stop(), cutting off the announcement.
         const stopSpeech = false;
         schedule(1000 - (Date.now() % 1000), tick, stopSpeech);
       }
@@ -188,8 +196,6 @@ export function useWorkoutTimer(settings, handlers) {
     wState.current.phase = PHASES.CONCENTRIC;
     wState.current.phaseStart = Date.now();
 
-    // When starting the concentric phase, we clear the previous timer
-    // but explicitly tell it NOT to stop speech, allowing "1" to finish.
     const stopSpeechOnClear = false;
     schedule(duration, () => {
       updateUI({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] });
@@ -209,16 +215,12 @@ export function useWorkoutTimer(settings, handlers) {
     wState.current.phaseStart = Date.now();
     wState.current.lastSpokenSecond = -1;
 
-    // --- SOLUTION ---
-    // 1. Define the logic that runs precisely when the phase ends.
     const onPhaseEnd = () => {
       if (wState.current.rep >= maxReps) {
-        // Use runOnJS if calling from a Reanimated worklet, which this isn't, but it's safe.
         runOnJS(endSet)();
       } else {
         wState.current.rep += 1;
         displayRep.value = wState.current.rep;
-        // The small delay for the rep number announcement is good.
         setTimeout(() => {
           queueSpeak(String(wState.current.rep));
         }, 150);
@@ -227,19 +229,14 @@ export function useWorkoutTimer(settings, handlers) {
       }
     };
 
-    // 2. Schedule the end of the phase with a single, precise timeout.
-    // This is the main timer.
     schedule(duration * 1000, onPhaseEnd);
 
-
-    // 3. If enabled, start a *separate* recursive tick for audio cues only.
     if (eccentricCountdownEnabled) {
       const audioTick = () => {
         const elapsed = (Date.now() - wState.current.phaseStart) / 1000;
         const remaining = duration - elapsed;
         const whole = Math.ceil(remaining);
 
-        // This timer's only job is to speak.
         if (
           remaining > 0 &&
           whole !== wState.current.lastSpokenSecond &&
@@ -249,11 +246,7 @@ export function useWorkoutTimer(settings, handlers) {
           speakEccentric(String(whole));
         }
 
-        // Only schedule the next audio tick if there's more than a second left.
-        // This prevents it from interfering with the main timer's end event.
         if (remaining > 1) {
-          // NOTE: We don't use the main `schedule` function here, to avoid clearing
-          // the main `onPhaseEnd` timeout we set earlier.
           audioTimeoutRef.current = bgSetTimeout(audioTick, 1000);
         }
       };
@@ -286,7 +279,6 @@ export function useWorkoutTimer(settings, handlers) {
           whole !== wState.current.lastSpokenSecond
         ) {
           wState.current.lastSpokenSecond = whole;
-          // No beeping sound, per user request memory
         }
         schedule(1000 - (Date.now() % 1000), tick);
       } else {
@@ -300,9 +292,6 @@ export function useWorkoutTimer(settings, handlers) {
     tick();
   }, [settings, queueSpeak, schedule, clearTimer, statusText]);
 
-  /*====================================================================
-    Public workout controls
-  ====================================================================*/
   const resetInternalState = useCallback(() => {
     wState.current = {
       rep: 0,
@@ -326,12 +315,10 @@ export function useWorkoutTimer(settings, handlers) {
       phase: '',
     });
     statusText.value = 'Press Start';
-    // disableBackgroundExecution();
   }, [clearTimer, resetInternalState, updateUI, statusText]);
 
   endSet = useCallback(() => {
     const { maxSets } = settings;
-    // Clear timer but don't stop speech; the announcement will play, and `onDone` will trigger the rest timer.
     clearTimer(false);
     const nextSet = wState.current.set + 1;
 
@@ -352,7 +339,6 @@ export function useWorkoutTimer(settings, handlers) {
         isPaused: false,
         phase: PHASE_DISPLAY[PHASES.REST],
       });
-      // Chain the start of the rest timer to the completion of the announcement
       queueSpeak(`Set complete. Rest now.`, {
         priority: true,
         onDone: startRest,
@@ -365,7 +351,6 @@ export function useWorkoutTimer(settings, handlers) {
     if (statusText.value === 'Exercise Complete!') {
       resetInternalState();
     }
-
 
     updateUI({
       isExerciseComplete: false,
@@ -405,7 +390,7 @@ export function useWorkoutTimer(settings, handlers) {
       }
     } else {
       clearTimer();
-      let duration;
+      let duration: number;
       switch (wState.current.phase) {
         case PHASES.COUNTDOWN:
           duration = settings.countdownSeconds * 1000;
@@ -436,11 +421,15 @@ export function useWorkoutTimer(settings, handlers) {
     queueSpeak,
     clearTimer,
     statusText,
-    startCountdown
+    startCountdown,
+    startConcentric,
+    startEccentric,
+    startRest,
+    stopWorkout,
   ]);
 
   const jumpToRep = useCallback(
-    (rep) => {
+    (rep: number) => {
       clearTimer();
       wState.current.rep = rep;
       wState.current.isJumping = true;
@@ -454,7 +443,7 @@ export function useWorkoutTimer(settings, handlers) {
       queueSpeak(`Rep ${rep}.`, { priority: true });
       startConcentric();
     },
-    [clearTimer, displayRep, updateUI, queueSpeak],
+    [clearTimer, displayRep, updateUI, queueSpeak, startConcentric],
   );
 
   const runNextSet = useCallback(() => {
@@ -483,7 +472,7 @@ export function useWorkoutTimer(settings, handlers) {
       runNextSet,
       jumpToRep,
       endSet,
-      setStatusText: (text) => {
+      setStatusText: (text: string) => {
         statusText.value = text;
       },
       resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),

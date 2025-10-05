@@ -2,18 +2,25 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, SafeAreaView, StatusBar } from 'react-native';
 import { styled } from 'nativewind';
 import { ChevronDown } from 'lucide-react-native';
+import { Workout } from '../hooks/useData';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledSafeAreaView = styled(SafeAreaView);
 
-const WorkoutPicker = ({ selectedValue, onValueChange, workouts }) => {
+interface WorkoutPickerProps {
+  selectedValue: string | null;
+  onValueChange: (value: string | null) => void;
+  workouts: Workout[];
+}
+
+const WorkoutPicker: React.FC<WorkoutPickerProps> = ({ selectedValue, onValueChange, workouts }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
   const selectedWorkout = workouts.find(w => w.id === selectedValue);
 
-  const handleSelect = (value) => {
+  const handleSelect = (value: string | null) => {
     onValueChange(value);
     setModalVisible(false);
   };
@@ -22,7 +29,7 @@ const WorkoutPicker = ({ selectedValue, onValueChange, workouts }) => {
     <>
       <StyledTouchableOpacity
         onPress={() => setModalVisible(true)}
-        className="w-full bg-gray-600 border border-gray-500 rounded-md p-3 flex-row justify-between items-center"
+        className="w-full bg-gray-600/80 border border-gray-500/50 rounded-md p-3 flex-row justify-between items-center"
       >
         <StyledText className="text-white text-base">
           {selectedWorkout ? selectedWorkout.name : "Select a workout..."}
@@ -36,9 +43,9 @@ const WorkoutPicker = ({ selectedValue, onValueChange, workouts }) => {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <StyledSafeAreaView className="flex-1 justify-end bg-black/50">
+        <StyledSafeAreaView className="flex-1 justify-end bg-black/70">
           <StatusBar barStyle="light-content" />
-          <StyledView className="bg-gray-800 rounded-t-2xl p-4">
+          <StyledView className="bg-gray-800 rounded-t-2xl p-4 shadow-lg">
             <StyledText className="text-lg font-bold text-white text-center mb-4">Select a Workout</StyledText>
             <FlatList
               data={workouts}
@@ -51,11 +58,17 @@ const WorkoutPicker = ({ selectedValue, onValueChange, workouts }) => {
                   <StyledText className="text-white text-lg">{item.name}</StyledText>
                 </StyledTouchableOpacity>
               )}
-              style={{ maxHeight: 300 }} // Limit height to prevent full-screen takeover
+              style={{ maxHeight: 300 }}
             />
+             <StyledTouchableOpacity
+              onPress={() => handleSelect(null)}
+              className="p-4 border-b border-gray-700"
+            >
+              <StyledText className="text-gray-400 text-lg">None</StyledText>
+            </StyledTouchableOpacity>
             <StyledTouchableOpacity
               onPress={() => setModalVisible(false)}
-              className="mt-4 bg-red-600 rounded-lg p-3 items-center"
+              className="mt-4 bg-red-600/90 rounded-lg p-3 items-center"
             >
               <StyledText className="text-white font-bold">Cancel</StyledText>
             </StyledTouchableOpacity>

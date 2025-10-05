@@ -1,13 +1,19 @@
 import React from 'react';
 import { TouchableOpacity, Text } from 'react-native';
 import { styled } from 'nativewind';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, SharedValue } from 'react-native-reanimated';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const StyledTouchableOpacity = styled(AnimatedTouchableOpacity);
 const StyledText = styled(Text);
 
-const NumberButton = ({ number, onPress, currentRep }) => {
+interface NumberButtonProps {
+  number: number;
+  onPress: () => void;
+  currentRep: SharedValue<number>;
+}
+
+const NumberButton: React.FC<NumberButtonProps> = ({ number, onPress, currentRep }) => {
   const animatedStyle = useAnimatedStyle(() => {
     const isActive = Math.round(currentRep.value) === number;
     return {

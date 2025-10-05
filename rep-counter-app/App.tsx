@@ -8,6 +8,7 @@ import {
   ScrollView,
   StatusBar,
   AppState,
+  AppStateStatus,
 } from 'react-native';
 import { styled } from 'nativewind';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -16,10 +17,11 @@ import {
   enableBackgroundExecution,
   disableBackgroundExecution,
 } from 'expo-background-timer';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 // Hooks
 import { useAuth } from './hooks/useAuth';
-import { useData } from './hooks/useData';
+import { useData, Settings, Workout } from './hooks/useData';
 import { useAudio } from './hooks/useAudio';
 import { useWorkoutTimer } from './hooks/useWorkoutTimer';
 
@@ -38,12 +40,12 @@ const StyledText = styled(Text);
 const StyledTouchableOpacity = styled(TouchableOpacity);
 const StyledScrollView = styled(ScrollView);
 
-const App = () => {
+const App: React.FC = () => {
   useKeepAwake();
 
   // UI State
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [workoutModalVisible, setWorkoutModalVisible] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState<boolean>(false);
+  const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false);
 
   // Custom Hooks
   const {
@@ -79,6 +81,40 @@ const App = () => {
     resetExerciseCompleteFlag,
   } = useWorkoutTimer(settings, audioHandler);
 
+  const { user, initializing, isSigningIn, onGoogleButtonPress, disconnectAccount } = useAuth(onAuthSuccess);
+
+  // App State
+  const appState = useRef<AppStateStatus>(AppState.currentState);
+
+  // Workout State
+  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0);
+
+  // --- Effects ---
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      appState.current = nextAppState;
+    });
+
+    enableBackgroundExecution();
+
+    return () => {
+      subscription.remove();
+      disableBackgroundExecution();
+    };
+  }, []);
+
+  const onAuthSuccess = useCallback(async (firebaseUser: FirebaseUser | null) => {
+    if (firebaseUser) {
+      const localSettings = await loadSettings();
+      const localWorkouts = await loadWorkouts();
+      await syncUserData(firebaseUser, localSettings, localWorkouts);
+    } else {
+      await loadSettings();
+      await loadWorkouts();
+    }
+  }, [loadSettings, loadWorkouts, syncUserData]);
+
   useEffect(() => {
     if (isExerciseComplete) {
       if (currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1) {
@@ -89,7 +125,6 @@ const App = () => {
         setStatusText('Workout Complete!');
         audioHandler.speak('Workout Complete!');
       }
-      // Reset the flag to prevent this effect from running again unintentionally
       resetExerciseCompleteFlag();
     }
   }, [
@@ -101,59 +136,34 @@ const App = () => {
     resetExerciseCompleteFlag,
   ]);
 
-  const onAuthSuccess = useCallback(async (firebaseUser) => {
-    if (firebaseUser) {
-      const localSettings = await loadSettings();
-      const localWorkouts = await loadWorkouts();
-      await syncUserData(firebaseUser, localSettings, localWorkouts);
-    } else {
-      await loadSettings();
-      await loadWorkouts();
-    }
-  }, [loadSettings, loadWorkouts, syncUserData]);
-
-  const { user, initializing, isSigningIn, onGoogleButtonPress, disconnectAccount } = useAuth(onAuthSuccess);
-
-  // App State
-  const appState = useRef(AppState.currentState);
-
-  // Workout State
-  const [currentWorkout, setCurrentWorkout] = useState(null);
-  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
-
-  // --- Effects ---
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      appState.current = nextAppState;
-    });
-
-    enableBackgroundExecution();
-    console.log('Background execution enabled.');
-
-    return () => {
-      subscription.remove();
-      disableBackgroundExecution();
-      console.log('Background execution disabled.');
-    };
-  }, []);
-
   useEffect(() => {
     if (currentWorkout && currentWorkout.exercises.length > 0) {
       const exercise = currentWorkout.exercises[currentExerciseIndex];
-      setDataSettings(prev => ({
-        ...prev,
-        maxReps: exercise.reps,
-        maxSets: exercise.sets,
-      }));
+      if (exercise) {
+        setDataSettings((prev: Settings) => ({
+          ...prev,
+          maxReps: exercise.reps,
+          maxSets: exercise.sets,
+        }));
+      }
     }
   }, [currentWorkout, currentExerciseIndex, setDataSettings]);
 
   // --- Workout Management ---
-  const selectWorkout = (workoutId) => {
-    const workout = workouts.find(w => w.id === workoutId);
-    setCurrentWorkout(workout);
-    setCurrentExerciseIndex(0);
+  const selectWorkout = (workoutId: string | null) => {
+    // BUG FIX: Stop the workout and any timers *before* changing the workout state
+    // to prevent race conditions where effects run with stale data.
     stopWorkout();
+
+    if (workoutId === null) {
+      setCurrentWorkout(null);
+      setCurrentExerciseIndex(0);
+      return;
+    }
+
+    const workout = workouts.find((w: Workout) => w.id === workoutId);
+    setCurrentWorkout(workout || null);
+    setCurrentExerciseIndex(0);
   };
 
   const nextExercise = () => {
@@ -174,11 +184,11 @@ const App = () => {
     }
   };
 
-  const handleSaveSettings = (newSettings) => {
+  const handleSaveSettings = (newSettings: Settings) => {
     saveSettings(newSettings, user);
   };
 
-  const handleSaveWorkouts = (newWorkouts) => {
+  const handleSaveWorkouts = (newWorkouts: Workout[]) => {
     saveWorkouts(newWorkouts, user);
   };
 

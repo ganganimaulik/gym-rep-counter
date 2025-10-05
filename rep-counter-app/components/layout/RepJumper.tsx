@@ -2,11 +2,18 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { styled } from 'nativewind';
 import NumberButton from '../NumberButton';
+import { SharedValue } from 'react-native-reanimated';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
 
-const RepJumper = ({ maxReps, currentRep, jumpToRep }) => {
+interface RepJumperProps {
+  maxReps: number;
+  currentRep: SharedValue<number>;
+  jumpToRep: (rep: number) => void;
+}
+
+const RepJumper: React.FC<RepJumperProps> = ({ maxReps, currentRep, jumpToRep }) => {
   const renderNumberButtons = () => {
     let buttons = [];
     for (let i = 1; i <= maxReps; i++) {
