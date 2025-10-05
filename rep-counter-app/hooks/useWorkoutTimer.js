@@ -290,8 +290,10 @@ export function useWorkoutTimer(settings, handlers) {
         phase: PHASE_DISPLAY[PHASES.REST], // So "Start" knows to run the next set
       });
 
-      statusText.value = `Press Start for Set ${next}`;
-      queueSpeak(`Set complete. Press start for set ${next}.`, { priority: true });
+      statusText.value = `Rest: ${restSeconds}s. Press Start`;
+      queueSpeak(`Set complete. Rest for ${restSeconds} seconds, then press start.`, {
+        priority: true,
+      });
     }
   }, [settings, clearTimer, stopWorkout, updateUI, displayRep, displaySet, queueSpeak, statusText]);
 
