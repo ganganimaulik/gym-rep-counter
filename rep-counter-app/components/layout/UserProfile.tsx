@@ -19,28 +19,28 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, disconnectAccount }) =>
   }
 
   return (
-    <StyledView className="flex-row items-center justify-between bg-gray-700/50 rounded-xl p-3">
+    <StyledView className="flex-row items-center justify-between bg-gray-700 rounded-lg p-4">
       <StyledView className="flex-row items-center space-x-4">
         {user.photoURL && (
           <Image
             source={{ uri: user.photoURL }}
-            className="w-11 h-11 rounded-full"
+            className="w-12 h-12 rounded-full"
           />
         )}
         <StyledView>
-          <StyledText className="text-white font-semibold text-base">
+          <StyledText className="text-white font-semibold text-lg">
             {user.displayName}
           </StyledText>
-          <StyledText className="text-gray-400 text-xs">
+          <StyledText className="text-gray-400 text-sm">
             {user.email}
           </StyledText>
         </StyledView>
       </StyledView>
       <StyledTouchableOpacity
         onPress={disconnectAccount}
-        className="p-2.5 bg-red-600/80 rounded-lg"
+        className="p-3 bg-red-600 rounded-lg"
       >
-        <LogOut color="white" size={20} />
+        <LogOut color="white" size={24} />
       </StyledTouchableOpacity>
     </StyledView>
   );

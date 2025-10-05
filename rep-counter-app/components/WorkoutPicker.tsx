@@ -29,7 +29,7 @@ const WorkoutPicker: React.FC<WorkoutPickerProps> = ({ selectedValue, onValueCha
     <>
       <StyledTouchableOpacity
         onPress={() => setModalVisible(true)}
-        className="w-full bg-gray-600/80 border border-gray-500/50 rounded-md p-3 flex-row justify-between items-center"
+        className="w-full bg-gray-600 border border-gray-500 rounded-md p-3 flex-row justify-between items-center"
       >
         <StyledText className="text-white text-base">
           {selectedWorkout ? selectedWorkout.name : "Select a workout..."}
@@ -43,9 +43,9 @@ const WorkoutPicker: React.FC<WorkoutPickerProps> = ({ selectedValue, onValueCha
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <StyledSafeAreaView className="flex-1 justify-end bg-black/70">
+        <StyledSafeAreaView className="flex-1 justify-end bg-black/50">
           <StatusBar barStyle="light-content" />
-          <StyledView className="bg-gray-800 rounded-t-2xl p-4 shadow-lg">
+          <StyledView className="bg-gray-800 rounded-t-2xl p-4">
             <StyledText className="text-lg font-bold text-white text-center mb-4">Select a Workout</StyledText>
             <FlatList
               data={workouts}
@@ -58,17 +58,11 @@ const WorkoutPicker: React.FC<WorkoutPickerProps> = ({ selectedValue, onValueCha
                   <StyledText className="text-white text-lg">{item.name}</StyledText>
                 </StyledTouchableOpacity>
               )}
-              style={{ maxHeight: 300 }}
+              style={{ maxHeight: 300 }} // Limit height to prevent full-screen takeover
             />
-             <StyledTouchableOpacity
-              onPress={() => handleSelect(null)}
-              className="p-4 border-b border-gray-700"
-            >
-              <StyledText className="text-gray-400 text-lg">None</StyledText>
-            </StyledTouchableOpacity>
             <StyledTouchableOpacity
               onPress={() => setModalVisible(false)}
-              className="mt-4 bg-red-600/90 rounded-lg p-3 items-center"
+              className="mt-4 bg-red-600 rounded-lg p-3 items-center"
             >
               <StyledText className="text-white font-bold">Cancel</StyledText>
             </StyledTouchableOpacity>

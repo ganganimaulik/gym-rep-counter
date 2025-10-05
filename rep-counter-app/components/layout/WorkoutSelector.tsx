@@ -30,19 +30,17 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   prevExercise,
   nextExercise,
 }) => {
-  const currentExercise = currentWorkout?.exercises[currentExerciseIndex];
-
   return (
-    <StyledView className="bg-gray-700/50 rounded-xl p-4 space-y-4">
+    <StyledView className="bg-gray-700 rounded-lg p-4 space-y-4">
       <StyledView className="flex-row justify-between items-center">
         <StyledText className="text-lg font-semibold text-white">
-          Workout
+          Current Workout
         </StyledText>
         <StyledTouchableOpacity
           onPress={() => setModalVisible(true)}
-          className="flex-row items-center space-x-2 rounded-lg bg-gray-600/80 px-3 py-2"
+          className="flex-row items-center space-x-2 rounded-lg bg-gray-600 p-3"
         >
-          <Edit color="#d1d5db" size={14} />
+          <Edit color="#d1d5db" size={16} />
           <StyledText className="text-sm font-semibold text-white">
             Manage
           </StyledText>
@@ -50,51 +48,56 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
       </StyledView>
       <WorkoutPicker
         selectedValue={currentWorkout?.id || null}
-        onValueChange={(itemValue) => selectWorkout(itemValue)}
+        onValueChange={itemValue => selectWorkout(itemValue)}
         workouts={workouts}
       />
-      {currentWorkout && currentExercise && (
-        <StyledView className="pt-2">
-          <StyledView className="flex-row justify-between items-baseline pb-1">
+      {currentWorkout && (
+        <StyledView>
+          <StyledText className="text-sm text-gray-400">
+            Current Exercise:
+          </StyledText>
+          <StyledText className="text-lg font-medium text-white">
+            {currentWorkout.exercises[currentExerciseIndex]?.name}
+          </StyledText>
+          <StyledView className="flex-row justify-between items-center mt-1">
             <StyledText className="text-sm text-gray-400">
-              Exercise {currentExerciseIndex + 1} of {currentWorkout.exercises.length}
+              Exercise {currentExerciseIndex + 1} of{' '}
+              {currentWorkout.exercises.length}
             </StyledText>
             <StyledText className="text-sm font-semibold text-gray-200">
-              {currentExercise.sets} Sets, {currentExercise.reps} Reps
+              Sets: {settings.maxSets}
             </StyledText>
           </StyledView>
-
-          <StyledView className="flex-row justify-between items-center bg-gray-900/40 p-3 rounded-lg">
-            <StyledTouchableOpacity
-              onPress={prevExercise}
-              disabled={currentExerciseIndex === 0}
-              className="p-2"
-            >
-              <ChevronLeft
-                color={currentExerciseIndex === 0 ? '#4b5563' : 'white'}
-                size={22}
-              />
-            </StyledTouchableOpacity>
-
-            <StyledText className="text-base font-medium text-white text-center flex-1">
-              {currentExercise.name}
-            </StyledText>
-
-            <StyledTouchableOpacity
-              onPress={nextExercise}
-              disabled={currentExerciseIndex >= currentWorkout.exercises.length - 1}
-              className="p-2"
-            >
-              <ChevronRight
-                color={
-                  currentExerciseIndex >= currentWorkout.exercises.length - 1
-                    ? '#4b5563'
-                    : 'white'
-                }
-                size={22}
-              />
-            </StyledTouchableOpacity>
-          </StyledView>
+        </StyledView>
+      )}
+      {currentWorkout && (
+        <StyledView className="flex-row justify-between gap-x-4">
+          <StyledTouchableOpacity
+            onPress={prevExercise}
+            disabled={currentExerciseIndex === 0}
+            className="p-3 bg-gray-600 rounded-lg flex-1 items-center"
+          >
+            <ChevronLeft
+              color={currentExerciseIndex === 0 ? '#4b5563' : 'white'}
+              size={24}
+            />
+          </StyledTouchableOpacity>
+          <StyledTouchableOpacity
+            onPress={nextExercise}
+            disabled={
+              currentExerciseIndex >= currentWorkout.exercises.length - 1
+            }
+            className="p-3 bg-gray-600 rounded-lg flex-1 items-center"
+          >
+            <ChevronRight
+              color={
+                currentExerciseIndex >= currentWorkout.exercises.length - 1
+                  ? '#4b5563'
+                  : 'white'
+              }
+              size={24}
+            />
+          </StyledTouchableOpacity>
         </StyledView>
       )}
     </StyledView>

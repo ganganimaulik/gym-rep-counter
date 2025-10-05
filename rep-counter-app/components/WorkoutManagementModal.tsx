@@ -109,7 +109,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
     );
 
     return (
-      <StyledView className="bg-gray-700/50 rounded-lg p-3 space-y-2 mb-2">
+      <StyledView className="bg-gray-700 rounded-lg p-3 space-y-2 mb-2">
         <StyledView className="flex-row justify-between items-center">
           <StyledText className="text-lg font-semibold text-white">{workout.name}</StyledText>
           <StyledTouchableOpacity onPress={() => deleteWorkout(workout.id)} className="p-1">
@@ -178,7 +178,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
               </StyledTouchableOpacity>
             </StyledView>
 
-            <StyledView className="my-4 bg-gray-700/50 rounded-lg p-4">
+            <StyledView className="my-4 bg-gray-700 rounded-lg p-4">
               <StyledText className="text-lg font-semibold mb-3 text-white">Add New Workout</StyledText>
               <StyledView className="space-y-3">
                 <StyledTextInput
@@ -203,6 +203,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({ visible
               renderItem={({ item }) => <WorkoutItem workout={item} />}
               keyExtractor={item => item.id}
               showsVerticalScrollIndicator={false}
+              containerStyle={{ flex: 1 }}
             />
           </StyledView>
         </StyledView>
