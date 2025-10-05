@@ -55,7 +55,7 @@ const defaultSettings: Settings = {
 
 export const useData = (): DataHook => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [workouts, setWorkouts] = useState<Workout[]>(() => getDefaultWorkouts());
 
   const loadSettings = useCallback(async (): Promise<Settings> => {
     try {
