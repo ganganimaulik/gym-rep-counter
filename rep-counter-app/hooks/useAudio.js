@@ -1,7 +1,7 @@
 // useAudio.js - improved with speech queue management
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 import * as Speech from 'expo-speech';
 
 export const useAudio = (settings) => {
@@ -30,9 +30,9 @@ export const useAudio = (settings) => {
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
-          interruptionModeIOS: 2, // MixWithOthers
+          interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
           shouldDuckAndroid: true,
-          interruptionModeAndroid: 2, // DuckOthers
+          interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
           playThroughEarpieceAndroid: false,
         });
         await findFemaleVoice();
