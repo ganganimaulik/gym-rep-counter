@@ -56,11 +56,15 @@ export const useAudio = (settings) => {
 
     isSpeakingRef.current = true;
     const { text, options } = speechQueueRef.current.shift();
+    const { onDone: originalOnDone, ...restOptions } = options;
 
     Speech.speak(text, {
-      ...options,
+      ...restOptions,
       onDone: () => {
         isSpeakingRef.current = false;
+        if (typeof originalOnDone === 'function') {
+          originalOnDone();
+        }
         // Process next item after a small delay
         setTimeout(() => processNextSpeech(), 50);
       },
