@@ -277,6 +277,7 @@ const App: React.FC = () => {
             isRunning={isRunning}
             isResting={isResting}
             isPaused={isPaused}
+            phase={phase}
             runNextSet={runNextSet}
             startWorkout={startWorkout}
             stopWorkout={stopWorkout}

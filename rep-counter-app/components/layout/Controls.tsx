@@ -11,6 +11,7 @@ interface ControlsProps {
   isResting: boolean
   isPaused: boolean
   isSetCompleted: boolean
+  phase: string
   runNextSet: () => void
   startWorkout: () => void
   stopWorkout: () => void
@@ -23,6 +24,7 @@ const Controls: React.FC<ControlsProps> = ({
   isResting,
   isPaused,
   isSetCompleted,
+  phase,
   runNextSet,
   startWorkout,
   stopWorkout,
@@ -68,6 +70,18 @@ const Controls: React.FC<ControlsProps> = ({
           ]
         }
         // isRunning && !isPaused
+        if (phase === 'Get Ready') {
+          return (
+            <StyledTouchableOpacity
+              key="cancel"
+              onPress={stopWorkout}
+              className="p-4 bg-red-600 rounded-lg flex-1 items-center">
+              <StyledText className="text-lg font-semibold text-white">
+                Cancel
+              </StyledText>
+            </StyledTouchableOpacity>
+          )
+        }
         return [
           <StyledTouchableOpacity
             key="pause"

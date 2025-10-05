@@ -379,6 +379,11 @@ export function useWorkoutTimer(
   }, [clearTimer, displayRep, updateUI, statusText])
 
   endSet = useCallback(async () => {
+    // If "End Set" is pressed during the countdown, treat it as a "Cancel" action.
+    if (wState.current.phase === PHASES.COUNTDOWN) {
+      stopWorkout()
+      return
+    }
     if (activeExercise) {
       await markSetAsCompleted(activeExercise.id, wState.current.set, user)
     }
