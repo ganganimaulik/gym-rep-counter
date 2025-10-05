@@ -66,6 +66,7 @@ const App: React.FC = () => {
     setSettings: setDataSettings,
     markSetAsCompleted,
     isSetCompleted,
+    resetSetsFrom,
   } = useData()
 
   const onAuthSuccess = useCallback(
@@ -114,6 +115,7 @@ const App: React.FC = () => {
     stopWorkout,
     runNextSet,
     jumpToRep,
+    jumpToSet,
     endSet,
     isExerciseComplete,
     setStatusText,
@@ -258,6 +260,10 @@ const App: React.FC = () => {
             nextExercise={nextExercise}
             isSetCompleted={isSetCompleted}
             activeExerciseId={currentWorkout?.exercises[currentExerciseIndex]?.id}
+            jumpToSet={jumpToSet}
+            resetSetsFrom={(exerciseId, setNumber) =>
+              resetSetsFrom(exerciseId, setNumber, user)
+            }
           />
 
           <MainDisplay

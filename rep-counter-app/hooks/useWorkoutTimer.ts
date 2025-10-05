@@ -68,6 +68,7 @@ export interface WorkoutTimerHook {
   stopWorkout: () => void
   runNextSet: () => void
   jumpToRep: (rep: number) => void
+  jumpToSet: (set: number) => void
   endSet: () => void
   setStatusText: (text: string) => void
   resetExerciseCompleteFlag: () => void
@@ -541,6 +542,27 @@ export function useWorkoutTimer(
     [clearTimer, displayRep, updateUI, queueSpeak, startConcentric],
   )
 
+  const jumpToSet = useCallback(
+    (set: number) => {
+      clearTimer()
+      wState.current.set = set
+      wState.current.rep = 0
+      wState.current.isJumping = false
+      wState.current.remainingTime = 0
+      displaySet.value = set
+      displayRep.value = 0
+      updateUI({
+        isRunning: true,
+        isPaused: false,
+        phase: '',
+        isExerciseComplete: false,
+      })
+      queueSpeak(`Set ${set}. Get ready.`, { priority: true })
+      startCountdown()
+    },
+    [clearTimer, displaySet, displayRep, updateUI, queueSpeak, startCountdown],
+  )
+
   const runNextSet = useCallback(() => {
     if (
       activeExercise &&
@@ -583,6 +605,7 @@ export function useWorkoutTimer(
       stopWorkout,
       runNextSet,
       jumpToRep,
+      jumpToSet,
       endSet,
       setStatusText: (text: string) => {
         statusText.value = text
@@ -599,6 +622,7 @@ export function useWorkoutTimer(
       stopWorkout,
       runNextSet,
       jumpToRep,
+      jumpToSet,
       endSet,
       updateUI,
     ],

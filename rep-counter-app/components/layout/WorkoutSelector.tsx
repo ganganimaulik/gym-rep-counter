@@ -17,18 +17,21 @@ const StyledTouchableOpacity = styled(TouchableOpacity)
 interface SetTrackerProps {
   totalSets: number
   isSetCompleted: (setNumber: number) => boolean
+  onSetPress: (setNumber: number) => void
 }
 
 const SetTracker: React.FC<SetTrackerProps> = ({
   totalSets,
   isSetCompleted,
+  onSetPress,
 }) => (
   <StyledView className="flex-row justify-end items-center flex-wrap gap-2">
     {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => {
       const completed = isSetCompleted(setNumber)
       return (
-        <StyledView
+        <StyledTouchableOpacity
           key={setNumber}
+          onPress={() => onSetPress(setNumber)}
           className={`w-6 h-6 rounded-full justify-center items-center ${
             completed ? 'bg-green-500' : 'bg-gray-500'
           }`}>
@@ -39,7 +42,7 @@ const SetTracker: React.FC<SetTrackerProps> = ({
               {setNumber}
             </StyledText>
           )}
-        </StyledView>
+        </StyledTouchableOpacity>
       )
     })}
   </StyledView>
@@ -56,6 +59,8 @@ interface WorkoutSelectorProps {
   nextExercise: () => void
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
   activeExerciseId: string | undefined
+  jumpToSet: (set: number) => void
+  resetSetsFrom: (exerciseId: string, setNumber: number) => void
 }
 
 const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
@@ -69,6 +74,8 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   nextExercise,
   isSetCompleted,
   activeExerciseId,
+  jumpToSet,
+  resetSetsFrom,
 }) => {
   return (
     <StyledView className="bg-gray-700 rounded-lg p-4 space-y-4">
@@ -104,6 +111,12 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               isSetCompleted={(setNumber) =>
                 isSetCompleted(activeExerciseId ?? '', setNumber)
               }
+              onSetPress={(setNumber) => {
+                if (activeExerciseId) {
+                  resetSetsFrom(activeExerciseId, setNumber)
+                  jumpToSet(setNumber)
+                }
+              }}
             />
           </StyledView>
           <StyledView className="flex-row justify-between items-center mt-2">
