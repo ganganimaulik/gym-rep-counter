@@ -76,6 +76,7 @@ const App: React.FC = () => {
     loadRepHistoryFromCloud,
     syncHistory,
     syncUserData,
+    setSettings,
     logSet,
     isSetCompleted,
     resetSetsFrom,
@@ -193,7 +194,7 @@ const App: React.FC = () => {
     if (historyModalVisible && user) {
       loadRepHistoryFromCloud(user, true)
     }
-  }, [historyModalVisible, user])
+  }, [historyModalVisible, user, loadRepHistoryFromCloud])
 
   useEffect(() => {
     if (isExerciseComplete) {
@@ -225,14 +226,14 @@ const App: React.FC = () => {
     if (currentWorkout && currentWorkout.exercises.length > 0) {
       const exercise = currentWorkout.exercises[currentExerciseIndex]
       if (exercise) {
-        setDataSettings((prev: Settings) => ({
+        setSettings((prev: Settings) => ({
           ...prev,
           maxReps: exercise.reps,
           maxSets: exercise.sets,
         }))
       }
     }
-  }, [currentWorkout, currentExerciseIndex, setDataSettings])
+  }, [currentWorkout, currentExerciseIndex, setSettings])
 
   // --- Workout Management ---
   const selectWorkout = (workoutId: string | null) => {
