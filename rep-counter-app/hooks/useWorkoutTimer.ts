@@ -557,7 +557,7 @@ export function useWorkoutTimer(
         phase: '',
         isExerciseComplete: false,
       })
-      queueSpeak(`Set ${set}. Get ready.`, { priority: true })
+      queueSpeak(`Set ${set}.`, { priority: true })
       startCountdown()
     },
     [clearTimer, displaySet, displayRep, updateUI, queueSpeak, startCountdown],
@@ -576,7 +576,6 @@ export function useWorkoutTimer(
     clearTimer()
     wState.current.isJumping = false
     updateUI({ isRunning: true, isPaused: false })
-    queueSpeak('Get ready.', { priority: true })
     startCountdown()
   }, [
     clearTimer,
