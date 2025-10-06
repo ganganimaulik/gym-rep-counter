@@ -6,7 +6,6 @@ import {
   enableBackgroundExecution,
 } from 'expo-background-timer'
 import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated'
-import type { User as FirebaseUser } from 'firebase/auth'
 import { Settings, Exercise } from './useData'
 import { AudioHandler } from './useAudio'
 
@@ -36,11 +35,7 @@ interface UIState {
 }
 
 interface DataHandlers {
-  isSetCompleted: (
-    exerciseId: string,
-    setNumber: number,
-    user: FirebaseUser | null,
-  ) => Promise<boolean>
+  isSetCompleted: (exerciseId: string, setNumber: number) => boolean
   getNextUncompletedSet: (exerciseId: string) => number
 }
 
@@ -80,7 +75,6 @@ export function useWorkoutTimer(
   settings: Settings,
   handlers: AudioHandler,
   activeExercise: Exercise | undefined,
-  user: FirebaseUser | null,
   dataHandlers: DataHandlers,
   onSetComplete: (exerciseId: string, setNumber: number) => void,
 ): WorkoutTimerHook {
@@ -440,12 +434,12 @@ export function useWorkoutTimer(
     startRest,
   ])
 
-  const startWorkout = useCallback(async () => {
+  const startWorkout = useCallback(() => {
     if (ui.isRunning) return
 
     if (
       activeExercise &&
-      (await isSetCompleted(activeExercise.id, wState.current.set, user))
+      isSetCompleted(activeExercise.id, wState.current.set)
     ) {
       statusText.value = `Set ${wState.current.set} is already done.`
       queueSpeak(`Set ${wState.current.set} is already completed for today.`)
@@ -475,7 +469,6 @@ export function useWorkoutTimer(
     updateUI,
     displayRep,
     startCountdown,
-    user,
   ])
 
   const pauseWorkout = useCallback(() => {
@@ -580,10 +573,10 @@ export function useWorkoutTimer(
     [clearTimer, displaySet, displayRep, updateUI, queueSpeak, startCountdown],
   )
 
-  const runNextSet = useCallback(async () => {
+  const runNextSet = useCallback(() => {
     if (
       activeExercise &&
-      (await isSetCompleted(activeExercise.id, wState.current.set, user))
+      isSetCompleted(activeExercise.id, wState.current.set)
     ) {
       statusText.value = `Set ${wState.current.set} is already done.`
       queueSpeak(`Set ${wState.current.set} is already completed for today.`)
@@ -602,7 +595,6 @@ export function useWorkoutTimer(
     activeExercise,
     isSetCompleted,
     statusText,
-    user,
   ])
 
   // Reset state and set the starting set when the active exercise changes

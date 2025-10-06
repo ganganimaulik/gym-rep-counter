@@ -72,12 +72,10 @@ const App: React.FC = () => {
     saveSettings,
     loadWorkouts,
     saveWorkouts,
-    loadRepHistory,
-    loadTodaysHistory,
+    loadRepHistoryFromLocal,
+    loadRepHistoryFromCloud,
+    syncHistory,
     syncUserData,
-    setWorkouts,
-    setSettings: setDataSettings,
-    setRepHistory,
     logSet,
     isSetCompleted,
     resetSetsFrom,
@@ -85,21 +83,41 @@ const App: React.FC = () => {
     getNextUncompletedSet,
   } = useData()
 
+  // Initial data load from local storage
+  useEffect(() => {
+    const loadLocalData = async () => {
+      await loadSettings()
+      await loadWorkouts()
+      await loadRepHistoryFromLocal()
+    }
+    loadLocalData()
+  }, [loadSettings, loadWorkouts, loadRepHistoryFromLocal])
+
   const onAuthSuccess = useCallback(
     async (firebaseUser: FirebaseUser | null) => {
+      // Always load local data first to ensure the UI is responsive.
+      const localSettings = await loadSettings()
+      const localWorkouts = await loadWorkouts()
+      const localRepHistory = await loadRepHistoryFromLocal()
+
       if (firebaseUser) {
-        const localSettings = await loadSettings()
-        const localWorkouts = await loadWorkouts()
-        await syncUserData(firebaseUser, localSettings, localWorkouts)
-        await loadTodaysHistory(firebaseUser)
-      } else {
-        // User is logged out, clear local data.
-        await loadSettings()
-        await loadWorkouts()
-        setRepHistory([])
+        // User logged in: sync settings, workouts, and then history
+        await syncUserData(
+          firebaseUser,
+          localSettings,
+          localWorkouts,
+          localRepHistory,
+        )
+        await syncHistory(firebaseUser)
       }
     },
-    [loadSettings, loadWorkouts, syncUserData, setRepHistory, loadTodaysHistory],
+    [
+      loadSettings,
+      loadWorkouts,
+      loadRepHistoryFromLocal,
+      syncUserData,
+      syncHistory,
+    ],
   )
 
   const {
@@ -146,7 +164,6 @@ const App: React.FC = () => {
     settings,
     audioHandler,
     activeExercise,
-    user,
     {
       isSetCompleted,
       getNextUncompletedSet,
@@ -160,14 +177,6 @@ const App: React.FC = () => {
   // --- Effects ---
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      // Refresh today's history when the app comes to the foreground
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active' &&
-        user
-      ) {
-        loadTodaysHistory(user)
-      }
       appState.current = nextAppState
     })
 
@@ -177,14 +186,14 @@ const App: React.FC = () => {
       subscription.remove()
       disableBackgroundExecution()
     }
-  }, [user, loadTodaysHistory])
+  }, [])
 
   useEffect(() => {
-    // When history modal is opened, trigger an initial load of the history.
+    // When history modal is opened for a logged-in user, trigger an initial load of cloud history.
     if (historyModalVisible && user) {
-      loadRepHistory(user, true)
+      loadRepHistoryFromCloud(user, true)
     }
-  }, [historyModalVisible, user, loadRepHistory])
+  }, [historyModalVisible, user])
 
   useEffect(() => {
     if (isExerciseComplete) {
@@ -397,9 +406,13 @@ const App: React.FC = () => {
         onClose={() => setHistoryModalVisible(false)}
         history={repHistory}
         workouts={workouts}
-        loadMoreHistory={() => loadRepHistory(user, false)}
+        loadMoreHistory={() => {
+          if (user) {
+            loadRepHistoryFromCloud(user, false)
+          }
+        }}
         isLoading={loadingHistory}
-        hasMore={hasMoreHistory}
+        hasMore={!user ? false : hasMoreHistory}
       />
     </StyledSafeAreaView>
   )
