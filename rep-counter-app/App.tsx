@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { styled } from 'nativewind'
 import { useKeepAwake } from 'expo-keep-awake'
-import { Settings as SettingsIcon } from 'lucide-react-native'
+import { Settings as SettingsIcon, History } from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
@@ -21,12 +21,13 @@ import type { User as FirebaseUser } from 'firebase/auth'
 
 // Hooks
 import { useAuth } from './hooks/useAuth'
-import { useData, Settings, Workout } from './hooks/useData'
+import { useData, Settings, Workout, RepHistoryLog } from './hooks/useData'
 import { useAudio } from './hooks/useAudio'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 
 // Components
 import SettingsModal from './components/SettingsModal'
+import HistoryLogModal from './components/HistoryLogModal'
 import WorkoutManagementModal from './components/WorkoutManagementModal'
 import UserProfile from './components/layout/UserProfile'
 import WorkoutSelector from './components/layout/WorkoutSelector'
@@ -46,25 +47,27 @@ const App: React.FC = () => {
   // UI State
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
   const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
+  const [historyModalVisible, setHistoryModalVisible] = useState<boolean>(false)
 
   // Workout State
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
+  const [currentWeight, setCurrentWeight] = useState<number>(0)
 
   // Custom Hooks
   const {
     settings,
     workouts,
-    setCompletions,
+    history,
     loadSettings,
     saveSettings,
     loadWorkouts,
     saveWorkouts,
-    loadSetCompletions,
+    loadHistory,
     syncUserData,
     setWorkouts,
     setSettings: setDataSettings,
-    markSetAsCompleted,
+    logCompletedSet,
     isSetCompleted,
     resetSetsFrom,
     arePreviousSetsCompleted,
@@ -76,20 +79,20 @@ const App: React.FC = () => {
       if (firebaseUser) {
         const localSettings = await loadSettings()
         const localWorkouts = await loadWorkouts()
-        const localSetCompletions = await loadSetCompletions()
+        const localHistory = await loadHistory()
         await syncUserData(
           firebaseUser,
           localSettings,
           localWorkouts,
-          localSetCompletions,
+          localHistory,
         )
       } else {
         await loadSettings()
         await loadWorkouts()
-        await loadSetCompletions()
+        await loadHistory()
       }
     },
-    [loadSettings, loadWorkouts, syncUserData, loadSetCompletions],
+    [loadSettings, loadWorkouts, syncUserData, loadHistory],
   )
 
   const {
@@ -122,11 +125,18 @@ const App: React.FC = () => {
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
-  } = useWorkoutTimer(settings, audioHandler, activeExercise, user, {
-    markSetAsCompleted,
-    isSetCompleted,
-    getNextUncompletedSet,
-  })
+  } = useWorkoutTimer(
+    settings,
+    audioHandler,
+    activeExercise,
+    user,
+    {
+      logCompletedSet,
+      isSetCompleted,
+      getNextUncompletedSet,
+    },
+    currentWeight,
+  )
 
   // App State
   const appState = useRef<AppStateStatus>(AppState.currentState)
@@ -180,6 +190,7 @@ const App: React.FC = () => {
           maxReps: exercise.reps,
           maxSets: exercise.sets,
         }))
+        setCurrentWeight(exercise.weight)
       }
     }
   }, [currentWorkout, currentExerciseIndex, setDataSettings])
@@ -234,6 +245,29 @@ const App: React.FC = () => {
     saveWorkouts(newWorkouts, user)
   }
 
+  const handleWeightChange = (text: string) => {
+    const newWeight = Number(text.replace(/[^0-9.]/g, ''))
+    setCurrentWeight(newWeight)
+
+    if (activeExercise && currentWorkout) {
+      const newWorkouts = workouts.map((w) => {
+        if (w.id === currentWorkout.id) {
+          return {
+            ...w,
+            exercises: w.exercises.map((e, index) => {
+              if (index === currentExerciseIndex) {
+                return { ...e, weight: newWeight }
+              }
+              return e
+            }),
+          }
+        }
+        return w
+      })
+      setWorkouts(newWorkouts)
+    }
+  }
+
   if (initializing) {
     return (
       <StyledSafeAreaView className="flex-1 bg-gray-900 justify-center items-center">
@@ -275,6 +309,9 @@ const App: React.FC = () => {
             currentRep={currentRep}
             currentSet={currentSet}
             phase={phase}
+            weight={currentWeight}
+            onWeightChange={handleWeightChange}
+            isWorkoutRunning={isRunning}
           />
 
           <Controls
@@ -294,9 +331,15 @@ const App: React.FC = () => {
             jumpToRep={jumpToRep}
           />
 
-          <StyledView className="items-center">
+          <StyledView className="flex-row justify-center items-center space-x-6">
             <StyledTouchableOpacity
-              onPress={() => setSettingsVisible(!settingsVisible)}
+              onPress={() => setHistoryModalVisible(true)}
+              className="flex-row items-center space-x-2">
+              <History color="#60a5fa" size={16} />
+              <StyledText className="text-blue-400">History</StyledText>
+            </StyledTouchableOpacity>
+            <StyledTouchableOpacity
+              onPress={() => setSettingsVisible(true)}
               className="flex-row items-center space-x-2">
               <SettingsIcon color="#60a5fa" size={16} />
               <StyledText className="text-blue-400">Settings</StyledText>
@@ -310,6 +353,12 @@ const App: React.FC = () => {
         onClose={() => setWorkoutModalVisible(false)}
         workouts={workouts}
         setWorkouts={handleSaveWorkouts}
+      />
+      <HistoryLogModal
+        visible={historyModalVisible}
+        onClose={() => setHistoryModalVisible(false)}
+        history={history}
+        workouts={workouts}
       />
       <SettingsModal
         visible={settingsVisible}

@@ -8,6 +8,7 @@ import Animated, {
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
+const StyledTextInput = styled(TextInput)
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput)
 const StyledAnimatedTextInput = styled(AnimatedTextInput)
 
@@ -16,6 +17,9 @@ interface MainDisplayProps {
   currentRep: SharedValue<number>
   currentSet: SharedValue<number>
   phase: string
+  weight: number
+  onWeightChange: (text: string) => void
+  isWorkoutRunning: boolean
 }
 
 const MainDisplay: React.FC<MainDisplayProps> = ({
@@ -23,6 +27,9 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   currentRep,
   currentSet,
   phase,
+  weight,
+  onWeightChange,
+  isWorkoutRunning,
 }) => {
   const animatedRepProps = useAnimatedProps(() => {
     return {
@@ -50,10 +57,10 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
         animatedProps={animatedStatusProps}
         defaultValue={statusText.value}
       />
-      <StyledView className="flex-row justify-center items-end space-x-4">
+      <StyledView className="flex-row justify-center items-end space-x-2">
         <StyledView className="items-center">
           <StyledAnimatedTextInput
-            className="text-8xl font-bold tracking-tight text-white"
+            className="text-8xl font-bold tracking-tight text-white text-center"
             editable={false}
             animatedProps={animatedRepProps}
             defaultValue={String(Math.round(currentRep.value))}
@@ -62,12 +69,24 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
         </StyledView>
         <StyledView className="items-center pb-2">
           <StyledAnimatedTextInput
-            className="text-6xl font-bold tracking-tight text-white"
+            className="text-6xl font-bold tracking-tight text-white text-center"
             editable={false}
             animatedProps={animatedSetProps}
             defaultValue={String(Math.round(currentSet.value))}
           />
           <StyledText className="text-lg text-gray-400">SET</StyledText>
+        </StyledView>
+        <StyledView className="items-center pb-2">
+          <StyledTextInput
+            className="text-6xl font-bold tracking-tight text-white text-center"
+            value={String(weight)}
+            onChangeText={onWeightChange}
+            keyboardType="numeric"
+            editable={!isWorkoutRunning}
+            maxLength={4}
+            contextMenuHidden
+          />
+          <StyledText className="text-lg text-gray-400">WEIGHT</StyledText>
         </StyledView>
       </StyledView>
       <StyledText className="text-xl text-gray-400">{phase || ' '}</StyledText>

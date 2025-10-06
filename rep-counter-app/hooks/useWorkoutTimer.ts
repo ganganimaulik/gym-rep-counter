@@ -36,9 +36,11 @@ interface UIState {
 }
 
 interface DataHandlers {
-  markSetAsCompleted: (
+  logCompletedSet: (
     exerciseId: string,
     setNumber: number,
+    repsCompleted: number,
+    weight: number,
     user: FirebaseUser | null,
   ) => Promise<void>
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
@@ -82,9 +84,10 @@ export function useWorkoutTimer(
   activeExercise: Exercise | undefined,
   user: FirebaseUser | null,
   dataHandlers: DataHandlers,
+  currentWeight: number,
 ): WorkoutTimerHook {
   const { queueSpeak, speakEccentric } = handlers
-  const { markSetAsCompleted, isSetCompleted, getNextUncompletedSet } =
+  const { logCompletedSet, isSetCompleted, getNextUncompletedSet } =
     dataHandlers
 
   useEffect(() => {
@@ -385,7 +388,13 @@ export function useWorkoutTimer(
 
   endSet = useCallback(() => {
     if (activeExercise) {
-      markSetAsCompleted(activeExercise.id, wState.current.set, user)
+      logCompletedSet(
+        activeExercise.id,
+        wState.current.set,
+        wState.current.rep,
+        currentWeight,
+        user,
+      )
     }
 
     const { maxSets } = settings
@@ -426,7 +435,8 @@ export function useWorkoutTimer(
     startRest,
     activeExercise,
     user,
-    markSetAsCompleted,
+    currentWeight,
+    logCompletedSet,
   ])
 
   const startWorkout = useCallback(() => {
