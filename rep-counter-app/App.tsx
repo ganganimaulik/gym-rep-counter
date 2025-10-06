@@ -277,16 +277,11 @@ const App: React.FC = () => {
             isRunning={isRunning}
             isResting={isResting}
             isPaused={isPaused}
-            phase={phase}
             runNextSet={runNextSet}
             startWorkout={startWorkout}
             stopWorkout={stopWorkout}
             pauseWorkout={pauseWorkout}
             endSet={endSet}
-            isSetCompleted={isSetCompleted(
-              currentWorkout?.exercises[currentExerciseIndex]?.id ?? '',
-              currentSet.value,
-            )}
           />
 
           <RepJumper

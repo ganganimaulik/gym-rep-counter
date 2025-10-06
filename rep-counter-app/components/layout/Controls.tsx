@@ -10,8 +10,6 @@ interface ControlsProps {
   isRunning: boolean
   isResting: boolean
   isPaused: boolean
-  isSetCompleted: boolean
-  phase: string
   runNextSet: () => void
   startWorkout: () => void
   stopWorkout: () => void
@@ -23,8 +21,6 @@ const Controls: React.FC<ControlsProps> = ({
   isRunning,
   isResting,
   isPaused,
-  isSetCompleted,
-  phase,
   runNextSet,
   startWorkout,
   stopWorkout,
@@ -39,10 +35,7 @@ const Controls: React.FC<ControlsProps> = ({
             <StyledTouchableOpacity
               key="start"
               onPress={isResting ? runNextSet : startWorkout}
-              disabled={isSetCompleted}
-              className={`p-4 rounded-lg flex-1 items-center ${
-                isSetCompleted ? 'bg-gray-500' : 'bg-green-600'
-              }`}>
+              className="p-4 rounded-lg flex-1 items-center bg-green-600">
               <StyledText className="text-lg font-semibold text-white">
                 {isResting ? 'Next Set' : 'Start'}
               </StyledText>
@@ -70,18 +63,6 @@ const Controls: React.FC<ControlsProps> = ({
           ]
         }
         // isRunning && !isPaused
-        if (phase === 'Get Ready') {
-          return (
-            <StyledTouchableOpacity
-              key="cancel"
-              onPress={stopWorkout}
-              className="p-4 bg-red-600 rounded-lg flex-1 items-center">
-              <StyledText className="text-lg font-semibold text-white">
-                Cancel
-              </StyledText>
-            </StyledTouchableOpacity>
-          )
-        }
         return [
           <StyledTouchableOpacity
             key="pause"
