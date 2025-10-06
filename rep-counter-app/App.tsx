@@ -17,14 +17,11 @@ import {
   enableBackgroundExecution,
   disableBackgroundExecution,
 } from 'expo-background-timer'
-import type { User as FirebaseUser } from 'firebase/auth'
+
 
 // Hooks
 import { useAuth } from './hooks/useAuth'
 import type { User as FirebaseUser } from 'firebase/auth'
-
-// Hooks
-import { useAuth } from './hooks/useAuth'
 import { useData, Settings, Workout, RepHistoryLog } from './hooks/useData'
 import { useAudio } from './hooks/useAudio'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
