@@ -70,6 +70,7 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   arePreviousSetsCompleted: (exerciseId: string, setNumber: number) => boolean
+  getNextUncompletedSet: (exerciseId: string) => number
   syncUserData: (
     firebaseUser: FirebaseUser,
     localSettings: Settings,
@@ -265,6 +266,33 @@ export const useData = (): DataHook => {
     [setCompletions],
   )
 
+  const getNextUncompletedSet = useCallback(
+    (exerciseId: string): number => {
+      const today = getLocalDateString()
+      const completion = setCompletions[exerciseId]
+
+      if (!completion || completion.date !== today) {
+        return 1
+      }
+
+      const completedSets = completion.completed
+      if (completedSets.length === 0) {
+        return 1
+      }
+
+      // Find the first missing number in the sequence
+      for (let i = 0; i < completedSets.length; i++) {
+        if (completedSets[i] !== i + 1) {
+          return i + 1
+        }
+      }
+
+      // If all sets are sequential, return the next one
+      return completedSets.length + 1
+    },
+    [setCompletions],
+  )
+
   const resetSetsFrom = useCallback(
     async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
       const today = getLocalDateString()
@@ -392,6 +420,7 @@ export const useData = (): DataHook => {
     isSetCompleted,
     resetSetsFrom,
     arePreviousSetsCompleted,
+    getNextUncompletedSet,
     syncUserData,
     setWorkouts,
     setSettings,

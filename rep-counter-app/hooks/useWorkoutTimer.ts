@@ -42,6 +42,7 @@ interface DataHandlers {
     user: FirebaseUser | null,
   ) => Promise<void>
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
+  getNextUncompletedSet: (exerciseId: string) => number
 }
 
 interface WorkoutState {
@@ -83,7 +84,8 @@ export function useWorkoutTimer(
   dataHandlers: DataHandlers,
 ): WorkoutTimerHook {
   const { queueSpeak, speakEccentric } = handlers
-  const { markSetAsCompleted, isSetCompleted } = dataHandlers
+  const { markSetAsCompleted, isSetCompleted, getNextUncompletedSet } =
+    dataHandlers
 
   useEffect(() => {
     enableBackgroundExecution()
@@ -338,19 +340,22 @@ export function useWorkoutTimer(
     tick()
   }, [settings, queueSpeak, schedule, clearTimer, statusText])
 
-  const resetInternalState = useCallback(() => {
-    wState.current = {
-      rep: 0,
-      set: 1,
-      phase: PHASES.STOPPED,
-      phaseStart: Date.now(),
-      remainingTime: 0,
-      lastSpokenSecond: -1,
-      isJumping: false,
-    }
-    displayRep.value = 0
-    displaySet.value = 1
-  }, [displayRep, displaySet])
+  const resetInternalState = useCallback(
+    (startingSet = 1) => {
+      wState.current = {
+        rep: 0,
+        set: startingSet,
+        phase: PHASES.STOPPED,
+        phaseStart: Date.now(),
+        remainingTime: 0,
+        lastSpokenSecond: -1,
+        isJumping: false,
+      }
+      displayRep.value = 0
+      displaySet.value = startingSet
+    },
+    [displayRep, displaySet],
+  )
 
   const fullReset = useCallback(() => {
     clearTimer()
@@ -585,6 +590,32 @@ export function useWorkoutTimer(
     activeExercise,
     isSetCompleted,
     statusText,
+  ])
+
+  // Reset state and set the starting set when the active exercise changes
+  useEffect(() => {
+    clearTimer() // Always clear timer when exercise changes
+    if (activeExercise) {
+      const nextSet = getNextUncompletedSet(activeExercise.id)
+      resetInternalState(nextSet)
+      updateUI({
+        isRunning: false,
+        isPaused: false,
+        phase: '',
+        isExerciseComplete: false,
+      })
+      statusText.value = `Press Start for Set ${nextSet}`
+    } else {
+      fullReset()
+    }
+  }, [
+    activeExercise,
+    getNextUncompletedSet,
+    resetInternalState,
+    fullReset,
+    updateUI,
+    statusText,
+    clearTimer,
   ])
 
   useEffect(() => clearTimer, [clearTimer])

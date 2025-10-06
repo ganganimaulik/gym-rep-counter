@@ -68,6 +68,7 @@ const App: React.FC = () => {
     isSetCompleted,
     resetSetsFrom,
     arePreviousSetsCompleted,
+    getNextUncompletedSet,
   } = useData()
 
   const onAuthSuccess = useCallback(
@@ -124,6 +125,7 @@ const App: React.FC = () => {
   } = useWorkoutTimer(settings, audioHandler, activeExercise, user, {
     markSetAsCompleted,
     isSetCompleted,
+    getNextUncompletedSet,
   })
 
   // App State
