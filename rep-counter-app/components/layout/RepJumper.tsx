@@ -19,7 +19,7 @@ const RepJumper: React.FC<RepJumperProps> = ({
   jumpToRep,
 }) => {
   const renderNumberButtons = () => {
-    let buttons = []
+    const buttons = []
     for (let i = 1; i <= maxReps; i++) {
       buttons.push(
         <NumberButton

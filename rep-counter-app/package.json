@@ -8,6 +8,7 @@
     "ios": "expo run:ios",
     "prepare": "husky",
     "format": "prettier --write .",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "prebuild": "expo prebuild --clean"
   },
   "dependencies": {
@@ -40,12 +41,23 @@
   "devDependencies": {
     "@types/react": "^19.2.0",
     "@types/react-native": "^0.73.0",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "eslint": "^9.37.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^6.1.1",
+    "eslint-plugin-react-native": "^5.0.0",
+    "globals": "^16.4.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.3",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.45.0"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": "prettier --write"
+    "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ]
   }
 }
