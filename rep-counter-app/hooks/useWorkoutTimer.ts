@@ -387,15 +387,6 @@ export function useWorkoutTimer(
     statusText.value = `Press Start for Set ${wState.current.set}`
   }, [clearTimer, displayRep, updateUI, statusText])
 
-  const finishSet = useCallback(() => {
-    if (activeExercise) {
-      clearTimer()
-      statusText.value = 'Set Complete! Log your reps.'
-      queueSpeak('Set complete.', { priority: true })
-      onSetComplete(activeExercise.id, wState.current.set)
-    }
-  }, [activeExercise, onSetComplete, clearTimer, statusText, queueSpeak])
-
   const continueToNextPhase = useCallback(() => {
     // This function is now called *after* the user logs their set.
     const { maxSets } = settings

@@ -1,12 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
-import {
-  Edit,
-  ChevronLeft,
-  ChevronRight,
-  Check,
-} from 'lucide-react-native'
+import { Edit, ChevronLeft, ChevronRight, Check } from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
 

@@ -12,12 +12,14 @@ import {
 } from 'react-native'
 import { styled } from 'nativewind'
 import { useKeepAwake } from 'expo-keep-awake'
-import { Settings as SettingsIcon, History as HistoryIcon } from 'lucide-react-native'
+import {
+  Settings as SettingsIcon,
+  History as HistoryIcon,
+} from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
 } from 'expo-background-timer'
-
 
 // Hooks
 import { useAuth } from './hooks/useAuth'
@@ -72,7 +74,6 @@ const App: React.FC = () => {
     saveWorkouts,
     loadRepHistory,
     syncUserData,
-    setWorkouts,
     setSettings: setDataSettings,
     logSet,
     isSetCompleted,
@@ -141,6 +142,7 @@ const App: React.FC = () => {
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
+    continueToNextPhase,
   } = useWorkoutTimer(
     settings,
     audioHandler,
@@ -305,7 +307,9 @@ const App: React.FC = () => {
             prevExercise={prevExercise}
             nextExercise={nextExercise}
             isSetCompleted={isSetCompleted}
-            activeExerciseId={currentWorkout?.exercises[currentExerciseIndex]?.id}
+            activeExerciseId={
+              currentWorkout?.exercises[currentExerciseIndex]?.id
+            }
             jumpToSet={jumpToSet}
             resetSetsFrom={(exerciseId, setNumber) =>
               resetSetsFrom(exerciseId, setNumber, user)

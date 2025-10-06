@@ -1,11 +1,5 @@
 import React from 'react'
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  SafeAreaView,
-} from 'react-native'
+import { Modal, View, Text, TouchableOpacity, SafeAreaView } from 'react-native'
 import { styled } from 'nativewind'
 import { X } from 'lucide-react-native'
 import HistoryView from './HistoryView'

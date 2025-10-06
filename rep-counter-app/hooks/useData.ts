@@ -200,11 +200,7 @@ export const useData = (): DataHook => {
         await AsyncStorage.setItem('repHistory', JSON.stringify(newHistory))
         if (user) {
           const userDocRef = doc(db, 'users', user.uid)
-          await setDoc(
-            userDocRef,
-            { repHistory: newHistory },
-            { merge: true },
-          )
+          await setDoc(userDocRef, { repHistory: newHistory }, { merge: true })
         }
       } catch (e) {
         console.error('Failed to save rep history', e)
@@ -262,7 +258,11 @@ export const useData = (): DataHook => {
   )
 
   const resetSetsFrom = useCallback(
-    async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
+    async (
+      exerciseId: string,
+      setNumber: number,
+      user: FirebaseUser | null,
+    ) => {
       const today = getLocalDateString()
       const newHistory = repHistory.filter(
         (log) =>
@@ -290,7 +290,10 @@ export const useData = (): DataHook => {
           .map((log) => log.setNumber),
       )
 
-      const requiredSets = Array.from({ length: setNumber - 1 }, (_, i) => i + 1)
+      const requiredSets = Array.from(
+        { length: setNumber - 1 },
+        (_, i) => i + 1,
+      )
       return requiredSets.every((s) => completedSets.has(s))
     },
     [repHistory],

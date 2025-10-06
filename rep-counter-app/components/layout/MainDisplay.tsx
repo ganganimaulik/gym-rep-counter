@@ -27,19 +27,19 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   const animatedRepProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentRep.value)),
-    } as any
+    }
   }, [])
 
   const animatedSetProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentSet.value)),
-    } as any
+    }
   }, [])
 
   const animatedStatusProps = useAnimatedProps(() => {
     return {
       text: statusText.value,
-    } as any
+    }
   }, [])
 
   return (

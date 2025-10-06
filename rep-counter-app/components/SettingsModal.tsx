@@ -56,7 +56,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     onClose()
   }
 
-  const handleValueChange = (key: keyof Settings, value: any) => {
+  const handleValueChange = (key: keyof Settings, value: number | boolean) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
   }
 
