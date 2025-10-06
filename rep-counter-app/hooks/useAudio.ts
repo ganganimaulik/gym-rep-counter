@@ -62,7 +62,7 @@ export const useAudio = (settings: Settings): AudioHandler => {
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
-          interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+          interruptionModeIOS: InterruptionModeIOS.DuckOthers,
           shouldDuckAndroid: true,
           interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
           playThroughEarpieceAndroid: false,
