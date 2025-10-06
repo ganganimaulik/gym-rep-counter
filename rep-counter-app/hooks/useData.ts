@@ -73,6 +73,7 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   loadRepHistory: (user: FirebaseUser | null, isInitial?: boolean) => Promise<void>
+  loadTodaysHistory: (user: FirebaseUser | null) => Promise<void>
   logSet: (
     log: Omit<RepHistoryLog, 'date' | 'id'>,
     user: FirebaseUser | null,
@@ -265,6 +266,42 @@ export const useData = (): DataHook => {
     [loadingHistory, hasMoreHistory, lastHistoryDoc],
   )
 
+  const loadTodaysHistory = useCallback(async (user: FirebaseUser | null) => {
+    if (!user) return
+
+    try {
+      const { start, end } = getTodayTimestamps()
+      const historyCollectionRef = collection(
+        db,
+        'users',
+        user.uid,
+        'repHistory',
+      )
+      const q = query(
+        historyCollectionRef,
+        where('date', '>=', start),
+        where('date', '<=', end),
+      )
+
+      const querySnapshot = await getDocs(q)
+      const todaysHistory: RepHistoryLog[] = []
+      querySnapshot.forEach((doc) => {
+        todaysHistory.push({ id: doc.id, ...doc.data() } as RepHistoryLog)
+      })
+
+      setRepHistory((prev) => {
+        const otherDaysHistory = prev.filter(
+          (log) => log.date < start || log.date > end,
+        )
+        const updatedHistory = [...otherDaysHistory, ...todaysHistory]
+        updatedHistory.sort((a, b) => b.date.toMillis() - a.date.toMillis())
+        return updatedHistory
+      })
+    } catch (e) {
+      console.error('Failed to load todays rep history.', e)
+    }
+  }, [])
+
   const logSet = useCallback(
     async (log: Omit<RepHistoryLog, 'date' | 'id'>, user: FirebaseUser | null) => {
       if (!user) return
@@ -349,7 +386,7 @@ export const useData = (): DataHook => {
       const completedSets = repHistory
         .filter(
           (log) =>
-            log.exerciseId === exerciseId && log.date.toDate() >= start.toDate(),
+            log.exerciseId === exerciseId && log.date >= start,
         )
         .map((log) => log.setNumber)
         .sort((a, b) => a - b)
@@ -420,7 +457,7 @@ export const useData = (): DataHook => {
         repHistory
           .filter(
             (log) =>
-              log.exerciseId === exerciseId && log.date.toDate() >= start.toDate(),
+              log.exerciseId === exerciseId && log.date >= start,
           )
           .map((log) => log.setNumber),
       )
@@ -505,6 +542,7 @@ export const useData = (): DataHook => {
     loadWorkouts,
     saveWorkouts,
     loadRepHistory,
+    loadTodaysHistory,
     logSet,
     isSetCompleted,
     resetSetsFrom,

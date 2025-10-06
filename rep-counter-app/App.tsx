@@ -73,6 +73,7 @@ const App: React.FC = () => {
     loadWorkouts,
     saveWorkouts,
     loadRepHistory,
+    loadTodaysHistory,
     syncUserData,
     setWorkouts,
     setSettings: setDataSettings,
@@ -89,8 +90,8 @@ const App: React.FC = () => {
       if (firebaseUser) {
         const localSettings = await loadSettings()
         const localWorkouts = await loadWorkouts()
-        // History is now loaded on-demand when the modal is opened.
         await syncUserData(firebaseUser, localSettings, localWorkouts)
+        await loadTodaysHistory(firebaseUser)
       } else {
         // User is logged out, clear local data.
         await loadSettings()
@@ -98,7 +99,7 @@ const App: React.FC = () => {
         setRepHistory([])
       }
     },
-    [loadSettings, loadWorkouts, syncUserData, setRepHistory],
+    [loadSettings, loadWorkouts, syncUserData, setRepHistory, loadTodaysHistory],
   )
 
   const {
@@ -158,6 +159,14 @@ const App: React.FC = () => {
   // --- Effects ---
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
+      // Refresh today's history when the app comes to the foreground
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active' &&
+        user
+      ) {
+        loadTodaysHistory(user)
+      }
       appState.current = nextAppState
     })
 
@@ -167,7 +176,7 @@ const App: React.FC = () => {
       subscription.remove()
       disableBackgroundExecution()
     }
-  }, [])
+  }, [user, loadTodaysHistory])
 
   useEffect(() => {
     // When history modal is opened, trigger an initial load of the history.
@@ -310,6 +319,7 @@ const App: React.FC = () => {
             setModalVisible={setWorkoutModalVisible}
             prevExercise={prevExercise}
             nextExercise={nextExercise}
+            user={user}
             isSetCompleted={isSetCompleted}
             activeExerciseId={currentWorkout?.exercises[currentExerciseIndex]?.id}
             jumpToSet={jumpToSet}
