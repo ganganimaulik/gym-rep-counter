@@ -36,11 +36,6 @@ interface UIState {
 }
 
 interface DataHandlers {
-  markSetAsCompleted: (
-    exerciseId: string,
-    setNumber: number,
-    user: FirebaseUser | null,
-  ) => Promise<void>
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
   getNextUncompletedSet: (exerciseId: string) => number
 }
@@ -71,6 +66,7 @@ export interface WorkoutTimerHook {
   jumpToRep: (rep: number) => void
   jumpToSet: (set: number) => void
   endSet: () => void
+  continueToNextPhase: () => void
   setStatusText: (text: string) => void
   resetExerciseCompleteFlag: () => void
 }
@@ -82,10 +78,10 @@ export function useWorkoutTimer(
   activeExercise: Exercise | undefined,
   user: FirebaseUser | null,
   dataHandlers: DataHandlers,
+  onSetComplete: (exerciseId: string, setNumber: number) => void,
 ): WorkoutTimerHook {
   const { queueSpeak, speakEccentric } = handlers
-  const { markSetAsCompleted, isSetCompleted, getNextUncompletedSet } =
-    dataHandlers
+  const { isSetCompleted, getNextUncompletedSet } = dataHandlers
 
   useEffect(() => {
     enableBackgroundExecution()
@@ -156,7 +152,6 @@ export function useWorkoutTimer(
   let startConcentric: () => void,
     startEccentric: () => void,
     startRest: () => void,
-    endSet: () => void,
     stopWorkout: () => void
 
   const startCountdown = useCallback(() => {
@@ -238,6 +233,15 @@ export function useWorkoutTimer(
       stopSpeechOnClear,
     )
   }, [settings, schedule, updateUI])
+
+  const endSet = useCallback(() => {
+    if (activeExercise) {
+      clearTimer()
+      statusText.value = 'Set Complete! Log your reps.'
+      queueSpeak('Set complete.', { priority: true })
+      onSetComplete(activeExercise.id, wState.current.set)
+    }
+  }, [activeExercise, onSetComplete, clearTimer, statusText, queueSpeak])
 
   startEccentric = useCallback(() => {
     const duration =
@@ -383,11 +387,17 @@ export function useWorkoutTimer(
     statusText.value = `Press Start for Set ${wState.current.set}`
   }, [clearTimer, displayRep, updateUI, statusText])
 
-  endSet = useCallback(() => {
+  const finishSet = useCallback(() => {
     if (activeExercise) {
-      markSetAsCompleted(activeExercise.id, wState.current.set, user)
+      clearTimer()
+      statusText.value = 'Set Complete! Log your reps.'
+      queueSpeak('Set complete.', { priority: true })
+      onSetComplete(activeExercise.id, wState.current.set)
     }
+  }, [activeExercise, onSetComplete, clearTimer, statusText, queueSpeak])
 
+  const continueToNextPhase = useCallback(() => {
+    // This function is now called *after* the user logs their set.
     const { maxSets } = settings
     clearTimer(false)
     const nextSet = wState.current.set + 1
@@ -424,9 +434,6 @@ export function useWorkoutTimer(
     queueSpeak,
     statusText,
     startRest,
-    activeExercise,
-    user,
-    markSetAsCompleted,
   ])
 
   const startWorkout = useCallback(() => {
@@ -637,6 +644,7 @@ export function useWorkoutTimer(
       jumpToRep,
       jumpToSet,
       endSet,
+      continueToNextPhase,
       setStatusText: (text: string) => {
         statusText.value = text
       },
@@ -654,6 +662,7 @@ export function useWorkoutTimer(
       jumpToRep,
       jumpToSet,
       endSet,
+      continueToNextPhase,
       updateUI,
     ],
   )

@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { styled } from 'nativewind'
 import { useKeepAwake } from 'expo-keep-awake'
-import { Settings as SettingsIcon } from 'lucide-react-native'
+import { Settings as SettingsIcon, History as HistoryIcon } from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
@@ -21,13 +21,19 @@ import type { User as FirebaseUser } from 'firebase/auth'
 
 // Hooks
 import { useAuth } from './hooks/useAuth'
-import { useData, Settings, Workout } from './hooks/useData'
+import type { User as FirebaseUser } from 'firebase/auth'
+
+// Hooks
+import { useAuth } from './hooks/useAuth'
+import { useData, Settings, Workout, RepHistoryLog } from './hooks/useData'
 import { useAudio } from './hooks/useAudio'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 
 // Components
 import SettingsModal from './components/SettingsModal'
 import WorkoutManagementModal from './components/WorkoutManagementModal'
+import LogSetModal from './components/LogSetModal'
+import HistoryModal from './components/HistoryModal'
 import UserProfile from './components/layout/UserProfile'
 import WorkoutSelector from './components/layout/WorkoutSelector'
 import MainDisplay from './components/layout/MainDisplay'
@@ -46,25 +52,32 @@ const App: React.FC = () => {
   // UI State
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
   const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
+  const [logSetModalVisible, setLogSetModalVisible] = useState<boolean>(false)
+  const [historyModalVisible, setHistoryModalVisible] = useState<boolean>(false)
 
   // Workout State
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
+  const [setToLog, setSetToLog] = useState<{
+    exerciseId: string
+    setNumber: number
+    targetReps: number
+  } | null>(null)
 
   // Custom Hooks
   const {
     settings,
     workouts,
-    setCompletions,
+    repHistory,
     loadSettings,
     saveSettings,
     loadWorkouts,
     saveWorkouts,
-    loadSetCompletions,
+    loadRepHistory,
     syncUserData,
     setWorkouts,
     setSettings: setDataSettings,
-    markSetAsCompleted,
+    logSet,
     isSetCompleted,
     resetSetsFrom,
     arePreviousSetsCompleted,
@@ -76,20 +89,20 @@ const App: React.FC = () => {
       if (firebaseUser) {
         const localSettings = await loadSettings()
         const localWorkouts = await loadWorkouts()
-        const localSetCompletions = await loadSetCompletions()
+        const localRepHistory = await loadRepHistory()
         await syncUserData(
           firebaseUser,
           localSettings,
           localWorkouts,
-          localSetCompletions,
+          localRepHistory,
         )
       } else {
         await loadSettings()
         await loadWorkouts()
-        await loadSetCompletions()
+        await loadRepHistory()
       }
     },
-    [loadSettings, loadWorkouts, syncUserData, loadSetCompletions],
+    [loadSettings, loadWorkouts, syncUserData, loadRepHistory],
   )
 
   const {
@@ -103,6 +116,15 @@ const App: React.FC = () => {
   const audioHandler = useAudio(settings)
 
   const activeExercise = currentWorkout?.exercises[currentExerciseIndex]
+
+  const handleSetComplete = (exerciseId: string, setNumber: number) => {
+    setSetToLog({
+      exerciseId,
+      setNumber,
+      targetReps: activeExercise?.reps ?? settings.maxReps,
+    })
+    setLogSetModalVisible(true)
+  }
 
   const {
     currentRep,
@@ -122,11 +144,17 @@ const App: React.FC = () => {
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
-  } = useWorkoutTimer(settings, audioHandler, activeExercise, user, {
-    markSetAsCompleted,
-    isSetCompleted,
-    getNextUncompletedSet,
-  })
+  } = useWorkoutTimer(
+    settings,
+    audioHandler,
+    activeExercise,
+    user,
+    {
+      isSetCompleted,
+      getNextUncompletedSet,
+    },
+    handleSetComplete,
+  )
 
   // App State
   const appState = useRef<AppStateStatus>(AppState.currentState)
@@ -234,6 +262,24 @@ const App: React.FC = () => {
     saveWorkouts(newWorkouts, user)
   }
 
+  const handleLogSet = async (reps: number, weight: number) => {
+    if (!setToLog) return
+
+    const logEntry: RepHistoryLog = {
+      ...setToLog,
+      reps,
+      weight,
+      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    }
+
+    await logSet(logEntry, user)
+    setLogSetModalVisible(false)
+    setSetToLog(null)
+
+    // After logging, proceed with the rest of the end-set logic (like starting rest)
+    continueToNextPhase()
+  }
+
   if (initializing) {
     return (
       <StyledSafeAreaView className="flex-1 bg-gray-900 justify-center items-center">
@@ -294,7 +340,13 @@ const App: React.FC = () => {
             jumpToRep={jumpToRep}
           />
 
-          <StyledView className="items-center">
+          <StyledView className="flex-row justify-center space-x-8 items-center">
+            <StyledTouchableOpacity
+              onPress={() => setHistoryModalVisible(true)}
+              className="flex-row items-center space-x-2">
+              <HistoryIcon color="#60a5fa" size={16} />
+              <StyledText className="text-blue-400">History</StyledText>
+            </StyledTouchableOpacity>
             <StyledTouchableOpacity
               onPress={() => setSettingsVisible(!settingsVisible)}
               className="flex-row items-center space-x-2">
@@ -320,6 +372,18 @@ const App: React.FC = () => {
         user={user}
         disconnectAccount={disconnectAccount}
         isSigningIn={isSigningIn}
+      />
+      <LogSetModal
+        visible={logSetModalVisible}
+        onClose={() => setLogSetModalVisible(false)}
+        onSave={handleLogSet}
+        targetReps={setToLog?.targetReps ?? 0}
+      />
+      <HistoryModal
+        visible={historyModalVisible}
+        onClose={() => setHistoryModalVisible(false)}
+        history={repHistory}
+        workouts={workouts}
       />
     </StyledSafeAreaView>
   )
