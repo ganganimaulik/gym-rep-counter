@@ -7,6 +7,7 @@ import {
   Switch,
   TouchableOpacity,
   ScrollView,
+  Keyboard,
 } from 'react-native'
 import { styled } from 'nativewind'
 import Slider from '@react-native-community/slider'
@@ -87,6 +88,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <StyledTextInput
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
                     value={String(localSettings.countdownSeconds)}
                     onChangeText={(text) =>
                       handleValueChange('countdownSeconds', Number(text))
@@ -100,6 +103,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <StyledTextInput
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
                     value={String(localSettings.restSeconds)}
                     onChangeText={(text) =>
                       handleValueChange('restSeconds', Number(text))
@@ -113,6 +118,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <StyledTextInput
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
                     value={String(localSettings.maxReps)}
                     onChangeText={(text) =>
                       handleValueChange('maxReps', Number(text))
@@ -126,6 +133,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <StyledTextInput
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
                     value={String(localSettings.maxSets)}
                     onChangeText={(text) =>
                       handleValueChange('maxSets', Number(text))
@@ -139,6 +148,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <StyledTextInput
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
                     value={String(localSettings.concentricSeconds)}
                     onChangeText={(text) =>
                       handleValueChange('concentricSeconds', Number(text))
@@ -152,6 +163,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <StyledTextInput
                     className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
                     keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
                     value={String(localSettings.eccentricSeconds)}
                     onChangeText={(text) =>
                       handleValueChange('eccentricSeconds', Number(text))
