@@ -316,6 +316,7 @@ const App: React.FC = () => {
             currentWorkout={currentWorkout}
             currentExerciseIndex={currentExerciseIndex}
             settings={settings}
+            repHistory={repHistory}
             selectWorkout={selectWorkout}
             setModalVisible={setWorkoutModalVisible}
             prevExercise={prevExercise}

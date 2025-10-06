@@ -13,7 +13,7 @@ import {
   Check,
 } from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
-import { Workout, Settings } from '../../hooks/useData'
+import { Workout, Settings, RepHistoryLog } from '../../hooks/useData'
 import type { User as FirebaseUser } from 'firebase/auth'
 
 const StyledView = styled(View)
@@ -25,6 +25,7 @@ interface WorkoutSelectorProps {
   currentWorkout: Workout | null
   currentExerciseIndex: number
   settings: Settings
+  repHistory: RepHistoryLog[]
   selectWorkout: (workoutId: string | null) => void
   setModalVisible: (visible: boolean) => void
   prevExercise: () => void
@@ -46,6 +47,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   currentWorkout,
   currentExerciseIndex,
   settings,
+  repHistory,
   selectWorkout,
   setModalVisible,
   prevExercise,
@@ -83,7 +85,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
     }
 
     fetchCompletedSets()
-  }, [activeExerciseId, settings.maxSets, user, isSetCompleted])
+  }, [activeExerciseId, settings.maxSets, user, isSetCompleted, repHistory])
 
   const handleSetPress = (setNumber: number) => {
     if (activeExerciseId) {
