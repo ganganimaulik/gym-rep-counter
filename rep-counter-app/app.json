@@ -16,7 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ganganimaulik.repcounterapp",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": ["audio", "processing"]
       }
     },
     "android": {
