@@ -129,7 +129,7 @@ export const useAudio = (settings: Settings): AudioHandler => {
 
       const speechOptions: SpeechOptions = {
         volume: settings.volume,
-        rate: 1.4,
+        rate: 1.3,
         ...options,
       }
 
@@ -146,7 +146,7 @@ export const useAudio = (settings: Settings): AudioHandler => {
     (text: string, options: Speech.SpeechOptions = {}) => {
       Speech.speak(text, {
         volume: settings.volume,
-        rate: 1.4,
+        rate: 1.3,
         ...options,
       })
     },
@@ -157,7 +157,7 @@ export const useAudio = (settings: Settings): AudioHandler => {
     (text: string) => {
       queueSpeak(text, {
         priority: true,
-        rate: 1.4,
+        rate: 1.3,
         voice: femaleVoice || undefined,
       })
     },
