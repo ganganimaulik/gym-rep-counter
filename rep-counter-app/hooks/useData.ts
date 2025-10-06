@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../utils/firebase'
 import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
+import getLocalDateString from '../utils/getLocalDateString'
 
 // Interfaces
 export interface Settings {
@@ -90,14 +91,6 @@ const defaultSettings: Settings = {
   eccentricSeconds: 4,
   eccentricCountdownEnabled: true,
   volume: 1.0,
-}
-
-const getLocalDateString = () => {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 export const useData = (): DataHook => {
