@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "prepare": "husky",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prebuild": "expo prebuild --clean"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
