@@ -153,12 +153,6 @@ export function useWorkoutTimer(
     [clearTimer],
   )
 
-  let startConcentric: () => void,
-    startEccentric: () => void,
-    startRest: () => void,
-    endSet: () => void,
-    stopWorkout: () => void
-
   const startCountdown = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
@@ -218,7 +212,7 @@ export function useWorkoutTimer(
     startConcentric,
   ])
 
-  startConcentric = useCallback(() => {
+  const startConcentric = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime
@@ -239,7 +233,7 @@ export function useWorkoutTimer(
     )
   }, [settings, schedule, updateUI])
 
-  startEccentric = useCallback(() => {
+  const startEccentric = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
@@ -299,7 +293,7 @@ export function useWorkoutTimer(
     startConcentric,
   ])
 
-  startRest = useCallback(() => {
+  const startRest = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
@@ -368,7 +362,7 @@ export function useWorkoutTimer(
     statusText.value = 'Press Start'
   }, [clearTimer, resetInternalState, updateUI, statusText])
 
-  stopWorkout = useCallback(() => {
+  const stopWorkout = useCallback(() => {
     clearTimer()
     wState.current.phase = PHASES.STOPPED
     wState.current.rep = 0
@@ -383,7 +377,7 @@ export function useWorkoutTimer(
     statusText.value = `Press Start for Set ${wState.current.set}`
   }, [clearTimer, displayRep, updateUI, statusText])
 
-  endSet = useCallback(() => {
+  const endSet = useCallback(() => {
     if (activeExercise) {
       markSetAsCompleted(activeExercise.id, wState.current.set, user)
     }

@@ -7,6 +7,7 @@ import {
 } from 'expo-av'
 import * as Speech from 'expo-speech'
 import { Settings } from './useData'
+import silentAudio from '../assets/silence.mp3'
 
 // Interfaces
 export interface SpeechOptions extends Speech.SpeechOptions {
@@ -68,10 +69,9 @@ export const useAudio = (settings: Settings): AudioHandler => {
           playThroughEarpieceAndroid: false,
         })
 
-        const { sound } = await Audio.Sound.createAsync(
-          require('../assets/silence.mp3'),
-          { isLooping: true },
-        )
+        const { sound } = await Audio.Sound.createAsync(silentAudio, {
+          isLooping: true,
+        })
         silentSoundRef.current = sound
         const status = (await sound.getStatusAsync()) as AVPlaybackStatusSuccess
         if (status.isLoaded && !status.isPlaying) {
