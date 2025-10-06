@@ -229,17 +229,22 @@ export const useData = (): DataHook => {
     async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
       const today = getLocalDateString()
       const newCompletions = { ...setCompletions }
+      const currentCompletion = newCompletions[exerciseId]
 
-      if (
-        !newCompletions[exerciseId] ||
-        newCompletions[exerciseId].date !== today
-      ) {
-        newCompletions[exerciseId] = { date: today, completed: [] }
-      }
-
-      if (!newCompletions[exerciseId].completed.includes(setNumber)) {
-        newCompletions[exerciseId].completed.push(setNumber)
-        newCompletions[exerciseId].completed.sort((a, b) => a - b)
+      if (!currentCompletion || currentCompletion.date !== today) {
+        // If no completion data for today, create a new entry.
+        newCompletions[exerciseId] = { date: today, completed: [setNumber] }
+      } else {
+        // If data exists for today, check if the set is already completed.
+        if (!currentCompletion.completed.includes(setNumber)) {
+          // If not completed, create a new array with the new set number.
+          newCompletions[exerciseId] = {
+            ...currentCompletion,
+            completed: [...currentCompletion.completed, setNumber].sort(
+              (a, b) => a - b,
+            ),
+          }
+        }
       }
 
       await saveSetCompletions(newCompletions, user)
@@ -264,16 +269,21 @@ export const useData = (): DataHook => {
     async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
       const today = getLocalDateString()
       const newCompletions = { ...setCompletions }
+      const currentCompletion = newCompletions[exerciseId]
 
-      if (
-        newCompletions[exerciseId] &&
-        newCompletions[exerciseId].date === today
-      ) {
-        newCompletions[exerciseId].completed = newCompletions[
-          exerciseId
-        ].completed.filter((s) => s < setNumber)
+      if (currentCompletion && currentCompletion.date === today) {
+        const newCompletedSets = currentCompletion.completed.filter(
+          (s) => s < setNumber,
+        )
+
+        // Only update if the array has actually changed to avoid unnecessary re-renders.
+        if (newCompletedSets.length !== currentCompletion.completed.length) {
+          newCompletions[exerciseId] = {
+            ...currentCompletion,
+            completed: newCompletedSets,
+          }
+        }
       }
-
       await saveSetCompletions(newCompletions, user)
     },
     [setCompletions, saveSetCompletions],
