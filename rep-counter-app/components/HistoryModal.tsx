@@ -21,6 +21,9 @@ interface HistoryModalProps {
   onClose: () => void
   history: RepHistoryLog[]
   workouts: Workout[]
+  loadMoreHistory: () => void
+  isLoading: boolean
+  hasMore: boolean
 }
 
 const HistoryModal: React.FC<HistoryModalProps> = ({
@@ -28,6 +31,9 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
   onClose,
   history,
   workouts,
+  loadMoreHistory,
+  isLoading,
+  hasMore,
 }) => {
   return (
     <Modal
@@ -45,7 +51,13 @@ const HistoryModal: React.FC<HistoryModalProps> = ({
               <X color="white" size={28} />
             </StyledTouchableOpacity>
           </StyledView>
-          <HistoryView history={history} workouts={workouts} />
+          <HistoryView
+            history={history}
+            workouts={workouts}
+            loadMoreHistory={loadMoreHistory}
+            isLoading={isLoading}
+            hasMore={hasMore}
+          />
         </StyledView>
       </StyledSafeAreaView>
     </Modal>

@@ -66,6 +66,8 @@ const App: React.FC = () => {
     settings,
     workouts,
     repHistory,
+    loadingHistory,
+    hasMoreHistory,
     loadSettings,
     saveSettings,
     loadWorkouts,
@@ -74,6 +76,7 @@ const App: React.FC = () => {
     syncUserData,
     setWorkouts,
     setSettings: setDataSettings,
+    setRepHistory,
     logSet,
     isSetCompleted,
     resetSetsFrom,
@@ -86,20 +89,16 @@ const App: React.FC = () => {
       if (firebaseUser) {
         const localSettings = await loadSettings()
         const localWorkouts = await loadWorkouts()
-        const localRepHistory = await loadRepHistory()
-        await syncUserData(
-          firebaseUser,
-          localSettings,
-          localWorkouts,
-          localRepHistory,
-        )
+        // History is now loaded on-demand when the modal is opened.
+        await syncUserData(firebaseUser, localSettings, localWorkouts)
       } else {
+        // User is logged out, clear local data.
         await loadSettings()
         await loadWorkouts()
-        await loadRepHistory()
+        setRepHistory([])
       }
     },
-    [loadSettings, loadWorkouts, syncUserData, loadRepHistory],
+    [loadSettings, loadWorkouts, syncUserData, setRepHistory],
   )
 
   const {
@@ -169,6 +168,13 @@ const App: React.FC = () => {
       disableBackgroundExecution()
     }
   }, [])
+
+  useEffect(() => {
+    // When history modal is opened, trigger an initial load of the history.
+    if (historyModalVisible && user) {
+      loadRepHistory(user, true)
+    }
+  }, [historyModalVisible, user, loadRepHistory])
 
   useEffect(() => {
     if (isExerciseComplete) {
@@ -262,11 +268,11 @@ const App: React.FC = () => {
   const handleLogSet = async (reps: number, weight: number) => {
     if (!setToLog) return
 
-    const logEntry: RepHistoryLog = {
-      ...setToLog,
+    const logEntry = {
+      exerciseId: setToLog.exerciseId,
+      setNumber: setToLog.setNumber,
       reps,
       weight,
-      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
     }
 
     await logSet(logEntry, user)
@@ -274,7 +280,7 @@ const App: React.FC = () => {
     setSetToLog(null)
 
     // After logging, proceed with the rest of the end-set logic (like starting rest)
-    continueToNextPhase()
+    runNextSet()
   }
 
   if (initializing) {
@@ -381,6 +387,9 @@ const App: React.FC = () => {
         onClose={() => setHistoryModalVisible(false)}
         history={repHistory}
         workouts={workouts}
+        loadMoreHistory={() => loadRepHistory(user, false)}
+        isLoading={loadingHistory}
+        hasMore={hasMoreHistory}
       />
     </StyledSafeAreaView>
   )

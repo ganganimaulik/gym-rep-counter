@@ -1,6 +1,23 @@
 import { useState, Dispatch, SetStateAction, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  limit,
+  Timestamp,
+  writeBatch,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
+  deleteField,
+} from 'firebase/firestore'
 import { db } from '../utils/firebase'
 import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
@@ -31,17 +48,20 @@ export interface Workout {
 }
 
 export interface RepHistoryLog {
+  id?: string // Add id for keying in lists
   exerciseId: string
   setNumber: number
   reps: number
   weight: number
-  date: string // YYYY-MM-DD
+  date: Timestamp
 }
 
 export interface DataHook {
   settings: Settings
   workouts: Workout[]
   repHistory: RepHistoryLog[]
+  loadingHistory: boolean
+  hasMoreHistory: boolean
   loadSettings: () => Promise<Settings>
   saveSettings: (
     newSettings: Settings,
@@ -52,13 +72,16 @@ export interface DataHook {
     newWorkouts: Workout[],
     user: FirebaseUser | null,
   ) => Promise<void>
-  loadRepHistory: () => Promise<RepHistoryLog[]>
-  saveRepHistory: (
-    newHistory: RepHistoryLog[],
+  loadRepHistory: (user: FirebaseUser | null, isInitial?: boolean) => Promise<void>
+  logSet: (
+    log: Omit<RepHistoryLog, 'date' | 'id'>,
     user: FirebaseUser | null,
   ) => Promise<void>
-  logSet: (log: RepHistoryLog, user: FirebaseUser | null) => Promise<void>
-  isSetCompleted: (exerciseId: string, setNumber: number) => boolean
+  isSetCompleted: (
+    exerciseId: string,
+    setNumber: number,
+    user: FirebaseUser | null,
+  ) => Promise<boolean>
   resetSetsFrom: (
     exerciseId: string,
     setNumber: number,
@@ -70,10 +93,10 @@ export interface DataHook {
     firebaseUser: FirebaseUser,
     localSettings: Settings,
     localWorkouts: Workout[],
-    localRepHistory: RepHistoryLog[],
   ) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
+  setRepHistory: Dispatch<SetStateAction<RepHistoryLog[]>>
 }
 
 const defaultSettings: Settings = {
@@ -87,12 +110,22 @@ const defaultSettings: Settings = {
   volume: 1.0,
 }
 
-const getLocalDateString = () => {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${year}-${month}-${day}`
+const getTodayTimestamps = () => {
+  const now = new Date()
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const endOfDay = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23,
+    59,
+    59,
+    999,
+  )
+  return {
+    start: Timestamp.fromDate(startOfDay),
+    end: Timestamp.fromDate(endOfDay),
+  }
 }
 
 export const useData = (): DataHook => {
@@ -101,6 +134,10 @@ export const useData = (): DataHook => {
     getDefaultWorkouts(),
   )
   const [repHistory, setRepHistory] = useState<RepHistoryLog[]>([])
+  const [lastHistoryDoc, setLastHistoryDoc] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(null)
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [hasMoreHistory, setHasMoreHistory] = useState(true)
 
   const loadSettings = useCallback(async (): Promise<Settings> => {
     try {
@@ -176,71 +213,144 @@ export const useData = (): DataHook => {
     [],
   )
 
-  const loadRepHistory = useCallback(async (): Promise<RepHistoryLog[]> => {
-    try {
-      const saved = await AsyncStorage.getItem('repHistory')
-      if (saved) {
-        const parsed: RepHistoryLog[] = JSON.parse(saved)
-        // It's better to keep all history and filter by date when needed.
-        // For now, we'll just load it all.
-        setRepHistory(parsed)
-        return parsed
-      }
-      return []
-    } catch (e) {
-      console.error('Failed to load rep history.', e)
-      return []
-    }
-  }, [])
+  const loadRepHistory = useCallback(
+    async (user: FirebaseUser | null, isInitial = false) => {
+      if (!user || loadingHistory || (!hasMoreHistory && !isInitial)) return
+      setLoadingHistory(true)
 
-  const saveRepHistory = useCallback(
-    async (newHistory: RepHistoryLog[], user: FirebaseUser | null) => {
+      // On a fresh load, reset pagination
+      const startDoc = isInitial ? null : lastHistoryDoc
+      if (isInitial) {
+        setRepHistory([])
+        setLastHistoryDoc(null)
+        setHasMoreHistory(true)
+      }
+
       try {
-        setRepHistory(newHistory)
-        await AsyncStorage.setItem('repHistory', JSON.stringify(newHistory))
-        if (user) {
-          const userDocRef = doc(db, 'users', user.uid)
-          await setDoc(
-            userDocRef,
-            { repHistory: newHistory },
-            { merge: true },
-          )
+        const historyCollectionRef = collection(db, 'users', user.uid, 'repHistory')
+
+        const q = startDoc
+          ? query(
+              historyCollectionRef,
+              orderBy('date', 'desc'),
+              startAfter(startDoc),
+              limit(25),
+            )
+          : query(historyCollectionRef, orderBy('date', 'desc'), limit(25))
+
+        const querySnapshot = await getDocs(q)
+        const newHistory: RepHistoryLog[] = []
+        querySnapshot.forEach((doc) => {
+          newHistory.push({ id: doc.id, ...doc.data() } as RepHistoryLog)
+        })
+
+        const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1]
+        setLastHistoryDoc(lastVisible)
+
+        if (querySnapshot.empty || querySnapshot.docs.length < 25) {
+          setHasMoreHistory(false)
+        }
+
+        if (isInitial) {
+          setRepHistory(newHistory)
+        } else {
+          setRepHistory((prev) => [...prev, ...newHistory])
         }
       } catch (e) {
-        console.error('Failed to save rep history', e)
+        console.error('Failed to load rep history.', e)
+      } finally {
+        setLoadingHistory(false)
+      }
+    },
+    [loadingHistory, hasMoreHistory, lastHistoryDoc],
+  )
+
+  const logSet = useCallback(
+    async (log: Omit<RepHistoryLog, 'date' | 'id'>, user: FirebaseUser | null) => {
+      if (!user) return
+
+      const newLog: Omit<RepHistoryLog, 'id'> = {
+        ...log,
+        date: Timestamp.now(),
+      }
+
+      try {
+        const historyCollectionRef = collection(
+          db,
+          'users',
+          user.uid,
+          'repHistory',
+        )
+        const docRef = await addDoc(historyCollectionRef, newLog)
+
+        // Add to local state for immediate UI update
+        setRepHistory((prev) =>
+          [{ id: docRef.id, ...newLog } as RepHistoryLog, ...prev].sort(
+            (a, b) => b.date.toMillis() - a.date.toMillis(),
+          ),
+        )
+
+      } catch (e) {
+        console.error('Failed to log set.', e)
       }
     },
     [],
   )
 
-  const logSet = useCallback(
-    async (log: RepHistoryLog, user: FirebaseUser | null) => {
-      const newHistory = [...repHistory, log].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      )
-      await saveRepHistory(newHistory, user)
-    },
-    [repHistory, saveRepHistory],
-  )
-
   const isSetCompleted = useCallback(
-    (exerciseId: string, setNumber: number): boolean => {
-      const today = getLocalDateString()
-      return repHistory.some(
-        (log) =>
-          log.exerciseId === exerciseId &&
-          log.setNumber === setNumber &&
-          log.date === today,
+    async (
+      exerciseId: string,
+      setNumber: number,
+      user: FirebaseUser | null,
+    ): Promise<boolean> => {
+      if (!user) return false
+
+      const { start, end } = getTodayTimestamps()
+
+      // Check local state first for quick feedback
+      const completedLocally = repHistory.some(log =>
+        log.exerciseId === exerciseId &&
+        log.setNumber === setNumber &&
+        log.date >= start &&
+        log.date <= end
       )
+      if (completedLocally) return true
+
+      try {
+        const historyCollectionRef = collection(
+          db,
+          'users',
+          user.uid,
+          'repHistory',
+        )
+        const q = query(
+          historyCollectionRef,
+          where('exerciseId', '==', exerciseId),
+          where('setNumber', '==', setNumber),
+          where('date', '>=', start),
+          where('date', '<=', end),
+          limit(1)
+        )
+
+        const querySnapshot = await getDocs(q)
+        return !querySnapshot.empty
+      } catch (e) {
+        console.error('Failed to check if set is completed.', e)
+        return false
+      }
     },
     [repHistory],
   )
 
   const getNextUncompletedSet = useCallback(
     (exerciseId: string): number => {
-      const today = getLocalDateString()
+      const { start } = getTodayTimestamps()
+
       const completedSets = repHistory
-        .filter((log) => log.exerciseId === exerciseId && log.date === today)
+        .filter(
+          (log) =>
+            log.exerciseId === exerciseId && log.date.toDate() >= start.toDate(),
+        )
         .map((log) => log.setNumber)
         .sort((a, b) => a - b)
 
@@ -248,14 +358,12 @@ export const useData = (): DataHook => {
         return 1
       }
 
-      // Find the first missing number in the sequence
       for (let i = 0; i < completedSets.length; i++) {
         if (completedSets[i] !== i + 1) {
           return i + 1
         }
       }
 
-      // If all sets are sequential, return the next one
       return completedSets.length + 1
     },
     [repHistory],
@@ -263,18 +371,41 @@ export const useData = (): DataHook => {
 
   const resetSetsFrom = useCallback(
     async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
-      const today = getLocalDateString()
-      const newHistory = repHistory.filter(
-        (log) =>
-          !(
-            log.exerciseId === exerciseId &&
-            log.date === today &&
-            log.setNumber >= setNumber
-          ),
-      )
-      await saveRepHistory(newHistory, user)
+      if (!user) return
+
+      const { start, end } = getTodayTimestamps()
+      try {
+        const historyCollectionRef = collection(
+          db,
+          'users',
+          user.uid,
+          'repHistory',
+        )
+        const q = query(
+          historyCollectionRef,
+          where('exerciseId', '==', exerciseId),
+          where('setNumber', '>=', setNumber),
+          where('date', '>=', start),
+          where('date', '<=', end),
+        )
+
+        const snapshot = await getDocs(q)
+        const batch = writeBatch(db)
+        const idsToDelete: string[] = []
+        snapshot.forEach((doc) => {
+          batch.delete(doc.ref)
+          idsToDelete.push(doc.id)
+        })
+        await batch.commit()
+
+        setRepHistory((prev) =>
+          prev.filter((log) => !idsToDelete.includes(log.id!)),
+        )
+      } catch (e) {
+        console.error('Failed to reset sets.', e)
+      }
     },
-    [repHistory, saveRepHistory],
+    [],
   )
 
   const arePreviousSetsCompleted = useCallback(
@@ -283,10 +414,14 @@ export const useData = (): DataHook => {
         return true
       }
 
-      const today = getLocalDateString()
+      const { start } = getTodayTimestamps()
+
       const completedSets = new Set(
         repHistory
-          .filter((log) => log.exerciseId === exerciseId && log.date === today)
+          .filter(
+            (log) =>
+              log.exerciseId === exerciseId && log.date.toDate() >= start.toDate(),
+          )
           .map((log) => log.setNumber),
       )
 
@@ -301,7 +436,6 @@ export const useData = (): DataHook => {
       firebaseUser: FirebaseUser,
       localSettings: Settings,
       localWorkouts: Workout[],
-      localRepHistory: RepHistoryLog[],
     ) => {
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       try {
@@ -309,7 +443,6 @@ export const useData = (): DataHook => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data()
-          // Sync Settings
           if (userData.settings) {
             setSettings(userData.settings)
             await AsyncStorage.setItem(
@@ -317,7 +450,6 @@ export const useData = (): DataHook => {
               JSON.stringify(userData.settings),
             )
           }
-          // Sync Workouts
           if (
             userData.workouts &&
             Array.isArray(userData.workouts) &&
@@ -341,14 +473,11 @@ export const useData = (): DataHook => {
               { merge: true },
             )
           }
-          // Sync Rep History
+
           if (userData.repHistory) {
-            setRepHistory(userData.repHistory)
-            await AsyncStorage.setItem(
-              'repHistory',
-              JSON.stringify(userData.repHistory),
-            )
+            await setDoc(userDocRef, { repHistory: deleteField() }, { merge: true });
           }
+
         } else {
           // New user, upload local data
           await setDoc(userDocRef, {
@@ -356,7 +485,6 @@ export const useData = (): DataHook => {
             name: firebaseUser.displayName,
             settings: localSettings,
             workouts: localWorkouts,
-            repHistory: localRepHistory,
           })
         }
       } catch (error) {
@@ -370,12 +498,13 @@ export const useData = (): DataHook => {
     settings,
     workouts,
     repHistory,
+    loadingHistory,
+    hasMoreHistory,
     loadSettings,
     saveSettings,
     loadWorkouts,
     saveWorkouts,
     loadRepHistory,
-    saveRepHistory,
     logSet,
     isSetCompleted,
     resetSetsFrom,
@@ -384,5 +513,6 @@ export const useData = (): DataHook => {
     syncUserData,
     setWorkouts,
     setSettings,
+    setRepHistory,
   }
 }
