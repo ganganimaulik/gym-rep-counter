@@ -138,6 +138,7 @@ const App: React.FC = () => {
     jumpToRep,
     jumpToSet,
     endSet,
+    continueToNextPhase,
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
@@ -289,7 +290,7 @@ const App: React.FC = () => {
     setSetToLog(null)
 
     // After logging, proceed with the rest of the end-set logic (like starting rest)
-    runNextSet()
+    continueToNextPhase()
   }
 
   if (initializing) {
