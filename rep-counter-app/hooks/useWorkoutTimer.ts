@@ -36,7 +36,11 @@ interface UIState {
 }
 
 interface DataHandlers {
-  isSetCompleted: (exerciseId: string, setNumber: number) => boolean
+  isSetCompleted: (
+    exerciseId: string,
+    setNumber: number,
+    user: FirebaseUser | null,
+  ) => Promise<boolean>
   getNextUncompletedSet: (exerciseId: string) => number
 }
 
@@ -436,12 +440,12 @@ export function useWorkoutTimer(
     startRest,
   ])
 
-  const startWorkout = useCallback(() => {
+  const startWorkout = useCallback(async () => {
     if (ui.isRunning) return
 
     if (
       activeExercise &&
-      isSetCompleted(activeExercise.id, wState.current.set)
+      (await isSetCompleted(activeExercise.id, wState.current.set, user))
     ) {
       statusText.value = `Set ${wState.current.set} is already done.`
       queueSpeak(`Set ${wState.current.set} is already completed for today.`)
@@ -471,6 +475,7 @@ export function useWorkoutTimer(
     updateUI,
     displayRep,
     startCountdown,
+    user,
   ])
 
   const pauseWorkout = useCallback(() => {
@@ -575,10 +580,10 @@ export function useWorkoutTimer(
     [clearTimer, displaySet, displayRep, updateUI, queueSpeak, startCountdown],
   )
 
-  const runNextSet = useCallback(() => {
+  const runNextSet = useCallback(async () => {
     if (
       activeExercise &&
-      isSetCompleted(activeExercise.id, wState.current.set)
+      (await isSetCompleted(activeExercise.id, wState.current.set, user))
     ) {
       statusText.value = `Set ${wState.current.set} is already done.`
       queueSpeak(`Set ${wState.current.set} is already completed for today.`)
@@ -597,6 +602,7 @@ export function useWorkoutTimer(
     activeExercise,
     isSetCompleted,
     statusText,
+    user,
   ])
 
   // Reset state and set the starting set when the active exercise changes
