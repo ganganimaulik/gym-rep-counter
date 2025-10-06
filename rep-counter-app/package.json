@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "prebuild": "expo prebuild --clean",
-    "test": "jest"
+    "test": "jest",
+    "coverage": "jest --coverage"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
