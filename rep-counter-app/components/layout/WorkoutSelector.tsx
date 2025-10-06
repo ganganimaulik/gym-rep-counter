@@ -1,10 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native'
+import React, { useMemo } from 'react'
+import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
 import {
   Edit,
@@ -14,7 +9,6 @@ import {
 } from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings, RepHistoryLog } from '../../hooks/useData'
-import type { User as FirebaseUser } from 'firebase/auth'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -30,12 +24,6 @@ interface WorkoutSelectorProps {
   setModalVisible: (visible: boolean) => void
   prevExercise: () => void
   nextExercise: () => void
-  user: FirebaseUser | null
-  isSetCompleted: (
-    exerciseId: string,
-    setNumber: number,
-    user: FirebaseUser | null,
-  ) => Promise<boolean>
   activeExerciseId: string | undefined
   jumpToSet: (set: number) => void
   resetSetsFrom: (exerciseId: string, setNumber: number) => void
@@ -52,41 +40,11 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   setModalVisible,
   prevExercise,
   nextExercise,
-  user,
-  isSetCompleted,
   activeExerciseId,
   jumpToSet,
   resetSetsFrom,
   arePreviousSetsCompleted,
 }) => {
-  const [completedSets, setCompletedSets] = useState<Record<number, boolean>>(
-    {},
-  )
-  const [isLoadingSets, setIsLoadingSets] = useState(false)
-
-  useEffect(() => {
-    const fetchCompletedSets = async () => {
-      if (!activeExerciseId || !user) return
-
-      setIsLoadingSets(true)
-      const checks = Array.from({ length: settings.maxSets }, (_, i) => i + 1).map(
-        (setNumber) =>
-          isSetCompleted(activeExerciseId, setNumber, user).then(
-            (isCompleted) => ({ setNumber, isCompleted }),
-          ),
-      )
-      const results = await Promise.all(checks)
-      const newCompletedSets: Record<number, boolean> = {}
-      results.forEach(({ setNumber, isCompleted }) => {
-        newCompletedSets[setNumber] = isCompleted
-      })
-      setCompletedSets(newCompletedSets)
-      setIsLoadingSets(false)
-    }
-
-    fetchCompletedSets()
-  }, [activeExerciseId, settings.maxSets, user, isSetCompleted, repHistory])
-
   const handleSetPress = (setNumber: number) => {
     if (activeExerciseId) {
       if (arePreviousSetsCompleted(activeExerciseId, setNumber)) {
@@ -97,6 +55,28 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
       }
     }
   }
+
+  const completedSets = useMemo(() => {
+    const today = new Date()
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    )
+
+    const sets = new Set<number>()
+    if (activeExerciseId) {
+      repHistory.forEach((log) => {
+        if (
+          log.exerciseId === activeExerciseId &&
+          log.date.toDate() >= startOfDay
+        ) {
+          sets.add(log.setNumber)
+        }
+      })
+    }
+    return sets
+  }, [repHistory, activeExerciseId])
 
   return (
     <StyledView className="bg-gray-700 rounded-lg p-4 space-y-4">
@@ -128,30 +108,26 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               {currentWorkout.exercises[currentExerciseIndex]?.name}
             </StyledText>
             <StyledView className="flex-row justify-end items-center flex-wrap gap-2">
-              {isLoadingSets ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                Array.from({ length: settings.maxSets }, (_, i) => i + 1).map(
-                  (setNumber) => {
-                    const completed = completedSets[setNumber] ?? false
-                    return (
-                      <StyledTouchableOpacity
-                        key={setNumber}
-                        onPress={() => handleSetPress(setNumber)}
-                        className={`w-6 h-6 rounded-full justify-center items-center ${
-                          completed ? 'bg-green-500' : 'bg-gray-500'
-                        }`}>
-                        {completed ? (
-                          <Check color="white" size={16} />
-                        ) : (
-                          <StyledText className="text-white text-xs font-bold">
-                            {setNumber}
-                          </StyledText>
-                        )}
-                      </StyledTouchableOpacity>
-                    )
-                  },
-                )
+              {Array.from({ length: settings.maxSets }, (_, i) => i + 1).map(
+                (setNumber) => {
+                  const completed = completedSets.has(setNumber)
+                  return (
+                    <StyledTouchableOpacity
+                      key={setNumber}
+                      onPress={() => handleSetPress(setNumber)}
+                      className={`w-6 h-6 rounded-full justify-center items-center ${
+                        completed ? 'bg-green-500' : 'bg-gray-500'
+                      }`}>
+                      {completed ? (
+                        <Check color="white" size={16} />
+                      ) : (
+                        <StyledText className="text-white text-xs font-bold">
+                          {setNumber}
+                        </StyledText>
+                      )}
+                    </StyledTouchableOpacity>
+                  )
+                },
               )}
             </StyledView>
           </StyledView>

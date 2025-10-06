@@ -321,8 +321,6 @@ const App: React.FC = () => {
             setModalVisible={setWorkoutModalVisible}
             prevExercise={prevExercise}
             nextExercise={nextExercise}
-            user={user}
-            isSetCompleted={isSetCompleted}
             activeExerciseId={currentWorkout?.exercises[currentExerciseIndex]?.id}
             jumpToSet={jumpToSet}
             resetSetsFrom={(exerciseId, setNumber) =>
