@@ -69,6 +69,7 @@ export interface DataHook {
     setNumber: number,
     user: FirebaseUser | null,
   ) => Promise<void>
+  arePreviousSetsCompleted: (exerciseId: string, setNumber: number) => boolean
   syncUserData: (
     firebaseUser: FirebaseUser,
     localSettings: Settings,
@@ -278,6 +279,25 @@ export const useData = (): DataHook => {
     [setCompletions, saveSetCompletions],
   )
 
+  const arePreviousSetsCompleted = useCallback(
+    (exerciseId: string, setNumber: number): boolean => {
+      if (setNumber <= 1) {
+        return true
+      }
+
+      const today = getLocalDateString()
+      const completion = setCompletions[exerciseId]
+
+      if (!completion || completion.date !== today) {
+        return false
+      }
+
+      const requiredSets = Array.from({ length: setNumber - 1 }, (_, i) => i + 1)
+      return requiredSets.every((s) => completion.completed.includes(s))
+    },
+    [setCompletions],
+  )
+
   const syncUserData = useCallback(
     async (
       firebaseUser: FirebaseUser,
@@ -361,6 +381,7 @@ export const useData = (): DataHook => {
     markSetAsCompleted,
     isSetCompleted,
     resetSetsFrom,
+    arePreviousSetsCompleted,
     syncUserData,
     setWorkouts,
     setSettings,

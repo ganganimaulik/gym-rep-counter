@@ -67,6 +67,7 @@ const App: React.FC = () => {
     markSetAsCompleted,
     isSetCompleted,
     resetSetsFrom,
+    arePreviousSetsCompleted,
   } = useData()
 
   const onAuthSuccess = useCallback(
@@ -264,6 +265,7 @@ const App: React.FC = () => {
             resetSetsFrom={(exerciseId, setNumber) =>
               resetSetsFrom(exerciseId, setNumber, user)
             }
+            arePreviousSetsCompleted={arePreviousSetsCompleted}
           />
 
           <MainDisplay

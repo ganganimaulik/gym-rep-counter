@@ -62,7 +62,7 @@ const Controls: React.FC<ControlsProps> = ({
               onPress={stopWorkout}
               className="p-4 bg-red-600 rounded-lg flex-1 items-center">
               <StyledText className="text-lg font-semibold text-white">
-                Restart
+                Restart Set
               </StyledText>
             </StyledTouchableOpacity>,
           ]
@@ -90,7 +90,7 @@ const Controls: React.FC<ControlsProps> = ({
             onPress={stopWorkout}
             className="p-4 bg-red-600 rounded-lg flex-1 items-center">
             <StyledText className="text-lg font-semibold text-white">
-              Restart
+              Restart Set
             </StyledText>
           </StyledTouchableOpacity>,
         ]

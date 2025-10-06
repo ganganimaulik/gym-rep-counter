@@ -61,6 +61,7 @@ interface WorkoutSelectorProps {
   activeExerciseId: string | undefined
   jumpToSet: (set: number) => void
   resetSetsFrom: (exerciseId: string, setNumber: number) => void
+  arePreviousSetsCompleted: (exerciseId: string, setNumber: number) => boolean
 }
 
 const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
@@ -76,6 +77,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   activeExerciseId,
   jumpToSet,
   resetSetsFrom,
+  arePreviousSetsCompleted,
 }) => {
   return (
     <StyledView className="bg-gray-700 rounded-lg p-4 space-y-4">
@@ -113,8 +115,16 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               }
               onSetPress={(setNumber) => {
                 if (activeExerciseId) {
-                  resetSetsFrom(activeExerciseId, setNumber)
-                  jumpToSet(setNumber)
+                  if (arePreviousSetsCompleted(activeExerciseId, setNumber)) {
+                    resetSetsFrom(activeExerciseId, setNumber)
+                    jumpToSet(setNumber)
+                  } else {
+                    // This is where you would provide feedback to the user
+                    // For example, using an alert or a toast message.
+                    // Since I don't have access to a toast library, I'll
+                    // just log to the console for now.
+                    console.log('Please complete previous sets first.')
+                  }
                 }
               }}
             />
