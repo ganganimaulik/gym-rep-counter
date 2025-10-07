@@ -127,6 +127,7 @@ const App: React.FC = () => {
     stopWorkout,
     jumpToRep,
     jumpToSet,
+    endSet,
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
@@ -147,7 +148,7 @@ const App: React.FC = () => {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        if (user && activeExercise) {
+        if (activeExercise) {
           fetchTodaysCompletions(user, activeExercise.id)
         }
       }
@@ -163,10 +164,10 @@ const App: React.FC = () => {
   }, [user, activeExercise, fetchTodaysCompletions])
 
   useEffect(() => {
-    if (user && activeExercise) {
+    if (activeExercise) {
       fetchTodaysCompletions(user, activeExercise.id)
     }
-  }, [user, activeExercise])
+  }, [user, activeExercise, fetchTodaysCompletions])
 
 
   useEffect(() => {
@@ -322,6 +323,7 @@ const App: React.FC = () => {
             }}
             stopWorkout={stopWorkout}
             pauseWorkout={pauseWorkout}
+            endSet={endSet}
           />
 
           <RepJumper

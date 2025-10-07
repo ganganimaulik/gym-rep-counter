@@ -59,6 +59,7 @@ export interface WorkoutTimerHook {
   runNextSet: () => void
   jumpToRep: (rep: number) => void
   jumpToSet: (set: number) => void
+  endSet: () => void
   setStatusText: (text: string) => void
   resetExerciseCompleteFlag: () => void
   continueToNextPhase: () => void
@@ -606,6 +607,7 @@ export function useWorkoutTimer(
       runNextSet,
       jumpToRep,
       jumpToSet,
+      endSet,
       setStatusText: (text: string) => {
         statusText.value = text
       },
@@ -620,9 +622,10 @@ export function useWorkoutTimer(
       startWorkout,
       pauseWorkout,
       stopWorkout,
-      runNextSet,,
+      runNextSet,
       jumpToRep,
       jumpToSet,
+      endSet,
       updateUI,
       continueToNextPhase,
     ],

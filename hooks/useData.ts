@@ -188,20 +188,40 @@ export const useData = (): DataHook => {
       set: number,
       user: FirebaseUser | null,
     ) => {
+      const newEntryData = {
+        ...entry,
+        set,
+        date: Timestamp.now(),
+      };
+
+      // For anonymous users, save to AsyncStorage
       if (!user) {
-        console.error('Cannot add history entry without a user.')
-        return
+        try {
+          const newEntry = { ...newEntryData, id: `local-${Date.now()}` };
+          const localCompletionsStr = await AsyncStorage.getItem('todaysCompletions');
+          const localCompletions = localCompletionsStr ? JSON.parse(localCompletionsStr) : [];
+
+          const today = getLocalDateString();
+          const todaysLocalCompletions = localCompletions.filter(item => {
+              const itemDate = new Timestamp(item.date.seconds, item.date.nanoseconds).toDate();
+              return getLocalDateString(itemDate) === today;
+          });
+
+          const updatedCompletions = [...todaysLocalCompletions, newEntry];
+
+          await AsyncStorage.setItem('todaysCompletions', JSON.stringify(updatedCompletions));
+          setTodaysCompletions(prev => [...prev, newEntry]);
+        } catch (e) {
+          console.error('Failed to save local history entry', e);
+        }
+        return;
       }
 
+      // For logged-in users, save to Firestore
       try {
         const historyCollectionRef = collection(db, 'users', user.uid, 'history')
-        const newEntry = {
-          ...entry,
-          set,
-          date: Timestamp.now(),
-        }
-        const docRef = await addDoc(historyCollectionRef, newEntry)
-        setTodaysCompletions(prev => [...prev, { ...newEntry, id: docRef.id }])
+        const docRef = await addDoc(historyCollectionRef, newEntryData)
+        setTodaysCompletions(prev => [...prev, { ...newEntryData, id: docRef.id }])
       } catch (e) {
         console.error('Failed to save history entry', e)
       }
@@ -239,10 +259,35 @@ export const useData = (): DataHook => {
 
   const fetchTodaysCompletions = useCallback(
     async (user: FirebaseUser | null, exerciseId: string) => {
+      // For anonymous users, load from AsyncStorage
       if (!user) {
-        setTodaysCompletions([])
-        return
+        try {
+          const localCompletionsStr = await AsyncStorage.getItem('todaysCompletions');
+          if (localCompletionsStr) {
+            const localCompletions: any[] = JSON.parse(localCompletionsStr);
+            const today = getLocalDateString();
+
+            const todaysSets = localCompletions
+              .filter(item => {
+                  const itemDate = new Timestamp(item.date.seconds, item.date.nanoseconds).toDate();
+                  return getLocalDateString(itemDate) === today && item.exerciseId === exerciseId;
+              })
+              .map(item => ({
+                ...item,
+                date: new Timestamp(item.date.seconds, item.date.nanoseconds)
+              }));
+            setTodaysCompletions(todaysSets);
+          } else {
+            setTodaysCompletions([]);
+          }
+        } catch (e) {
+          console.error("Failed to fetch today's local completions", e);
+          setTodaysCompletions([]);
+        }
+        return;
       }
+
+      // For logged-in users, load from Firestore
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const startOfToday = Timestamp.fromDate(today)
@@ -321,26 +366,41 @@ export const useData = (): DataHook => {
 
   const resetSetsFrom = useCallback(
     async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
-      if (!user) return
-
       const setsToRemove = todaysCompletions.filter(
         (c) => c.exerciseId === exerciseId && c.set >= setNumber,
-      )
-      if (setsToRemove.length === 0) return
+      );
+      if (setsToRemove.length === 0) return;
 
+      const remainingCompletions = todaysCompletions.filter(
+        (c) => !setsToRemove.some((r) => r.id === c.id),
+      );
+
+      // For anonymous users, update AsyncStorage
+      if (!user) {
+        try {
+          await AsyncStorage.setItem('todaysCompletions', JSON.stringify(remainingCompletions));
+          setTodaysCompletions(remainingCompletions);
+        } catch (e) {
+          console.error('Failed to reset local sets', e);
+        }
+        return;
+      }
+
+      // For logged-in users, update Firestore
       try {
-        const batch = writeBatch(db)
+        const batch = writeBatch(db);
         setsToRemove.forEach((s) => {
-          const docRef = doc(db, 'users', user.uid, 'history', s.id)
-          batch.delete(docRef)
-        })
-        await batch.commit()
+          // Ensure we don't try to delete local-only ids from firestore
+          if (!s.id.startsWith('local-')) {
+             const docRef = doc(db, 'users', user.uid, 'history', s.id);
+             batch.delete(docRef);
+          }
+        });
+        await batch.commit();
 
-        setTodaysCompletions((prev) =>
-          prev.filter((c) => !setsToRemove.some((r) => r.id === c.id)),
-        )
+        setTodaysCompletions(remainingCompletions);
       } catch (e) {
-        console.error('Failed to reset sets', e)
+        console.error('Failed to reset sets', e);
       }
     },
     [todaysCompletions],
