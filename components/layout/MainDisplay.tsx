@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, TextInput } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
 import Animated, {
   useAnimatedProps,
@@ -10,12 +10,14 @@ const StyledView = styled(View)
 const StyledText = styled(Text)
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput)
 const StyledAnimatedTextInput = styled(AnimatedTextInput)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 
 interface MainDisplayProps {
   statusText: SharedValue<string>
   currentRep: SharedValue<number>
   currentSet: SharedValue<number>
   phase: string
+  addCountdownTime: () => void
 }
 
 const MainDisplay: React.FC<MainDisplayProps> = ({
@@ -23,6 +25,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   currentRep,
   currentSet,
   phase,
+  addCountdownTime,
 }) => {
   const animatedRepProps = useAnimatedProps(() => {
     return {
@@ -42,14 +45,23 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
     }
   }, [])
 
+  const handlePress = () => {
+    if (phase === 'Get Ready') {
+      addCountdownTime()
+    }
+  }
+
   return (
     <StyledView className="items-center space-y-4">
-      <StyledAnimatedTextInput
-        className="text-2xl font-medium text-blue-400 text-center"
-        editable={false}
-        animatedProps={animatedStatusProps}
-        defaultValue={statusText.value}
-      />
+      <StyledTouchableOpacity onPress={handlePress}>
+        <StyledAnimatedTextInput
+          className="text-2xl font-medium text-blue-400 text-center"
+          editable={false}
+          pointerEvents="none"
+          animatedProps={animatedStatusProps}
+          defaultValue={statusText.value}
+        />
+      </StyledTouchableOpacity>
       <StyledView className="flex-row justify-center items-end space-x-4">
         <StyledView className="items-center">
           <StyledAnimatedTextInput

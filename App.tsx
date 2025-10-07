@@ -132,6 +132,7 @@ const App: React.FC = () => {
     setStatusText,
     resetExerciseCompleteFlag,
     continueToNextPhase,
+    addCountdownTime,
   } = useWorkoutTimer(
     settings,
     audioHandler,
@@ -308,6 +309,7 @@ const App: React.FC = () => {
             currentRep={currentRep}
             currentSet={currentSet}
             phase={phase}
+            addCountdownTime={addCountdownTime}
           />
 
           <Controls
