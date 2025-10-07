@@ -44,14 +44,15 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const loadHistory = useCallback(async () => {
-    if (!user || isLoading || !hasMore) return;
+    // The user check is removed as fetchHistory now supports guest users
+    if (isLoading || !hasMore) return;
 
     setIsLoading(true);
     const newHistory = await fetchHistory(user, lastVisible);
 
     if (newHistory.length > 0) {
       setLastVisible(newHistory[newHistory.length - 1]);
-      setHistory(isInitialLoad ? newHistory : (prev) => [...prev, ...newHistory]);
+      setHistory(isInitialLoad ? newHistory : prev => [...prev, ...newHistory]);
     } else {
       setHasMore(false);
     }
@@ -61,20 +62,20 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
 
   // Effect to reset state when the modal opens
   useEffect(() => {
-    if (visible && user) {
+    if (visible) {
       setHistory([]);
       setLastVisible(undefined);
       setHasMore(true);
       setIsInitialLoad(true);
     }
-  }, [visible, user]);
+  }, [visible]);
 
   // Effect to trigger the initial data load after state has been reset
   useEffect(() => {
-    if (visible && user && isInitialLoad) {
+    if (visible && isInitialLoad) {
       loadHistory();
     }
-  }, [visible, user, isInitialLoad, loadHistory]);
+  }, [visible, isInitialLoad, loadHistory]);
 
   const renderItem = ({ item }: { item: WorkoutSet }) => (
     <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
