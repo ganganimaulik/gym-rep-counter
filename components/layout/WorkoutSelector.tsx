@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Check,
 } from 'lucide-react-native'
+import Toast from 'react-native-toast-message'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
 
@@ -26,25 +27,17 @@ const SetTracker: React.FC<SetTrackerProps> = ({
   onSetPress,
 }) => (
   <StyledView className="flex-row justify-end items-center flex-wrap gap-2">
-    {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => {
-      const completed = isSetCompleted(setNumber)
-      return (
-        <StyledTouchableOpacity
-          key={setNumber}
-          onPress={() => onSetPress(setNumber)}
-          className={`w-6 h-6 rounded-full justify-center items-center ${
-            completed ? 'bg-green-500' : 'bg-gray-500'
-          }`}>
-          {completed ? (
-            <Check color="white" size={16} />
-          ) : (
-            <StyledText className="text-white text-xs font-bold">
-              {setNumber}
-            </StyledText>
-          )}
-        </StyledTouchableOpacity>
-      )
-    })}
+    {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => (
+      <StyledTouchableOpacity
+        key={setNumber}
+        onPress={() => onSetPress(setNumber)}
+        className="w-6 h-6 rounded-full justify-center items-center bg-gray-500"
+      >
+        <StyledText className="text-white text-xs font-bold">
+          {setNumber}
+        </StyledText>
+      </StyledTouchableOpacity>
+    ))}
   </StyledView>
 )
 
@@ -119,11 +112,11 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
                     resetSetsFrom(activeExerciseId, setNumber)
                     jumpToSet(setNumber)
                   } else {
-                    // This is where you would provide feedback to the user
-                    // For example, using an alert or a toast message.
-                    // Since I don't have access to a toast library, I'll
-                    // just log to the console for now.
-                    console.log('Please complete previous sets first.')
+                    Toast.show({
+                      type: 'error',
+                      text1: 'Cannot Skip Sets',
+                      text2: 'Please complete the previous sets first.',
+                    })
                   }
                 }
               }}
