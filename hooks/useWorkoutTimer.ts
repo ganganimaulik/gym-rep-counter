@@ -211,7 +211,9 @@ export function useWorkoutTimer(
   }, [clearTimer, displayRep, displaySet, updateUI, statusText])
 
   const continueToNextPhase = useCallback(() => {
-    const { maxSets } = settings
+    if (!activeExercise) return
+
+    const { sets: maxSets } = activeExercise
     const nextSet = wState.current.set + 1
 
     if (nextSet > maxSets) {
@@ -237,7 +239,7 @@ export function useWorkoutTimer(
       })
     }
   }, [
-    settings,
+    activeExercise,
     fullReset,
     updateUI,
     displayRep,
@@ -313,13 +315,16 @@ export function useWorkoutTimer(
   }, [settings, schedule, updateUI])
 
   const startEccentric = useCallback(() => {
+    if (!activeExercise) return
+
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
         : settings.eccentricSeconds
     wState.current.remainingTime = 0
 
-    const { eccentricCountdownEnabled, maxReps } = settings
+    const { eccentricCountdownEnabled } = settings
+    const { reps: maxReps } = activeExercise
     wState.current.phase = PHASES.ECCENTRIC
     wState.current.phaseStart = Date.now()
     wState.current.lastSpokenSecond = -1
@@ -363,6 +368,7 @@ export function useWorkoutTimer(
     }
   }, [
     settings,
+    activeExercise,
     speakEccentric,
     queueSpeak,
     schedule,
