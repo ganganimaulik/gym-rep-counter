@@ -1,13 +1,13 @@
 import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
+import Toast from 'react-native-toast-message'
 import {
   Edit,
   ChevronLeft,
   ChevronRight,
   Check,
 } from 'lucide-react-native'
-import Toast from 'react-native-toast-message'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
 
@@ -27,17 +27,25 @@ const SetTracker: React.FC<SetTrackerProps> = ({
   onSetPress,
 }) => (
   <StyledView className="flex-row justify-end items-center flex-wrap gap-2">
-    {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => (
-      <StyledTouchableOpacity
-        key={setNumber}
-        onPress={() => onSetPress(setNumber)}
-        className="w-6 h-6 rounded-full justify-center items-center bg-gray-500"
-      >
-        <StyledText className="text-white text-xs font-bold">
-          {setNumber}
-        </StyledText>
-      </StyledTouchableOpacity>
-    ))}
+    {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => {
+      const completed = isSetCompleted(setNumber)
+      return (
+        <StyledTouchableOpacity
+          key={setNumber}
+          onPress={() => onSetPress(setNumber)}
+          className={`w-6 h-6 rounded-full justify-center items-center ${
+            completed ? 'bg-green-500' : 'bg-gray-500'
+          }`}>
+          {completed ? (
+            <Check color="white" size={16} />
+          ) : (
+            <StyledText className="text-white text-xs font-bold">
+              {setNumber}
+            </StyledText>
+          )}
+        </StyledTouchableOpacity>
+      )
+    })}
   </StyledView>
 )
 
