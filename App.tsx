@@ -76,6 +76,7 @@ const App: React.FC = () => {
     addHistoryEntry,
     isSetCompleted,
     resetSetsFrom,
+    arePreviousSetsCompleted,
     getNextUncompletedSet,
     fetchTodaysCompletions,
   } = dataHook
