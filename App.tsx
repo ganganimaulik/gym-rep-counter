@@ -197,18 +197,6 @@ const App: React.FC = () => {
     resetExerciseCompleteFlag,
   ])
 
-  useEffect(() => {
-    if (currentWorkout && currentWorkout.exercises.length > 0) {
-      const exercise = currentWorkout.exercises[currentExerciseIndex]
-      if (exercise) {
-        setDataSettings((prev: Settings) => ({
-          ...prev,
-          maxReps: exercise.reps,
-          maxSets: exercise.sets,
-        }))
-      }
-    }
-  }, [currentWorkout, currentExerciseIndex, setDataSettings])
 
   const selectWorkout = (workoutId: string | null) => {
     stopWorkout()
@@ -335,7 +323,7 @@ const App: React.FC = () => {
           />
 
           <RepJumper
-            maxReps={settings.maxReps}
+            maxReps={activeExercise?.reps ?? settings.maxReps}
             currentRep={currentRep}
             jumpToRep={jumpToRep}
           />
@@ -382,7 +370,9 @@ const App: React.FC = () => {
           continueToNextPhase() // Continue even if canceled
         }}
         onSubmit={handleAddSetDetails}
-        initialReps={completedSetData?.reps ?? settings.maxReps}
+        initialReps={
+          completedSetData?.reps ?? activeExercise?.reps ?? settings.maxReps
+        }
       />
       <HistoryScreen
         visible={historyScreenVisible}
