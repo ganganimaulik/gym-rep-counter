@@ -63,6 +63,7 @@ export interface WorkoutTimerHook {
   resetExerciseCompleteFlag: () => void
   continueToNextPhase: () => void
   addCountdownTime: () => void
+  endSet: () => void
 }
 
 interface OnSetCompleteDetails {
@@ -246,7 +247,30 @@ export function useWorkoutTimer(
     startRest,
   ]);
 
+  const stopWorkout = useCallback(() => {
+    clearTimer()
+    wState.current.phase = PHASES.STOPPED
+    wState.current.rep = 0
+    wState.current.remainingTime = 0
+    wState.current.isJumping = false
+    displayRep.value = 0
+    updateUI({
+      isRunning: false,
+      isPaused: false,
+      phase: '',
+    })
+    statusText.value = `Press Start for Set ${wState.current.set}`
+  }, [clearTimer, displayRep, updateUI, statusText])
+
   const endSet = useCallback(() => {
+    if (
+      wState.current.phase === PHASES.COUNTDOWN ||
+      wState.current.phase === PHASES.REST
+    ) {
+      stopWorkout()
+      return
+    }
+
     clearTimer(false)
     if (activeExercise) {
       onSetComplete({
@@ -257,7 +281,7 @@ export function useWorkoutTimer(
     } else {
       fullReset()
     }
-  }, [activeExercise, onSetComplete, clearTimer, fullReset])
+  }, [activeExercise, onSetComplete, clearTimer, fullReset, stopWorkout])
 
   const startConcentric = useCallback(() => {
     const duration =
@@ -415,21 +439,6 @@ export function useWorkoutTimer(
     },
     [displayRep, displaySet],
   )
-
-  const stopWorkout = useCallback(() => {
-    clearTimer()
-    wState.current.phase = PHASES.STOPPED
-    wState.current.rep = 0
-    wState.current.remainingTime = 0
-    wState.current.isJumping = false
-    displayRep.value = 0
-    updateUI({
-      isRunning: false,
-      isPaused: false,
-      phase: '',
-    })
-    statusText.value = `Press Start for Set ${wState.current.set}`
-  }, [clearTimer, displayRep, updateUI, statusText])
 
   const startWorkout = useCallback(() => {
     if (ui.isRunning) return
@@ -619,6 +628,7 @@ export function useWorkoutTimer(
       resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),
       continueToNextPhase,
       addCountdownTime,
+      endSet,
     }),
     [
       displayRep,
@@ -628,7 +638,7 @@ export function useWorkoutTimer(
       startWorkout,
       pauseWorkout,
       stopWorkout,
-      runNextSet,,
+      runNextSet,
       jumpToRep,
       jumpToSet,
       updateUI,
