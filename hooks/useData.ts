@@ -201,13 +201,7 @@ export const useData = (): DataHook => {
           const localCompletionsStr = await AsyncStorage.getItem('todaysCompletions');
           const localCompletions = localCompletionsStr ? JSON.parse(localCompletionsStr) : [];
 
-          const today = getLocalDateString();
-          const todaysLocalCompletions = localCompletions.filter(item => {
-              const itemDate = new Timestamp(item.date.seconds, item.date.nanoseconds).toDate();
-              return getLocalDateString(itemDate) === today;
-          });
-
-          const updatedCompletions = [...todaysLocalCompletions, newEntry];
+          const updatedCompletions = [...localCompletions, newEntry];
 
           await AsyncStorage.setItem('todaysCompletions', JSON.stringify(updatedCompletions));
           setTodaysCompletions(prev => [...prev, newEntry]);
@@ -378,7 +372,14 @@ export const useData = (): DataHook => {
       // For anonymous users, update AsyncStorage
       if (!user) {
         try {
-          await AsyncStorage.setItem('todaysCompletions', JSON.stringify(remainingCompletions));
+          const allLocalCompletionsStr = await AsyncStorage.getItem('todaysCompletions');
+          const allLocalCompletions = allLocalCompletionsStr ? JSON.parse(allLocalCompletionsStr) : [];
+
+          const updatedCompletions = allLocalCompletions.filter(
+            (c: WorkoutSet) => !setsToRemove.some((r) => r.id === c.id),
+          );
+
+          await AsyncStorage.setItem('todaysCompletions', JSON.stringify(updatedCompletions));
           setTodaysCompletions(remainingCompletions);
         } catch (e) {
           console.error('Failed to reset local sets', e);

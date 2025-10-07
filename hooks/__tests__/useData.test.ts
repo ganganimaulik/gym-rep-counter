@@ -79,11 +79,16 @@ describe('useData Hook', () => {
   };
 
   let memoryStore = {};
+  let dateNowSpy;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockBatch.delete.mockClear();
     mockBatch.commit.mockClear();
+
+    // Mock Date.now() to ensure unique IDs for local entries
+    let time = 1;
+    dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => 1000000000000 + time++);
 
     // Mock AsyncStorage implementation
     memoryStore = {};
@@ -98,6 +103,10 @@ describe('useData Hook', () => {
       memoryStore = {};
       return Promise.resolve(null);
     });
+  });
+
+  afterEach(() => {
+    dateNowSpy.mockRestore();
   });
 
   describe('Settings', () => {
