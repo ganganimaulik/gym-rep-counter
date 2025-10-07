@@ -62,6 +62,7 @@ export interface WorkoutTimerHook {
   setStatusText: (text: string) => void
   resetExerciseCompleteFlag: () => void
   continueToNextPhase: () => void
+  addCountdownTime: () => void
 }
 
 interface OnSetCompleteDetails {
@@ -564,6 +565,12 @@ export function useWorkoutTimer(
     startCountdown()
   }, [clearTimer, updateUI, startCountdown])
 
+  const addCountdownTime = useCallback(() => {
+    if (wState.current.phase === PHASES.COUNTDOWN) {
+      wState.current.phaseStart -= 5000
+    }
+  }, [])
+
   useEffect(() => {
     clearTimer()
     if (activeExercise) {
@@ -625,6 +632,7 @@ export function useWorkoutTimer(
       jumpToSet,
       updateUI,
       continueToNextPhase,
+      addCountdownTime,
     ],
   )
 }
