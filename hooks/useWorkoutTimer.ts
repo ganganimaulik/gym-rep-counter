@@ -263,15 +263,23 @@ export function useWorkoutTimer(
   }, [clearTimer, displayRep, updateUI, statusText])
 
   const endSet = useCallback(() => {
-    if (
-      wState.current.phase === PHASES.COUNTDOWN ||
-      wState.current.phase === PHASES.REST
-    ) {
+    if (wState.current.phase === PHASES.REST) {
       stopWorkout()
       return
     }
 
-    clearTimer(false)
+    // If the user ends the set during the countdown, we need to stop the timer.
+    if (wState.current.phase === PHASES.COUNTDOWN) {
+      clearTimer()
+      wState.current.phase = PHASES.STOPPED
+      updateUI({
+        isRunning: false,
+        isPaused: false,
+        phase: '',
+      })
+    } else {
+      clearTimer(false)
+    }
     if (activeExercise) {
       onSetComplete({
         exerciseId: activeExercise.id,

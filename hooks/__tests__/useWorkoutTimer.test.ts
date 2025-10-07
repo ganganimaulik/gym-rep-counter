@@ -311,5 +311,48 @@ describe('useWorkoutTimer', () => {
       expect(result.current.currentSet.value).toBe(3)
       expect(result.current.statusText.value).toBe('Press Start for Set 3')
     })
+
+    it('should end the set and call onSetComplete when endSet is called during countdown', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      // Start the workout to enter the countdown phase
+      act(() => {
+        result.current.startWorkout()
+      })
+
+      // Ensure we are in the countdown phase
+      expect(result.current.phase).toBe('Get Ready')
+      expect(result.current.isRunning).toBe(true)
+
+      // Advance time slightly, but not enough to finish the countdown
+      act(() => {
+        jest.advanceTimersByTime(1000)
+      })
+
+      // End the set during the countdown
+      act(() => {
+        result.current.endSet()
+      })
+
+      // Check that onSetComplete was called with 0 reps
+      await waitFor(() => {
+        expect(mockOnSetComplete).toHaveBeenCalledWith({
+          exerciseId: activeExercise.id,
+          reps: 0, // Reps should be 0 as the set was ended during countdown
+          set: 1,
+        })
+      })
+
+      // Check that the timer is no longer running
+      expect(result.current.isRunning).toBe(false)
+    })
   })
 })
