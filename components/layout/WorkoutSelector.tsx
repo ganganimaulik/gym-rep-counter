@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
+import Toast from 'react-native-toast-message'
 import {
   Edit,
   ChevronLeft,
@@ -119,11 +120,11 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
                     resetSetsFrom(activeExerciseId, setNumber)
                     jumpToSet(setNumber)
                   } else {
-                    // This is where you would provide feedback to the user
-                    // For example, using an alert or a toast message.
-                    // Since I don't have access to a toast library, I'll
-                    // just log to the console for now.
-                    console.log('Please complete previous sets first.')
+                    Toast.show({
+                      type: 'error',
+                      text1: 'Cannot Skip Sets',
+                      text2: 'Please complete the previous sets first.',
+                    })
                   }
                 }
               }}

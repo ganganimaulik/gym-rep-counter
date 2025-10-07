@@ -34,6 +34,7 @@ import MainDisplay from './components/layout/MainDisplay'
 import Controls from './components/layout/Controls'
 import RepJumper from './components/layout/RepJumper'
 import AddSetDetailsModal from './components/AddSetDetailsModal'
+import Toast from 'react-native-toast-message'
 import HistoryScreen from './components/HistoryScreen'
 
 const StyledSafeAreaView = styled(SafeAreaView)
@@ -275,6 +276,7 @@ const App: React.FC = () => {
   return (
     <StyledSafeAreaView className="flex-1 bg-gray-900">
       <StatusBar barStyle="light-content" />
+      <Toast />
       <StyledScrollView
         className="flex-1 p-4"
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -314,8 +316,11 @@ const App: React.FC = () => {
             isPaused={isPaused}
             startWorkout={() => {
               if (activeExercise && isSetCompleted(activeExercise.id, startingSet)) {
-                setStatusText(`Set ${startingSet} is already done.`)
-                audioHandler.queueSpeak(`Set ${startingSet} is already completed.`)
+                Toast.show({
+                  type: 'info',
+                  text1: 'Set Already Completed',
+                  text2: `You have already completed set ${startingSet} for this exercise.`,
+                })
                 return
               }
               startWorkout()
