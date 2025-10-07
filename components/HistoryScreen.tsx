@@ -57,16 +57,23 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     setIsLoading(false);
   }, [user, isLoading, hasMore, lastVisible, fetchHistory]);
 
+  // Effect to reset state when the modal opens
   useEffect(() => {
-    // Initial load
     if (visible && user) {
-      // Reset state when opening
       setHistory([]);
       setLastVisible(undefined);
       setHasMore(true);
-      loadHistory();
     }
   }, [visible, user]);
+
+  // Effect to trigger the initial data load after state has been reset
+  useEffect(() => {
+    // Only run if the modal is visible, we have a user,
+    // there's no history yet, and we think there's more to load.
+    if (visible && user && hasMore && history.length === 0) {
+      loadHistory();
+    }
+  }, [visible, user, hasMore, history.length, loadHistory]);
 
   const renderItem = ({ item }: { item: WorkoutSet }) => (
     <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
