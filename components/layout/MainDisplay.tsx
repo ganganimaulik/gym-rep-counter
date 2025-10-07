@@ -57,6 +57,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
         <StyledAnimatedTextInput
           className="text-2xl font-medium text-blue-400 text-center"
           editable={false}
+          pointerEvents="none"
           animatedProps={animatedStatusProps}
           defaultValue={statusText.value}
         />

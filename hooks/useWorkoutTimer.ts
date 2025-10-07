@@ -618,6 +618,7 @@ export function useWorkoutTimer(
       },
       resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),
       continueToNextPhase,
+      addCountdownTime,
     }),
     [
       displayRep,
