@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { styled } from 'nativewind'
 import { useKeepAwake } from 'expo-keep-awake'
-import { Settings as SettingsIcon } from 'lucide-react-native'
+import { Settings as SettingsIcon, History } from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
@@ -33,6 +33,8 @@ import WorkoutSelector from './components/layout/WorkoutSelector'
 import MainDisplay from './components/layout/MainDisplay'
 import Controls from './components/layout/Controls'
 import RepJumper from './components/layout/RepJumper'
+import AddSetDetailsModal from './components/AddSetDetailsModal'
+import HistoryScreen from './components/HistoryScreen'
 
 const StyledSafeAreaView = styled(SafeAreaView)
 const StyledView = styled(View)
@@ -40,18 +42,28 @@ const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledScrollView = styled(ScrollView)
 
+interface CompletedSetData {
+  exerciseId: string
+  reps: number
+  set: number
+}
+
 const App: React.FC = () => {
   useKeepAwake()
 
   // UI State
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
   const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
+  const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
+  const [historyScreenVisible, setHistoryScreenVisible] = useState<boolean>(false)
+  const [completedSetData, setCompletedSetData] = useState<CompletedSetData | null>(null)
 
   // Workout State
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
 
   // Custom Hooks
+  const dataHook = useData()
   const {
     settings,
     workouts,
@@ -59,35 +71,28 @@ const App: React.FC = () => {
     saveSettings,
     loadWorkouts,
     saveWorkouts,
-    loadSetCompletions,
     syncUserData,
     setSettings: setDataSettings,
-    markSetAsCompleted,
+    addHistoryEntry,
     isSetCompleted,
     resetSetsFrom,
     arePreviousSetsCompleted,
     getNextUncompletedSet,
-  } = useData()
+    fetchTodaysCompletions,
+  } = dataHook
 
   const onAuthSuccess = useCallback(
     async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const localSettings = await loadSettings()
         const localWorkouts = await loadWorkouts()
-        const localSetCompletions = await loadSetCompletions()
-        await syncUserData(
-          firebaseUser,
-          localSettings,
-          localWorkouts,
-          localSetCompletions,
-        )
+        await syncUserData(firebaseUser, localSettings, localWorkouts)
       } else {
         await loadSettings()
         await loadWorkouts()
-        await loadSetCompletions()
       }
     },
-    [loadSettings, loadWorkouts, syncUserData, loadSetCompletions],
+    [loadSettings, loadWorkouts, syncUserData],
   )
 
   const {
@@ -99,8 +104,15 @@ const App: React.FC = () => {
   } = useAuth(onAuthSuccess)
 
   const audioHandler = useAudio(settings)
-
   const activeExercise = currentWorkout?.exercises[currentExerciseIndex]
+  const startingSet = activeExercise
+    ? getNextUncompletedSet(activeExercise.id)
+    : 1
+
+  const handleSetComplete = (details: CompletedSetData) => {
+    setCompletedSetData(details)
+    setAddSetModalVisible(true)
+  }
 
   const {
     currentRep,
@@ -113,25 +125,32 @@ const App: React.FC = () => {
     startWorkout,
     pauseWorkout,
     stopWorkout,
-    runNextSet,
     jumpToRep,
     jumpToSet,
-    endSet,
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
-  } = useWorkoutTimer(settings, audioHandler, activeExercise, user, {
-    markSetAsCompleted,
-    isSetCompleted,
-    getNextUncompletedSet,
-  })
+    continueToNextPhase,
+  } = useWorkoutTimer(
+    settings,
+    audioHandler,
+    activeExercise,
+    handleSetComplete,
+    startingSet,
+  )
 
-  // App State
   const appState = useRef<AppStateStatus>(AppState.currentState)
 
-  // --- Effects ---
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        if (user && activeExercise) {
+          fetchTodaysCompletions(user, activeExercise.id)
+        }
+      }
       appState.current = nextAppState
     })
 
@@ -141,7 +160,14 @@ const App: React.FC = () => {
       subscription.remove()
       disableBackgroundExecution()
     }
-  }, [])
+  }, [user, activeExercise, fetchTodaysCompletions])
+
+  useEffect(() => {
+    if (user && activeExercise) {
+      fetchTodaysCompletions(user, activeExercise.id)
+    }
+  }, [user, activeExercise])
+
 
   useEffect(() => {
     if (isExerciseComplete) {
@@ -182,18 +208,13 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, setDataSettings])
 
-  // --- Workout Management ---
   const selectWorkout = (workoutId: string | null) => {
-    // BUG FIX: Stop the workout and any timers *before* changing the workout state
-    // to prevent race conditions where effects run with stale data.
     stopWorkout()
-
     if (workoutId === null) {
       setCurrentWorkout(null)
       setCurrentExerciseIndex(0)
       return
     }
-
     const workout = workouts.find((w: Workout) => w.id === workoutId)
     setCurrentWorkout(workout || null)
     setCurrentExerciseIndex(0)
@@ -205,22 +226,14 @@ const App: React.FC = () => {
       currentExerciseIndex < currentWorkout.exercises.length - 1
     ) {
       stopWorkout()
-      const nextIndex = currentExerciseIndex + 1
-      setCurrentExerciseIndex(nextIndex)
-      audioHandler.speak(
-        `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
-      )
+      setCurrentExerciseIndex((prev) => prev + 1)
     }
   }
 
   const prevExercise = () => {
     if (currentWorkout && currentExerciseIndex > 0) {
       stopWorkout()
-      const prevIndex = currentExerciseIndex - 1
-      setCurrentExerciseIndex(prevIndex)
-      audioHandler.speak(
-        `Previous exercise: ${currentWorkout.exercises[prevIndex].name}`,
-      )
+      setCurrentExerciseIndex((prev) => prev - 1)
     }
   }
 
@@ -230,6 +243,25 @@ const App: React.FC = () => {
 
   const handleSaveWorkouts = (newWorkouts: Workout[]) => {
     saveWorkouts(newWorkouts, user)
+  }
+
+  const handleAddSetDetails = async (reps: number, weight: number) => {
+    if (completedSetData && user && activeExercise) {
+      await addHistoryEntry(
+        {
+          workoutId: currentWorkout!.id,
+          exerciseId: activeExercise.id,
+          exerciseName: activeExercise.name,
+          reps,
+          weight,
+        },
+        completedSetData.set,
+        user,
+      )
+      setAddSetModalVisible(false)
+      setCompletedSetData(null)
+      continueToNextPhase()
+    }
   }
 
   if (initializing) {
@@ -246,7 +278,8 @@ const App: React.FC = () => {
       <StyledScrollView
         className="flex-1 p-4"
         contentContainerStyle={{ paddingBottom: 40 }}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+      >
         <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-4 space-y-4">
           <UserProfile user={user} disconnectAccount={disconnectAccount} />
 
@@ -260,7 +293,7 @@ const App: React.FC = () => {
             prevExercise={prevExercise}
             nextExercise={nextExercise}
             isSetCompleted={isSetCompleted}
-            activeExerciseId={currentWorkout?.exercises[currentExerciseIndex]?.id}
+            activeExerciseId={activeExercise?.id}
             jumpToSet={jumpToSet}
             resetSetsFrom={(exerciseId, setNumber) =>
               resetSetsFrom(exerciseId, setNumber, user)
@@ -279,11 +312,16 @@ const App: React.FC = () => {
             isRunning={isRunning}
             isResting={isResting}
             isPaused={isPaused}
-            runNextSet={runNextSet}
-            startWorkout={startWorkout}
+            startWorkout={() => {
+              if (activeExercise && isSetCompleted(activeExercise.id, startingSet)) {
+                setStatusText(`Set ${startingSet} is already done.`)
+                audioHandler.queueSpeak(`Set ${startingSet} is already completed.`)
+                return
+              }
+              startWorkout()
+            }}
             stopWorkout={stopWorkout}
             pauseWorkout={pauseWorkout}
-            endSet={endSet}
           />
 
           <RepJumper
@@ -292,10 +330,18 @@ const App: React.FC = () => {
             jumpToRep={jumpToRep}
           />
 
-          <StyledView className="items-center">
+          <StyledView className="flex-row justify-center items-center space-x-6">
+            <StyledTouchableOpacity
+              onPress={() => setHistoryScreenVisible(true)}
+              className="flex-row items-center space-x-2"
+            >
+              <History color="#60a5fa" size={16} />
+              <StyledText className="text-blue-400">History</StyledText>
+            </StyledTouchableOpacity>
             <StyledTouchableOpacity
               onPress={() => setSettingsVisible(!settingsVisible)}
-              className="flex-row items-center space-x-2">
+              className="flex-row items-center space-x-2"
+            >
               <SettingsIcon color="#60a5fa" size={16} />
               <StyledText className="text-blue-400">Settings</StyledText>
             </StyledTouchableOpacity>
@@ -318,6 +364,21 @@ const App: React.FC = () => {
         user={user}
         disconnectAccount={disconnectAccount}
         isSigningIn={isSigningIn}
+      />
+      <AddSetDetailsModal
+        visible={addSetModalVisible}
+        onClose={() => {
+          setAddSetModalVisible(false)
+          continueToNextPhase() // Continue even if canceled
+        }}
+        onSubmit={handleAddSetDetails}
+        initialReps={completedSetData?.reps ?? settings.maxReps}
+      />
+      <HistoryScreen
+        visible={historyScreenVisible}
+        onClose={() => setHistoryScreenVisible(false)}
+        user={user}
+        dataHook={dataHook}
       />
     </StyledSafeAreaView>
   )

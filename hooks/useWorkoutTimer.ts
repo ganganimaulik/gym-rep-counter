@@ -6,7 +6,6 @@ import {
   enableBackgroundExecution,
 } from 'expo-background-timer'
 import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated'
-import type { User as FirebaseUser } from 'firebase/auth'
 import { Settings, Exercise } from './useData'
 import { AudioHandler } from './useAudio'
 
@@ -35,16 +34,6 @@ interface UIState {
   phase: string
 }
 
-interface DataHandlers {
-  markSetAsCompleted: (
-    exerciseId: string,
-    setNumber: number,
-    user: FirebaseUser | null,
-  ) => Promise<void>
-  isSetCompleted: (exerciseId: string, setNumber: number) => boolean
-  getNextUncompletedSet: (exerciseId: string) => number
-}
-
 interface WorkoutState {
   rep: number
   set: number
@@ -70,9 +59,15 @@ export interface WorkoutTimerHook {
   runNextSet: () => void
   jumpToRep: (rep: number) => void
   jumpToSet: (set: number) => void
-  endSet: () => void
   setStatusText: (text: string) => void
   resetExerciseCompleteFlag: () => void
+  continueToNextPhase: () => void
+}
+
+interface OnSetCompleteDetails {
+  exerciseId: string;
+  reps: number;
+  set: number;
 }
 
 // Hook
@@ -80,12 +75,10 @@ export function useWorkoutTimer(
   settings: Settings,
   handlers: AudioHandler,
   activeExercise: Exercise | undefined,
-  user: FirebaseUser | null,
-  dataHandlers: DataHandlers,
+  onSetComplete: (details: OnSetCompleteDetails) => void,
+  startingSet: number,
 ): WorkoutTimerHook {
   const { queueSpeak, speakEccentric } = handlers
-  const { markSetAsCompleted, isSetCompleted, getNextUncompletedSet } =
-    dataHandlers
 
   useEffect(() => {
     enableBackgroundExecution()
@@ -108,7 +101,7 @@ export function useWorkoutTimer(
 
   const wState = useRef<WorkoutState>({
     rep: 0,
-    set: 1,
+    set: startingSet,
     phase: PHASES.STOPPED,
     phaseStart: Date.now(),
     remainingTime: 0,
@@ -153,64 +146,117 @@ export function useWorkoutTimer(
     [clearTimer],
   )
 
-  const startCountdown = useCallback(() => {
+    const startRest = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
-        : settings.countdownSeconds
+        : settings.restSeconds
     wState.current.remainingTime = 0
 
-    wState.current.phase = PHASES.COUNTDOWN
+    wState.current.phase = PHASES.REST
     wState.current.phaseStart = Date.now()
     wState.current.lastSpokenSecond = -1
-    updateUI({ phase: 'Get Ready' })
-
-    if (!ui.isPaused) {
-      queueSpeak('Get ready.', { priority: true })
-    }
 
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000
       const remaining = duration - elapsed
       const whole = Math.ceil(remaining)
 
-      statusText.value = `Get Ready… ${Math.max(0, whole)}`
+      statusText.value = `Rest: ${Math.max(0, whole)}s`
 
-      if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
-        wState.current.lastSpokenSecond = whole
-        if (whole <= 10) {
-          queueSpeak(String(whole))
+      if (remaining > 0) {
+        if (
+          whole <= 3 &&
+          whole > 0 &&
+          whole !== wState.current.lastSpokenSecond
+        ) {
+          wState.current.lastSpokenSecond = whole
         }
-      }
-
-      if (remaining <= 0) {
-        queueSpeak('Go!', { priority: true })
-        if (!wState.current.isJumping && wState.current.rep === 0) {
-          wState.current.rep = 1
-          queueSpeak('1')
-        }
-        displayRep.value = wState.current.rep
-        updateUI({
-          phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
-        })
-        statusText.value = 'In Progress'
-        startConcentric()
+        schedule(1000 - (Date.now() % 1000), tick)
       } else {
-        const stopSpeech = false
-        schedule(1000 - (Date.now() % 1000), tick, stopSpeech)
+        clearTimer()
+        statusText.value = `Press Start for Set ${wState.current.set}`
+        queueSpeak(
+          `Rest complete. Press start for set ${wState.current.set}.`,
+          {
+            priority: true,
+          },
+        )
       }
     }
     tick()
+  }, [settings, queueSpeak, schedule, clearTimer, statusText])
+
+  const fullReset = useCallback(() => {
+    clearTimer()
+    wState.current = {
+      rep: 0,
+      set: 1,
+      phase: PHASES.STOPPED,
+      phaseStart: Date.now(),
+      remainingTime: 0,
+      lastSpokenSecond: -1,
+      isJumping: false,
+    }
+    displayRep.value = 0
+    displaySet.value = 1
+    updateUI({
+      isRunning: false,
+      isPaused: false,
+      phase: '',
+    })
+    statusText.value = 'Press Start'
+  }, [clearTimer, displayRep, displaySet, updateUI, statusText])
+
+  const continueToNextPhase = useCallback(() => {
+    const { maxSets } = settings
+    const nextSet = wState.current.set + 1
+
+    if (nextSet > maxSets) {
+      fullReset()
+      updateUI({
+        isExerciseComplete: true,
+      })
+      statusText.value = 'Exercise Complete!'
+    } else {
+      wState.current.set = nextSet
+      wState.current.rep = 0
+      displaySet.value = nextSet
+      displayRep.value = 0
+
+      updateUI({
+        isRunning: false,
+        isPaused: false,
+        phase: PHASE_DISPLAY[PHASES.REST],
+      })
+      queueSpeak(`Set complete. Rest now.`, {
+        priority: true,
+        onDone: startRest,
+      })
+    }
   }, [
     settings,
-    ui.isPaused,
-    queueSpeak,
-    schedule,
+    fullReset,
     updateUI,
     displayRep,
+    displaySet,
+    queueSpeak,
     statusText,
-    startConcentric,
-  ])
+    startRest,
+  ]);
+
+  const endSet = useCallback(() => {
+    clearTimer(false)
+    if (activeExercise) {
+      onSetComplete({
+        exerciseId: activeExercise.id,
+        reps: wState.current.rep,
+        set: wState.current.set,
+      })
+    } else {
+      fullReset()
+    }
+  }, [activeExercise, onSetComplete, clearTimer, fullReset])
 
   const startConcentric = useCallback(() => {
     const duration =
@@ -293,52 +339,70 @@ export function useWorkoutTimer(
     startConcentric,
   ])
 
-  const startRest = useCallback(() => {
+  const startCountdown = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
-        : settings.restSeconds
+        : settings.countdownSeconds
     wState.current.remainingTime = 0
 
-    wState.current.phase = PHASES.REST
+    wState.current.phase = PHASES.COUNTDOWN
     wState.current.phaseStart = Date.now()
     wState.current.lastSpokenSecond = -1
+    updateUI({ phase: 'Get Ready' })
+
+    if (!ui.isPaused) {
+      queueSpeak('Get ready.', { priority: true })
+    }
 
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000
       const remaining = duration - elapsed
       const whole = Math.ceil(remaining)
 
-      statusText.value = `Rest: ${Math.max(0, whole)}s`
+      statusText.value = `Get Ready… ${Math.max(0, whole)}`
 
-      if (remaining > 0) {
-        if (
-          whole <= 3 &&
-          whole > 0 &&
-          whole !== wState.current.lastSpokenSecond
-        ) {
-          wState.current.lastSpokenSecond = whole
+      if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
+        wState.current.lastSpokenSecond = whole
+        if (whole <= 10) {
+          queueSpeak(String(whole))
         }
-        schedule(1000 - (Date.now() % 1000), tick)
+      }
+
+      if (remaining <= 0) {
+        queueSpeak('Go!', { priority: true })
+        if (!wState.current.isJumping && wState.current.rep === 0) {
+          wState.current.rep = 1
+          queueSpeak('1')
+        }
+        displayRep.value = wState.current.rep
+        updateUI({
+          phase: PHASE_DISPLAY[PHASES.CONCENTRIC],
+        })
+        statusText.value = 'In Progress'
+        startConcentric()
       } else {
-        clearTimer()
-        statusText.value = `Press Start for Set ${wState.current.set}`
-        queueSpeak(
-          `Rest complete. Press start for set ${wState.current.set}.`,
-          {
-            priority: true,
-          },
-        )
+        const stopSpeech = false
+        schedule(1000 - (Date.now() % 1000), tick, stopSpeech)
       }
     }
     tick()
-  }, [settings, queueSpeak, schedule, clearTimer, statusText])
+  }, [
+    settings,
+    ui.isPaused,
+    queueSpeak,
+    schedule,
+    updateUI,
+    displayRep,
+    statusText,
+    startConcentric,
+  ])
 
   const resetInternalState = useCallback(
-    (startingSet = 1) => {
+    (newStartingSet = 1) => {
       wState.current = {
         rep: 0,
-        set: startingSet,
+        set: newStartingSet,
         phase: PHASES.STOPPED,
         phaseStart: Date.now(),
         remainingTime: 0,
@@ -346,21 +410,10 @@ export function useWorkoutTimer(
         isJumping: false,
       }
       displayRep.value = 0
-      displaySet.value = startingSet
+      displaySet.value = newStartingSet
     },
     [displayRep, displaySet],
   )
-
-  const fullReset = useCallback(() => {
-    clearTimer()
-    resetInternalState()
-    updateUI({
-      isRunning: false,
-      isPaused: false,
-      phase: '',
-    })
-    statusText.value = 'Press Start'
-  }, [clearTimer, resetInternalState, updateUI, statusText])
 
   const stopWorkout = useCallback(() => {
     clearTimer()
@@ -377,63 +430,8 @@ export function useWorkoutTimer(
     statusText.value = `Press Start for Set ${wState.current.set}`
   }, [clearTimer, displayRep, updateUI, statusText])
 
-  const endSet = useCallback(() => {
-    if (activeExercise) {
-      markSetAsCompleted(activeExercise.id, wState.current.set, user)
-    }
-
-    const { maxSets } = settings
-    clearTimer(false)
-    const nextSet = wState.current.set + 1
-
-    if (nextSet > maxSets) {
-      fullReset()
-      updateUI({
-        isExerciseComplete: true,
-      })
-      statusText.value = 'Exercise Complete!'
-    } else {
-      wState.current.set = nextSet
-      wState.current.rep = 0
-      displaySet.value = nextSet
-      displayRep.value = 0
-
-      updateUI({
-        isRunning: false,
-        isPaused: false,
-        phase: PHASE_DISPLAY[PHASES.REST],
-      })
-      queueSpeak(`Set complete. Rest now.`, {
-        priority: true,
-        onDone: startRest,
-      })
-    }
-  }, [
-    settings,
-    clearTimer,
-    fullReset,
-    updateUI,
-    displayRep,
-    displaySet,
-    queueSpeak,
-    statusText,
-    startRest,
-    activeExercise,
-    user,
-    markSetAsCompleted,
-  ])
-
   const startWorkout = useCallback(() => {
     if (ui.isRunning) return
-
-    if (
-      activeExercise &&
-      isSetCompleted(activeExercise.id, wState.current.set)
-    ) {
-      statusText.value = `Set ${wState.current.set} is already done.`
-      queueSpeak(`Set ${wState.current.set} is already completed for today.`)
-      return
-    }
 
     if (statusText.value === 'Exercise Complete!') {
       resetInternalState()
@@ -450,10 +448,7 @@ export function useWorkoutTimer(
     startCountdown()
   }, [
     ui.isRunning,
-    activeExercise,
-    isSetCompleted,
     statusText,
-    queueSpeak,
     resetInternalState,
     updateUI,
     displayRep,
@@ -563,48 +558,29 @@ export function useWorkoutTimer(
   )
 
   const runNextSet = useCallback(() => {
-    if (
-      activeExercise &&
-      isSetCompleted(activeExercise.id, wState.current.set)
-    ) {
-      statusText.value = `Set ${wState.current.set} is already done.`
-      queueSpeak(`Set ${wState.current.set} is already completed for today.`)
-      return
-    }
-
     clearTimer()
     wState.current.isJumping = false
     updateUI({ isRunning: true, isPaused: false })
     startCountdown()
-  }, [
-    clearTimer,
-    updateUI,
-    queueSpeak,
-    startCountdown,
-    activeExercise,
-    isSetCompleted,
-    statusText,
-  ])
+  }, [clearTimer, updateUI, startCountdown])
 
-  // Reset state and set the starting set when the active exercise changes
   useEffect(() => {
-    clearTimer() // Always clear timer when exercise changes
+    clearTimer()
     if (activeExercise) {
-      const nextSet = getNextUncompletedSet(activeExercise.id)
-      resetInternalState(nextSet)
+      resetInternalState(startingSet)
       updateUI({
         isRunning: false,
         isPaused: false,
         phase: '',
         isExerciseComplete: false,
       })
-      statusText.value = `Press Start for Set ${nextSet}`
+      statusText.value = `Press Start for Set ${startingSet}`
     } else {
       fullReset()
     }
   }, [
     activeExercise,
-    getNextUncompletedSet,
+    startingSet,
     resetInternalState,
     fullReset,
     updateUI,
@@ -630,11 +606,11 @@ export function useWorkoutTimer(
       runNextSet,
       jumpToRep,
       jumpToSet,
-      endSet,
       setStatusText: (text: string) => {
         statusText.value = text
       },
       resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),
+      continueToNextPhase,
     }),
     [
       displayRep,
@@ -644,11 +620,11 @@ export function useWorkoutTimer(
       startWorkout,
       pauseWorkout,
       stopWorkout,
-      runNextSet,
+      runNextSet,,
       jumpToRep,
       jumpToSet,
-      endSet,
       updateUI,
+      continueToNextPhase,
     ],
   )
 }
