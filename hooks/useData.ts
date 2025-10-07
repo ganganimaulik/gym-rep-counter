@@ -216,17 +216,26 @@ export const useData = (): DataHook => {
             date: Timestamp.now(),
           }
 
+          // Save to today's completions
           const todayKey = `todaysCompletions-${getLocalDateString()}`
           const savedCompletionsRaw = await AsyncStorage.getItem(todayKey)
           const savedCompletions = savedCompletionsRaw
             ? JSON.parse(savedCompletionsRaw)
             : []
-
           const updatedCompletions = [...savedCompletions, newEntry]
           await AsyncStorage.setItem(
             todayKey,
             JSON.stringify(updatedCompletions),
           )
+
+          // Save to full history
+          const historyKey = 'guestHistory'
+          const savedHistoryRaw = await AsyncStorage.getItem(historyKey)
+          const savedHistory = savedHistoryRaw
+            ? JSON.parse(savedHistoryRaw)
+            : []
+          const updatedHistory = [...savedHistory, newEntry]
+          await AsyncStorage.setItem(historyKey, JSON.stringify(updatedHistory))
 
           setTodaysCompletions(prev => [...prev, newEntry])
         } catch (e) {
@@ -238,28 +247,59 @@ export const useData = (): DataHook => {
   )
 
   const fetchHistory = useCallback(
-    async (user: FirebaseUser, lastVisible?: WorkoutSet) => {
-      if (!user) return []
+    async (user: FirebaseUser | null, lastVisible?: WorkoutSet) => {
+      if (user) {
+        try {
+          const historyCollectionRef = collection(
+            db,
+            'users',
+            user.uid,
+            'history',
+          )
+          const q = query(
+            historyCollectionRef,
+            orderBy('date', 'desc'),
+            limit(20),
+            ...(lastVisible ? [startAfter(lastVisible.date)] : []),
+          )
 
-      try {
-        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
-        const q = query(
-          historyCollectionRef,
-          orderBy('date', 'desc'),
-          limit(20),
-          ...(lastVisible ? [startAfter(lastVisible.date)] : []),
-        )
+          const querySnapshot = await getDocs(q)
+          const newHistory = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as WorkoutSet[]
 
-        const querySnapshot = await getDocs(q)
-        const newHistory = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as WorkoutSet[]
+          return newHistory
+        } catch (e) {
+          console.error('Failed to fetch history', e)
+          return []
+        }
+      } else {
+        // Guest user
+        try {
+          const historyKey = 'guestHistory'
+          const savedHistoryRaw = await AsyncStorage.getItem(historyKey)
+          if (!savedHistoryRaw) return []
 
-        return newHistory
-      } catch (e) {
-        console.error('Failed to fetch history', e)
-        return []
+          const allHistory = JSON.parse(savedHistoryRaw)
+            .map((item: any) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .sort((a: WorkoutSet, b: WorkoutSet) => b.date.toMillis() - a.date.toMillis())
+
+          const startIndex = lastVisible
+            ? allHistory.findIndex((item: WorkoutSet) => item.id === lastVisible.id) + 1
+            : 0
+
+          if (startIndex >= allHistory.length) return [];
+
+          const newHistory = allHistory.slice(startIndex, startIndex + 20)
+          return newHistory
+        } catch (e) {
+          console.error('Failed to fetch guest history', e)
+          return []
+        }
       }
     },
     [],
@@ -401,24 +441,41 @@ export const useData = (): DataHook => {
         }
       } else {
         // Guest user
-        setTodaysCompletions(prev =>
-          prev.filter(c => c.exerciseId !== exerciseId || c.set < setNumber),
+        const setsToKeep = todaysCompletions.filter(
+          c => c.exerciseId !== exerciseId || c.set < setNumber,
         )
+        setTodaysCompletions(setsToKeep)
 
         try {
+          // Update today's completions in AsyncStorage
           const todayKey = `todaysCompletions-${getLocalDateString()}`
           const savedCompletionsRaw = await AsyncStorage.getItem(todayKey)
-          if (!savedCompletionsRaw) return
+          if (savedCompletionsRaw) {
+            const allCompletions = JSON.parse(savedCompletionsRaw)
+            const updatedCompletions = allCompletions.filter(
+              (c: WorkoutSet) =>
+                c.exerciseId !== exerciseId || c.set < setNumber,
+            )
+            await AsyncStorage.setItem(
+              todayKey,
+              JSON.stringify(updatedCompletions),
+            )
+          }
 
-          const allCompletions = JSON.parse(savedCompletionsRaw)
-          const setsToKeepInStorage = allCompletions.filter(
-            (c: WorkoutSet) => c.exerciseId !== exerciseId || c.set < setNumber,
-          )
-
-          await AsyncStorage.setItem(
-            todayKey,
-            JSON.stringify(setsToKeepInStorage),
-          )
+          // Update full history in AsyncStorage
+          const historyKey = 'guestHistory'
+          const savedHistoryRaw = await AsyncStorage.getItem(historyKey)
+          if (savedHistoryRaw) {
+            const allHistory = JSON.parse(savedHistoryRaw)
+            const updatedHistory = allHistory.filter(
+              (c: WorkoutSet) =>
+                c.exerciseId !== exerciseId || c.set < setNumber,
+            )
+            await AsyncStorage.setItem(
+              historyKey,
+              JSON.stringify(updatedHistory),
+            )
+          }
         } catch (e) {
           console.error('Failed to reset guest sets', e)
         }
