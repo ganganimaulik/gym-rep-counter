@@ -197,6 +197,19 @@ const App: React.FC = () => {
     resetExerciseCompleteFlag,
   ])
 
+  // This effect synchronizes the `currentWorkout` state with the `workouts` list.
+  // If the `workouts` list is updated (e.g., after an edit), this ensures
+  // the `currentWorkout` reflects those changes.
+  useEffect(() => {
+    setCurrentWorkout(prevWorkout => {
+      if (prevWorkout) {
+        const updatedWorkout = workouts.find(w => w.id === prevWorkout.id)
+        return updatedWorkout || null
+      }
+      return null
+    })
+  }, [workouts])
+
 
   const selectWorkout = (workoutId: string | null) => {
     stopWorkout()
