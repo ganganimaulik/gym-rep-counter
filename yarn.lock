@@ -4146,6 +4146,11 @@ expo-background-timer@^0.2.0:
   resolved "https://registry.yarnpkg.com/expo-background-timer/-/expo-background-timer-0.2.0.tgz#e8e94d7d832ead58ea041704a1259c366fe9efd4"
   integrity sha512-/cIXnuia3oYUrQerQCG1NsObkXNIjfKF9hTg2oflAw05TQ/zXgLj/lj6Lj9rHz0jQpns7u2AxHy3DEdR24s0hA==
 
+expo-blur@^15.0.7:
+  version "15.0.7"
+  resolved "https://registry.yarnpkg.com/expo-blur/-/expo-blur-15.0.7.tgz#a11466e697fbf2b272444a38722065e60d0ecbe5"
+  integrity sha512-SugQQbQd+zRPy8z2G5qDD4NqhcD7srBF7fN7O7yq6q7ZFK59VWvpDxtMoUkmSfdxgqONsrBN/rLdk00USADrMg==
+
 expo-constants@~18.0.9:
   version "18.0.9"
   resolved "https://registry.yarnpkg.com/expo-constants/-/expo-constants-18.0.9.tgz#fcaf37e97ea2b928bd3b92f2ea9836984ab6e48b"
