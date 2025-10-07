@@ -176,7 +176,13 @@ describe('useData Hook', () => {
       const { result } = renderHook(() => useData())
       ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
 
-      const entry = { workoutId, exerciseId, reps: 10, weight: 50 }
+      const entry = {
+        workoutId,
+        exerciseId,
+        exerciseName: 'Test Exercise',
+        reps: 10,
+        weight: 50,
+      }
       const setNumber = 1
 
       await act(async () => {
@@ -219,7 +225,13 @@ describe('useData Hook', () => {
       await act(async () => {
         ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc1' })
         await result.current.addHistoryEntry(
-          { workoutId, exerciseId, reps: 10, weight: 50 },
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
           1,
           mockUser,
         )
@@ -235,7 +247,13 @@ describe('useData Hook', () => {
 
       await act(async () => {
         await result.current.addHistoryEntry(
-          { workoutId, exerciseId, reps: 10, weight: 50 },
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
           1,
           mockUser,
         )
@@ -244,7 +262,13 @@ describe('useData Hook', () => {
 
       await act(async () => {
         await result.current.addHistoryEntry(
-          { workoutId, exerciseId, reps: 10, weight: 50 },
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
           3,
           mockUser,
         )
@@ -253,7 +277,13 @@ describe('useData Hook', () => {
 
       await act(async () => {
         await result.current.addHistoryEntry(
-          { workoutId, exerciseId, reps: 10, weight: 50 },
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
           2,
           mockUser,
         )
@@ -266,17 +296,35 @@ describe('useData Hook', () => {
 
       await act(async () => {
         result.current.addHistoryEntry(
-          { workoutId, exerciseId, reps: 10, weight: 50 },
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
           1,
           mockUser,
         )
         result.current.addHistoryEntry(
-          { workoutId, exerciseId, reps: 10, weight: 50 },
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
           2,
           mockUser,
         )
         result.current.addHistoryEntry(
-          { workoutId, exerciseId, reps: 10, weight: 50 },
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
           3,
           mockUser,
         )

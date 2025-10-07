@@ -251,6 +251,7 @@ const App: React.FC = () => {
         {
           workoutId: currentWorkout!.id,
           exerciseId: activeExercise.id,
+          exerciseName: activeExercise.name,
           reps,
           weight,
         },
@@ -378,7 +379,6 @@ const App: React.FC = () => {
         onClose={() => setHistoryScreenVisible(false)}
         user={user}
         dataHook={dataHook}
-        workouts={workouts}
       />
     </StyledSafeAreaView>
   )

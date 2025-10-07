@@ -15,7 +15,6 @@ import { X } from 'lucide-react-native';
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { WorkoutSet } from '../declarations';
 import { DataHook } from '../hooks/useData';
-import { Workout } from '../hooks/useData';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -27,7 +26,6 @@ interface HistoryScreenProps {
   onClose: () => void;
   user: FirebaseUser | null;
   dataHook: DataHook;
-  workouts: Workout[];
 }
 
 const HistoryScreen: React.FC<HistoryScreenProps> = ({
@@ -35,7 +33,6 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   onClose,
   user,
   dataHook,
-  workouts,
 }) => {
   const { fetchHistory } = dataHook;
   const [history, setHistory] = useState<WorkoutSet[]>([]);
@@ -71,18 +68,10 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     }
   }, [visible, user]);
 
-  const getExerciseName = (exerciseId: string) => {
-    for (const workout of workouts) {
-      const exercise = workout.exercises.find((ex) => ex.id === exerciseId);
-      if (exercise) return exercise.name;
-    }
-    return 'Unknown Exercise';
-  };
-
   const renderItem = ({ item }: { item: WorkoutSet }) => (
     <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
       <StyledText className="text-white font-bold text-lg">
-        {getExerciseName(item.exerciseId)}
+        {item.exerciseName}
       </StyledText>
       <StyledText className="text-gray-300">
         {item.reps} reps at {item.weight} kg

@@ -61,8 +61,9 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   addHistoryEntry: (
-    entry: Omit<WorkoutSet, 'id' | 'date'>,
-    user: FirebaseUser,
+    entry: Omit<WorkoutSet, 'id' | 'date' | 'set'>,
+    set: number,
+    user: FirebaseUser | null,
   ) => Promise<void>
   fetchHistory: (
     user: FirebaseUser,
