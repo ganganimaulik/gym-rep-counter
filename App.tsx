@@ -307,6 +307,7 @@ const App: React.FC = () => {
             currentRep={currentRep}
             currentSet={currentSet}
             phase={phase}
+            addCountdownTime={addCountdownTime}
           />
 
           <Controls
@@ -323,8 +324,6 @@ const App: React.FC = () => {
             }}
             stopWorkout={stopWorkout}
             pauseWorkout={pauseWorkout}
-            addCountdownTime={addCountdownTime}
-            phase={phase}
           />
 
           <RepJumper

@@ -15,8 +15,6 @@ interface ControlsProps {
   stopWorkout: () => void
   pauseWorkout: () => void
   endSet: () => void
-  addCountdownTime: () => void
-  phase: string
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -28,8 +26,6 @@ const Controls: React.FC<ControlsProps> = ({
   stopWorkout,
   pauseWorkout,
   endSet,
-  addCountdownTime,
-  phase,
 }) => {
   return (
     <StyledView className="flex-row gap-4">
@@ -62,34 +58,6 @@ const Controls: React.FC<ControlsProps> = ({
               className="p-4 bg-red-600 rounded-lg flex-1 items-center">
               <StyledText className="text-lg font-semibold text-white">
                 Restart
-              </StyledText>
-            </StyledTouchableOpacity>,
-          ]
-        }
-        if (phase === 'Get Ready') {
-          return [
-            <StyledTouchableOpacity
-              key="add-5s"
-              onPress={addCountdownTime}
-              className="p-4 bg-blue-500 rounded-lg flex-1 items-center">
-              <StyledText className="text-lg font-semibold text-white">
-                Add 5s
-              </StyledText>
-            </StyledTouchableOpacity>,
-            <StyledTouchableOpacity
-              key="pause-countdown"
-              onPress={pauseWorkout}
-              className="p-4 bg-yellow-500 rounded-lg flex-1 items-center">
-              <StyledText className="text-lg font-semibold text-white">
-                Pause
-              </StyledText>
-            </StyledTouchableOpacity>,
-            <StyledTouchableOpacity
-              key="stop-countdown"
-              onPress={stopWorkout}
-              className="p-4 bg-red-600 rounded-lg flex-1 items-center">
-              <StyledText className="text-lg font-semibold text-white">
-                Cancel
               </StyledText>
             </StyledTouchableOpacity>,
           ]
