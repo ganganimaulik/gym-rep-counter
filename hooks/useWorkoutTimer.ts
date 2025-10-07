@@ -567,7 +567,7 @@ export function useWorkoutTimer(
 
   const addCountdownTime = useCallback(() => {
     if (wState.current.phase === PHASES.COUNTDOWN) {
-      wState.current.phaseStart -= 5000
+      wState.current.phaseStart += 5000
     }
   }, [])
 
