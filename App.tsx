@@ -1,4 +1,15 @@
 import 'react-native-gesture-handler'
+import {
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
+} from 'react-native-reanimated'
+
+// This is the default configuration
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false, // Reanimated runs in strict mode by default
+})
+
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   SafeAreaView,
@@ -56,8 +67,10 @@ const App: React.FC = () => {
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
   const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
   const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
-  const [historyScreenVisible, setHistoryScreenVisible] = useState<boolean>(false)
-  const [completedSetData, setCompletedSetData] = useState<CompletedSetData | null>(null)
+  const [historyScreenVisible, setHistoryScreenVisible] =
+    useState<boolean>(false)
+  const [completedSetData, setCompletedSetData] =
+    useState<CompletedSetData | null>(null)
 
   // Workout State
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
@@ -145,7 +158,7 @@ const App: React.FC = () => {
   const appState = useRef<AppStateStatus>(AppState.currentState)
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
@@ -180,6 +193,9 @@ const App: React.FC = () => {
         const nextIndex = currentExerciseIndex + 1
         setCurrentExerciseIndex(nextIndex)
         audioHandler.speak(
+          `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
+        )
+        console.log(
           `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
         )
       } else {
@@ -283,8 +299,7 @@ const App: React.FC = () => {
       <StyledScrollView
         className="flex-1 p-4"
         contentContainerStyle={{ paddingBottom: 40 }}
-        keyboardShouldPersistTaps="handled"
-      >
+        keyboardShouldPersistTaps="handled">
         <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-4 space-y-4">
           <UserProfile user={user} disconnectAccount={disconnectAccount} />
 
@@ -319,7 +334,10 @@ const App: React.FC = () => {
             isResting={isResting}
             isPaused={isPaused}
             startWorkout={() => {
-              if (activeExercise && isSetCompleted(activeExercise.id, startingSet)) {
+              if (
+                activeExercise &&
+                isSetCompleted(activeExercise.id, startingSet)
+              ) {
                 Toast.show({
                   type: 'info',
                   text1: 'Set Already Completed',
@@ -343,15 +361,13 @@ const App: React.FC = () => {
           <StyledView className="flex-row justify-center items-center space-x-6">
             <StyledTouchableOpacity
               onPress={() => setHistoryScreenVisible(true)}
-              className="flex-row items-center space-x-2"
-            >
+              className="flex-row items-center space-x-2">
               <History color="#60a5fa" size={16} />
               <StyledText className="text-blue-400">History</StyledText>
             </StyledTouchableOpacity>
             <StyledTouchableOpacity
               onPress={() => setSettingsVisible(!settingsVisible)}
-              className="flex-row items-center space-x-2"
-            >
+              className="flex-row items-center space-x-2">
               <SettingsIcon color="#60a5fa" size={16} />
               <StyledText className="text-blue-400">Settings</StyledText>
             </StyledTouchableOpacity>
@@ -379,7 +395,6 @@ const App: React.FC = () => {
         visible={addSetModalVisible}
         onClose={() => {
           setAddSetModalVisible(false)
-          continueToNextPhase() // Continue even if canceled
         }}
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}

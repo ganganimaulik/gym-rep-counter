@@ -67,9 +67,9 @@ export interface WorkoutTimerHook {
 }
 
 interface OnSetCompleteDetails {
-  exerciseId: string;
-  reps: number;
-  set: number;
+  exerciseId: string
+  reps: number
+  set: number
 }
 
 // Hook
@@ -148,7 +148,7 @@ export function useWorkoutTimer(
     [clearTimer],
   )
 
-    const startRest = useCallback(() => {
+  const startRest = useCallback(() => {
     const duration =
       wState.current.remainingTime > 0
         ? wState.current.remainingTime / 1000
@@ -211,9 +211,9 @@ export function useWorkoutTimer(
   }, [clearTimer, displayRep, displaySet, updateUI, statusText])
 
   const continueToNextPhase = useCallback(() => {
-    const { maxSets } = settings
+    const maxSets = activeExercise?.sets ?? settings.maxSets
     const nextSet = wState.current.set + 1
-
+    console.log({ nextSet, maxSets })
     if (nextSet > maxSets) {
       fullReset()
       updateUI({
@@ -245,7 +245,7 @@ export function useWorkoutTimer(
     queueSpeak,
     statusText,
     startRest,
-  ]);
+  ])
 
   const stopWorkout = useCallback(() => {
     clearTimer()
