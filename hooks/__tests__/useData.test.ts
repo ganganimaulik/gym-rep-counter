@@ -1,22 +1,61 @@
-import { renderHook, act } from '@testing-library/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useData, Settings, Workout } from '../useData';
-import { setDoc, getDoc } from 'firebase/firestore';
-import { getDefaultWorkouts } from '../../utils/defaultWorkouts';
+import { renderHook, act } from '@testing-library/react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import {
+  setDoc,
+  getDoc,
+  addDoc,
+  getDocs,
+  writeBatch,
+  Timestamp,
+} from 'firebase/firestore'
+import { useData, Settings, Workout } from '../useData'
+import { getDefaultWorkouts } from '../../utils/defaultWorkouts'
 
-// Mock getLocalDateString to return a consistent date
-const MOCK_DATE = '2024-01-01';
-jest.mock('../../utils/getLocalDateString', () => jest.fn(() => MOCK_DATE));
+// Mock Firestore
+jest.mock('firebase/firestore', () => ({
+  doc: jest.fn(),
+  getDoc: jest.fn(),
+  setDoc: jest.fn(),
+  collection: jest.fn(),
+  addDoc: jest.fn(),
+  getDocs: jest.fn(),
+  query: jest.fn(),
+  where: jest.fn(),
+  orderBy: jest.fn(),
+  limit: jest.fn(),
+  startAfter: jest.fn(),
+  Timestamp: {
+    now: jest.fn(() => ({
+      toDate: () => new Date(),
+      toMillis: () => Date.now(),
+    })),
+    fromDate: jest.fn((date) => ({
+      toDate: () => date,
+      toMillis: () => date.getTime(),
+    })),
+  },
+  writeBatch: jest.fn(),
+}))
+
+const mockBatch = {
+  delete: jest.fn(),
+  commit: jest.fn().mockResolvedValue(undefined),
+}
+;(writeBatch as jest.Mock).mockReturnValue(mockBatch)
 
 // Mock default workouts
-jest.mock('../../utils/defaultWorkouts');
+jest.mock('../../utils/defaultWorkouts')
 const mockDefaultWorkouts = [
   { id: '1', name: 'Default Workout', exercises: [] },
-];
-(getDefaultWorkouts as jest.Mock).mockReturnValue(mockDefaultWorkouts);
+]
+;(getDefaultWorkouts as jest.Mock).mockReturnValue(mockDefaultWorkouts)
 
 describe('useData Hook', () => {
-  const mockUser = { uid: 'test-uid', email: 'test@test.com', displayName: 'Test User' };
+  const mockUser = {
+    uid: 'test-uid',
+    email: 'test@test.com',
+    displayName: 'Test User',
+  }
   const defaultSettings: Settings = {
     countdownSeconds: 5,
     restSeconds: 60,
@@ -26,250 +65,290 @@ describe('useData Hook', () => {
     eccentricSeconds: 4,
     eccentricCountdownEnabled: true,
     volume: 1.0,
-  };
+  }
 
   beforeEach(() => {
-    // Reset mocks before each test
-    (AsyncStorage.getItem as jest.Mock).mockClear();
-    (AsyncStorage.setItem as jest.Mock).mockClear();
-    (AsyncStorage.clear as jest.Mock).mockClear();
-    (setDoc as jest.Mock).mockClear();
-    (getDoc as jest.Mock).mockClear();
-  });
+    jest.clearAllMocks()
+    mockBatch.delete.mockClear()
+    mockBatch.commit.mockClear()
+  })
 
   describe('Settings', () => {
     it('should load default settings if none are in storage', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
-      const { result } = renderHook(() => useData());
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+      const { result } = renderHook(() => useData())
 
       await act(async () => {
-        await result.current.loadSettings();
-      });
+        await result.current.loadSettings()
+      })
 
-      expect(result.current.settings).toEqual(defaultSettings);
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith('repCounterSettings');
-    });
+      expect(result.current.settings).toEqual(defaultSettings)
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith('repCounterSettings')
+    })
 
     it('should load settings from AsyncStorage', async () => {
-      const customSettings = { ...defaultSettings, countdownSeconds: 10 };
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(customSettings));
-      const { result } = renderHook(() => useData());
+      const customSettings = { ...defaultSettings, countdownSeconds: 10 }
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(customSettings),
+      )
+      const { result } = renderHook(() => useData())
 
       await act(async () => {
-        await result.current.loadSettings();
-      });
+        await result.current.loadSettings()
+      })
 
-      expect(result.current.settings).toEqual(customSettings);
-    });
+      expect(result.current.settings).toEqual(customSettings)
+    })
 
     it('should save settings to AsyncStorage and Firestore', async () => {
-      const { result } = renderHook(() => useData());
-      const newSettings = { ...defaultSettings, volume: 0.5 };
+      const { result } = renderHook(() => useData())
+      const newSettings = { ...defaultSettings, volume: 0.5 }
 
       await act(async () => {
-        await result.current.saveSettings(newSettings, mockUser);
-      });
+        await result.current.saveSettings(newSettings, mockUser)
+      })
 
-      expect(result.current.settings).toEqual(newSettings);
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('repCounterSettings', JSON.stringify(newSettings));
-      expect(setDoc).toHaveBeenCalled();
-    });
-  });
+      expect(result.current.settings).toEqual(newSettings)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'repCounterSettings',
+        JSON.stringify(newSettings),
+      )
+      expect(setDoc).toHaveBeenCalled()
+    })
+  })
 
   describe('Workouts', () => {
     it('should load default workouts if none are in storage', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
-      const { result } = renderHook(() => useData());
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+      const { result } = renderHook(() => useData())
 
       await act(async () => {
-        await result.current.loadWorkouts();
-      });
+        await result.current.loadWorkouts()
+      })
 
-      expect(result.current.workouts).toEqual(mockDefaultWorkouts);
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('workouts', JSON.stringify(mockDefaultWorkouts));
-    });
+      expect(result.current.workouts).toEqual(mockDefaultWorkouts)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'workouts',
+        JSON.stringify(mockDefaultWorkouts),
+      )
+    })
 
     it('should load workouts from AsyncStorage', async () => {
-      const customWorkouts: Workout[] = [{ id: '2', name: 'My Workout', exercises: [] }];
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(customWorkouts));
-      const { result } = renderHook(() => useData());
+      const customWorkouts: Workout[] = [
+        { id: '2', name: 'My Workout', exercises: [] },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(customWorkouts),
+      )
+      const { result } = renderHook(() => useData())
 
       await act(async () => {
-        await result.current.loadWorkouts();
-      });
+        await result.current.loadWorkouts()
+      })
 
-      expect(result.current.workouts).toEqual(customWorkouts);
-    });
+      expect(result.current.workouts).toEqual(customWorkouts)
+    })
 
     it('should save workouts to AsyncStorage and Firestore', async () => {
-      const { result } = renderHook(() => useData());
-      const newWorkouts: Workout[] = [{ id: '3', name: 'New Workout', exercises: [] }];
+      const { result } = renderHook(() => useData())
+      const newWorkouts: Workout[] = [
+        { id: '3', name: 'New Workout', exercises: [] },
+      ]
 
       await act(async () => {
-        await result.current.saveWorkouts(newWorkouts, mockUser);
-      });
+        await result.current.saveWorkouts(newWorkouts, mockUser)
+      })
 
-      expect(result.current.workouts).toEqual(newWorkouts);
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('workouts', JSON.stringify(newWorkouts));
-      expect(setDoc).toHaveBeenCalled();
-    });
-  });
+      expect(result.current.workouts).toEqual(newWorkouts)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'workouts',
+        JSON.stringify(newWorkouts),
+      )
+      expect(setDoc).toHaveBeenCalled()
+    })
+  })
 
-  describe('Set Completions', () => {
-    const exerciseId = 'ex1';
+  describe('Workout History & Completions', () => {
+    const exerciseId = 'ex1'
+    const workoutId = 'w1'
 
-    it('should load set completions for today', async () => {
-      const completions = { [exerciseId]: { date: MOCK_DATE, completed: [1] } };
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(completions));
-      const { result } = renderHook(() => useData());
+    it('should add a history entry and update todaysCompletions', async () => {
+      const { result } = renderHook(() => useData())
+      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
 
-      await act(async () => {
-        await result.current.loadSetCompletions();
-      });
-
-      expect(result.current.setCompletions).toEqual(completions);
-    });
-
-    it('should reset completions if they are from a previous day', async () => {
-      const oldCompletions = { [exerciseId]: { date: '2023-12-31', completed: [1] } };
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(oldCompletions));
-      const { result } = renderHook(() => useData());
+      const entry = { workoutId, exerciseId, reps: 10, weight: 50 }
+      const setNumber = 1
 
       await act(async () => {
-        await result.current.loadSetCompletions();
-      });
+        await result.current.addHistoryEntry(entry, setNumber, mockUser)
+      })
 
-      expect(result.current.setCompletions).toEqual({});
-    });
+      expect(addDoc).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ ...entry, set: setNumber }),
+      )
+      expect(result.current.todaysCompletions).toHaveLength(1)
+      expect(result.current.todaysCompletions[0]).toMatchObject({
+        ...entry,
+        set: setNumber,
+      })
+    })
 
-    it('should mark a set as completed', async () => {
-      const { result } = renderHook(() => useData());
-
-      await act(async () => {
-        await result.current.markSetAsCompleted(exerciseId, 1, mockUser);
-      });
-
-      expect(result.current.isSetCompleted(exerciseId, 1)).toBe(true);
-      expect(AsyncStorage.setItem).toHaveBeenCalled();
-      expect(setDoc).toHaveBeenCalled();
-    });
-
-    it('should correctly check if previous sets are completed', async () => {
-      const { result } = renderHook(() => useData());
-
-      await act(async () => {
-        await result.current.markSetAsCompleted(exerciseId, 1, null);
-      });
-
-      expect(result.current.arePreviousSetsCompleted(exerciseId, 1)).toBe(true);
-      expect(result.current.arePreviousSetsCompleted(exerciseId, 2)).toBe(true);
+    it("should fetch today's completions for a given exercise", async () => {
+      const mockCompletions = [
+        { id: 'doc1', data: () => ({ exerciseId, set: 1 }) },
+        { id: 'doc3', data: () => ({ exerciseId, set: 2 }) },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({ docs: mockCompletions })
+      const { result } = renderHook(() => useData())
 
       await act(async () => {
-        await result.current.markSetAsCompleted(exerciseId, 2, null);
-      });
+        await result.current.fetchTodaysCompletions(mockUser, exerciseId)
+      })
 
-      expect(result.current.arePreviousSetsCompleted(exerciseId, 3)).toBe(true);
-      expect(result.current.arePreviousSetsCompleted(exerciseId, 4)).toBe(false);
-    });
+      expect(getDocs).toHaveBeenCalled()
+      expect(result.current.todaysCompletions).toHaveLength(2)
+      expect(
+        result.current.todaysCompletions.every((c) => c.exerciseId === exerciseId),
+      ).toBe(true)
+    })
 
-    it('should reset sets from a given set number', async () => {
-      const { result } = renderHook(() => useData());
-      for (const set of [1, 2, 3]) {
-        await act(async () => {
-          await result.current.markSetAsCompleted(exerciseId, set, null);
-        });
-      }
+    it('should correctly identify if a set is completed', async () => {
+      const { result } = renderHook(() => useData())
 
       await act(async () => {
-        await result.current.resetSetsFrom(exerciseId, 2, mockUser);
-      });
+        ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc1' })
+        await result.current.addHistoryEntry(
+          { workoutId, exerciseId, reps: 10, weight: 50 },
+          1,
+          mockUser,
+        )
+      })
 
-      expect(result.current.isSetCompleted(exerciseId, 1)).toBe(true);
-      expect(result.current.isSetCompleted(exerciseId, 2)).toBe(false);
-      expect(result.current.isSetCompleted(exerciseId, 3)).toBe(false);
-    });
+      expect(result.current.isSetCompleted(exerciseId, 1)).toBe(true)
+      expect(result.current.isSetCompleted(exerciseId, 2)).toBe(false)
+    })
 
     it('should get the next uncompleted set', async () => {
-        const { result } = renderHook(() => useData());
+      const { result } = renderHook(() => useData())
+      expect(result.current.getNextUncompletedSet(exerciseId)).toBe(1)
 
-        expect(result.current.getNextUncompletedSet(exerciseId)).toBe(1);
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          { workoutId, exerciseId, reps: 10, weight: 50 },
+          1,
+          mockUser,
+        )
+      })
+      expect(result.current.getNextUncompletedSet(exerciseId)).toBe(2)
 
-        await act(async () => {
-          await result.current.markSetAsCompleted(exerciseId, 1, null);
-        });
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          { workoutId, exerciseId, reps: 10, weight: 50 },
+          3,
+          mockUser,
+        )
+      })
+      expect(result.current.getNextUncompletedSet(exerciseId)).toBe(2)
 
-        expect(result.current.getNextUncompletedSet(exerciseId)).toBe(2);
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          { workoutId, exerciseId, reps: 10, weight: 50 },
+          2,
+          mockUser,
+        )
+      })
+      expect(result.current.getNextUncompletedSet(exerciseId)).toBe(4)
+    })
 
-        await act(async () => {
-          await result.current.markSetAsCompleted(exerciseId, 3, null);
-        });
+    it('should reset sets from a given set number', async () => {
+      const { result } = renderHook(() => useData())
 
-        expect(result.current.getNextUncompletedSet(exerciseId)).toBe(2);
+      await act(async () => {
+        result.current.addHistoryEntry(
+          { workoutId, exerciseId, reps: 10, weight: 50 },
+          1,
+          mockUser,
+        )
+        result.current.addHistoryEntry(
+          { workoutId, exerciseId, reps: 10, weight: 50 },
+          2,
+          mockUser,
+        )
+        result.current.addHistoryEntry(
+          { workoutId, exerciseId, reps: 10, weight: 50 },
+          3,
+          mockUser,
+        )
+      })
+      result.current.todaysCompletions[0].id = 'doc1'
+      result.current.todaysCompletions[1].id = 'doc2'
+      result.current.todaysCompletions[2].id = 'doc3'
 
-        await act(async () => {
-          await result.current.markSetAsCompleted(exerciseId, 2, null);
-        });
+      await act(async () => {
+        await result.current.resetSetsFrom(exerciseId, 2, mockUser)
+      })
 
-        expect(result.current.getNextUncompletedSet(exerciseId)).toBe(4);
-      });
-  });
+      expect(mockBatch.delete).toHaveBeenCalledTimes(2)
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1)
+      expect(result.current.todaysCompletions).toHaveLength(1)
+      expect(result.current.isSetCompleted(exerciseId, 1)).toBe(true)
+      expect(result.current.isSetCompleted(exerciseId, 2)).toBe(false)
+      expect(result.current.isSetCompleted(exerciseId, 3)).toBe(false)
+    })
+  })
 
   describe('User Data Sync', () => {
-    it('should sync data from firestore for an existing user', async () => {
-        const firestoreData = {
-          settings: { ...defaultSettings, restSeconds: 90 },
-          workouts: [{ id: 'firebase-workout', name: 'Firebase Workout', exercises: [] }],
-          setCompletions: { 'firebase-ex': { date: MOCK_DATE, completed: [1] } },
-        };
-        (getDoc as jest.Mock).mockResolvedValue({
-          exists: () => true,
-          data: () => firestoreData,
-        });
+    it('should sync settings and workouts from firestore for an existing user', async () => {
+      const firestoreData = {
+        settings: { ...defaultSettings, restSeconds: 90 },
+        workouts: [
+          { id: 'firebase-workout', name: 'Firebase Workout', exercises: [] },
+        ],
+      }
+      ;(getDoc as jest.Mock).mockResolvedValue({
+        exists: () => true,
+        data: () => firestoreData,
+      })
 
-        const { result } = renderHook(() => useData());
-        await act(async () => {
-          await result.current.syncUserData(mockUser, {} as any, [], {});
-        });
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.syncUserData(mockUser, {} as any, [])
+      })
 
-        expect(result.current.settings).toEqual(firestoreData.settings);
-        expect(result.current.workouts).toEqual(firestoreData.workouts);
-        expect(result.current.setCompletions).toEqual(firestoreData.setCompletions);
+      expect(result.current.settings).toEqual(firestoreData.settings)
+      expect(result.current.workouts).toEqual(firestoreData.workouts)
+      expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+        'setCompletions',
+        expect.any(String),
+      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'repCounterSettings',
+        JSON.stringify(firestoreData.settings),
+      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'workouts',
+        JSON.stringify(firestoreData.workouts),
+      )
+    })
 
-        expect(AsyncStorage.setItem).toHaveBeenCalledWith('repCounterSettings', JSON.stringify(firestoreData.settings));
-        expect(AsyncStorage.setItem).toHaveBeenCalledWith('workouts', JSON.stringify(firestoreData.workouts));
-        expect(AsyncStorage.setItem).toHaveBeenCalledWith('setCompletions', JSON.stringify(firestoreData.setCompletions));
-      });
+    it('should upload local data for a new user', async () => {
+      ;(getDoc as jest.Mock).mockResolvedValue({ exists: () => false })
 
-      it('should upload local data for a new user', async () => {
-        (getDoc as jest.Mock).mockResolvedValue({ exists: () => false });
+      const { result } = renderHook(() => useData())
+      const localSettings = { ...defaultSettings, countdownSeconds: 2 }
+      const localWorkouts = [
+        { id: 'local-workout', name: 'Local Workout', exercises: [] },
+      ]
 
-        const { result } = renderHook(() => useData());
-        const localSettings = { ...defaultSettings, countdownSeconds: 2 };
-        const localWorkouts = [{ id: 'local-workout', name: 'Local Workout', exercises: [] }];
-        const localCompletions = { 'local-ex': { date: MOCK_DATE, completed: [1, 2] } };
+      await act(async () => {
+        await result.current.syncUserData(mockUser, localSettings, localWorkouts)
+      })
 
-        await act(async () => {
-            await result.current.loadSettings();
-            await result.current.loadWorkouts();
-            await result.current.loadSetCompletions();
-
-            await result.current.saveSettings(localSettings, null);
-            await result.current.saveWorkouts(localWorkouts, null);
-            await result.current.saveSetCompletions(localCompletions, null);
-        });
-
-        await act(async () => {
-          await result.current.syncUserData(mockUser, localSettings, localWorkouts, localCompletions);
-        });
-
-        expect(setDoc).toHaveBeenCalledWith(
-          undefined, // result of doc() is mocked
-          expect.objectContaining({
-            settings: localSettings,
-            workouts: localWorkouts,
-            setCompletions: localCompletions,
-          }),
-        );
-      });
-  });
-});
+      const setDocCall = (setDoc as jest.Mock).mock.calls[0]
+      expect(setDocCall[1]).not.toHaveProperty('setCompletions')
+      expect(setDocCall[1]).toHaveProperty('settings', localSettings)
+      expect(setDocCall[1]).toHaveProperty('workouts', localWorkouts)
+    })
+  })
+})

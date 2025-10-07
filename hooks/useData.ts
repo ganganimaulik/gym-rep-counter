@@ -1,9 +1,24 @@
 import { useState, Dispatch, SetStateAction, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  startAfter,
+  Timestamp,
+  writeBatch,
+} from 'firebase/firestore'
 import { db } from '../utils/firebase'
 import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
+import type { WorkoutSet } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
 // Interfaces
@@ -31,19 +46,10 @@ export interface Workout {
   exercises: Exercise[]
 }
 
-export interface SetCompletion {
-  date: string
-  completed: number[]
-}
-
-export interface SetCompletions {
-  [exerciseId: string]: SetCompletion
-}
-
 export interface DataHook {
   settings: Settings
   workouts: Workout[]
-  setCompletions: SetCompletions
+  todaysCompletions: WorkoutSet[]
   loadSettings: () => Promise<Settings>
   saveSettings: (
     newSettings: Settings,
@@ -54,29 +60,29 @@ export interface DataHook {
     newWorkouts: Workout[],
     user: FirebaseUser | null,
   ) => Promise<void>
-  loadSetCompletions: () => Promise<SetCompletions>
-  saveSetCompletions: (
-    newCompletions: SetCompletions,
-    user: FirebaseUser | null,
+  addHistoryEntry: (
+    entry: Omit<WorkoutSet, 'id' | 'date'>,
+    user: FirebaseUser,
   ) => Promise<void>
-  markSetAsCompleted: (
+  fetchHistory: (
+    user: FirebaseUser,
+    lastVisible?: WorkoutSet,
+  ) => Promise<WorkoutSet[]>
+  fetchTodaysCompletions: (
+    user: FirebaseUser,
     exerciseId: string,
-    setNumber: number,
-    user: FirebaseUser | null,
   ) => Promise<void>
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
+  getNextUncompletedSet: (exerciseId: string) => number
   resetSetsFrom: (
     exerciseId: string,
     setNumber: number,
     user: FirebaseUser | null,
   ) => Promise<void>
-  arePreviousSetsCompleted: (exerciseId: string, setNumber: number) => boolean
-  getNextUncompletedSet: (exerciseId: string) => number
   syncUserData: (
     firebaseUser: FirebaseUser,
     localSettings: Settings,
     localWorkouts: Workout[],
-    localSetCompletions: SetCompletions,
   ) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
@@ -98,7 +104,7 @@ export const useData = (): DataHook => {
   const [workouts, setWorkouts] = useState<Workout[]>(() =>
     getDefaultWorkouts(),
   )
-  const [setCompletions, setSetCompletions] = useState<SetCompletions>({})
+  const [todaysCompletions, setTodaysCompletions] = useState<WorkoutSet[]>([])
 
   const loadSettings = useCallback(async (): Promise<Settings> => {
     try {
@@ -174,159 +180,148 @@ export const useData = (): DataHook => {
     [],
   )
 
-  const loadSetCompletions = useCallback(async (): Promise<SetCompletions> => {
-    try {
-      const saved = await AsyncStorage.getItem('setCompletions')
-      if (saved) {
-        const parsed: SetCompletions = JSON.parse(saved)
-        const today = getLocalDateString()
-        // Reset completions if the date is not today
-        Object.keys(parsed).forEach((exerciseId) => {
-          if (parsed[exerciseId].date !== today) {
-            delete parsed[exerciseId]
-          }
-        })
-        setSetCompletions(parsed)
-        return parsed
+  const addHistoryEntry = useCallback(
+    async (
+      entry: Omit<WorkoutSet, 'id' | 'date' | 'set'>,
+      set: number,
+      user: FirebaseUser | null,
+    ) => {
+      if (!user) {
+        console.error('Cannot add history entry without a user.')
+        return
       }
-      return {}
-    } catch (e) {
-      console.error('Failed to load set completions.', e)
-      return {}
-    }
-  }, [])
 
-  const saveSetCompletions = useCallback(
-    async (newCompletions: SetCompletions, user: FirebaseUser | null) => {
       try {
-        setSetCompletions(newCompletions)
-        await AsyncStorage.setItem(
-          'setCompletions',
-          JSON.stringify(newCompletions),
-        )
-        if (user) {
-          const userDocRef = doc(db, 'users', user.uid)
-          await setDoc(
-            userDocRef,
-            { setCompletions: newCompletions },
-            { merge: true },
-          )
+        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+        const newEntry = {
+          ...entry,
+          set,
+          date: Timestamp.now(),
         }
+        const docRef = await addDoc(historyCollectionRef, newEntry)
+        setTodaysCompletions(prev => [...prev, { ...newEntry, id: docRef.id }])
       } catch (e) {
-        console.error('Failed to save set completions', e)
+        console.error('Failed to save history entry', e)
       }
     },
     [],
   )
 
-  const markSetAsCompleted = useCallback(
-    async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
-      const today = getLocalDateString()
-      const newCompletions = { ...setCompletions }
-      const currentCompletion = newCompletions[exerciseId]
+  const fetchHistory = useCallback(
+    async (user: FirebaseUser, lastVisible?: WorkoutSet) => {
+      if (!user) return []
 
-      if (!currentCompletion || currentCompletion.date !== today) {
-        // If no completion data for today, create a new entry.
-        newCompletions[exerciseId] = { date: today, completed: [setNumber] }
-      } else {
-        // If data exists for today, check if the set is already completed.
-        if (!currentCompletion.completed.includes(setNumber)) {
-          // If not completed, create a new array with the new set number.
-          newCompletions[exerciseId] = {
-            ...currentCompletion,
-            completed: [...currentCompletion.completed, setNumber].sort(
-              (a, b) => a - b,
-            ),
-          }
-        }
+      try {
+        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+        const q = query(
+          historyCollectionRef,
+          orderBy('date', 'desc'),
+          limit(20),
+          ...(lastVisible ? [startAfter(lastVisible.date)] : []),
+        )
+
+        const querySnapshot = await getDocs(q)
+        const newHistory = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as WorkoutSet[]
+
+        return newHistory
+      } catch (e) {
+        console.error('Failed to fetch history', e)
+        return []
       }
-
-      await saveSetCompletions(newCompletions, user)
     },
-    [setCompletions, saveSetCompletions],
+    [],
+  )
+
+  const fetchTodaysCompletions = useCallback(
+    async (user: FirebaseUser | null, exerciseId: string) => {
+      if (!user) {
+        setTodaysCompletions([])
+        return
+      }
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const startOfToday = Timestamp.fromDate(today)
+
+      try {
+        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+        const q = query(
+          historyCollectionRef,
+          where('exerciseId', '==', exerciseId),
+          where('date', '>=', startOfToday),
+        )
+        const querySnapshot = await getDocs(q)
+        const todaysSets = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as WorkoutSet[]
+        setTodaysCompletions(todaysSets)
+      } catch (e) {
+        console.error("Failed to fetch today's completions", e)
+        setTodaysCompletions([])
+      }
+    },
+    [],
   )
 
   const isSetCompleted = useCallback(
     (exerciseId: string, setNumber: number): boolean => {
-      const today = getLocalDateString()
-      const completion = setCompletions[exerciseId]
-      return (
-        completion &&
-        completion.date === today &&
-        completion.completed.includes(setNumber)
+      return todaysCompletions.some(
+        (c) => c.exerciseId === exerciseId && c.set === setNumber,
       )
     },
-    [setCompletions],
+    [todaysCompletions],
   )
 
   const getNextUncompletedSet = useCallback(
     (exerciseId: string): number => {
-      const today = getLocalDateString()
-      const completion = setCompletions[exerciseId]
+      const completedSets = todaysCompletions
+        .filter((c) => c.exerciseId === exerciseId)
+        .map((c) => c.set)
+        .sort((a, b) => a - b)
 
-      if (!completion || completion.date !== today) {
-        return 1
-      }
+      if (completedSets.length === 0) return 1
 
-      const completedSets = completion.completed
-      if (completedSets.length === 0) {
-        return 1
-      }
-
-      // Find the first missing number in the sequence
-      for (let i = 0; i < completedSets.length; i++) {
-        if (completedSets[i] !== i + 1) {
-          return i + 1
+      let nextSet = 1
+      for (const set of completedSets) {
+        if (set === nextSet) {
+          nextSet++
+        } else {
+          break
         }
       }
-
-      // If all sets are sequential, return the next one
-      return completedSets.length + 1
+      return nextSet
     },
-    [setCompletions],
+    [todaysCompletions],
   )
 
   const resetSetsFrom = useCallback(
     async (exerciseId: string, setNumber: number, user: FirebaseUser | null) => {
-      const today = getLocalDateString()
-      const newCompletions = { ...setCompletions }
-      const currentCompletion = newCompletions[exerciseId]
+      if (!user) return
 
-      if (currentCompletion && currentCompletion.date === today) {
-        const newCompletedSets = currentCompletion.completed.filter(
-          (s) => s < setNumber,
+      const setsToRemove = todaysCompletions.filter(
+        (c) => c.exerciseId === exerciseId && c.set >= setNumber,
+      )
+      if (setsToRemove.length === 0) return
+
+      try {
+        const batch = writeBatch(db)
+        setsToRemove.forEach((s) => {
+          const docRef = doc(db, 'users', user.uid, 'history', s.id)
+          batch.delete(docRef)
+        })
+        await batch.commit()
+
+        setTodaysCompletions((prev) =>
+          prev.filter((c) => !setsToRemove.some((r) => r.id === c.id)),
         )
-
-        // Only update if the array has actually changed to avoid unnecessary re-renders.
-        if (newCompletedSets.length !== currentCompletion.completed.length) {
-          newCompletions[exerciseId] = {
-            ...currentCompletion,
-            completed: newCompletedSets,
-          }
-        }
+      } catch (e) {
+        console.error('Failed to reset sets', e)
       }
-      await saveSetCompletions(newCompletions, user)
     },
-    [setCompletions, saveSetCompletions],
-  )
-
-  const arePreviousSetsCompleted = useCallback(
-    (exerciseId: string, setNumber: number): boolean => {
-      if (setNumber <= 1) {
-        return true
-      }
-
-      const today = getLocalDateString()
-      const completion = setCompletions[exerciseId]
-
-      if (!completion || completion.date !== today) {
-        return false
-      }
-
-      const requiredSets = Array.from({ length: setNumber - 1 }, (_, i) => i + 1)
-      return requiredSets.every((s) => completion.completed.includes(s))
-    },
-    [setCompletions],
+    [todaysCompletions],
   )
 
   const syncUserData = useCallback(
@@ -334,7 +329,6 @@ export const useData = (): DataHook => {
       firebaseUser: FirebaseUser,
       localSettings: Settings,
       localWorkouts: Workout[],
-      localSetCompletions: SetCompletions,
     ) => {
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       try {
@@ -374,14 +368,6 @@ export const useData = (): DataHook => {
               { merge: true },
             )
           }
-          // Sync Set Completions
-          if (userData.setCompletions) {
-            setSetCompletions(userData.setCompletions)
-            await AsyncStorage.setItem(
-              'setCompletions',
-              JSON.stringify(userData.setCompletions),
-            )
-          }
         } else {
           // New user, upload local data
           await setDoc(userDocRef, {
@@ -389,7 +375,6 @@ export const useData = (): DataHook => {
             name: firebaseUser.displayName,
             settings: localSettings,
             workouts: localWorkouts,
-            setCompletions: localSetCompletions,
           })
         }
       } catch (error) {
@@ -402,18 +387,17 @@ export const useData = (): DataHook => {
   return {
     settings,
     workouts,
-    setCompletions,
+    todaysCompletions,
     loadSettings,
     saveSettings,
     loadWorkouts,
     saveWorkouts,
-    loadSetCompletions,
-    saveSetCompletions,
-    markSetAsCompleted,
+    addHistoryEntry,
+    fetchHistory,
+    fetchTodaysCompletions,
     isSetCompleted,
-    resetSetsFrom,
-    arePreviousSetsCompleted,
     getNextUncompletedSet,
+    resetSetsFrom,
     syncUserData,
     setWorkouts,
     setSettings,
