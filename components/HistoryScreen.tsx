@@ -41,6 +41,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   const [lastVisible, setLastVisible] = useState<WorkoutSet | undefined>(
     undefined,
   );
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const loadHistory = useCallback(async () => {
     if (!user || isLoading || !hasMore) return;
@@ -50,12 +51,13 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
 
     if (newHistory.length > 0) {
       setLastVisible(newHistory[newHistory.length - 1]);
-      setHistory((prev) => [...prev, ...newHistory]);
+      setHistory(isInitialLoad ? newHistory : (prev) => [...prev, ...newHistory]);
     } else {
       setHasMore(false);
     }
+    setIsInitialLoad(false);
     setIsLoading(false);
-  }, [user, isLoading, hasMore, lastVisible, fetchHistory]);
+  }, [user, isLoading, hasMore, lastVisible, fetchHistory, isInitialLoad]);
 
   // Effect to reset state when the modal opens
   useEffect(() => {
@@ -63,17 +65,16 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
       setHistory([]);
       setLastVisible(undefined);
       setHasMore(true);
+      setIsInitialLoad(true);
     }
   }, [visible, user]);
 
   // Effect to trigger the initial data load after state has been reset
   useEffect(() => {
-    // Only run if the modal is visible, we have a user,
-    // there's no history yet, and we think there's more to load.
-    if (visible && user && hasMore && history.length === 0) {
+    if (visible && user && isInitialLoad) {
       loadHistory();
     }
-  }, [visible, user, hasMore, history.length, loadHistory]);
+  }, [visible, user, isInitialLoad, loadHistory]);
 
   const renderItem = ({ item }: { item: WorkoutSet }) => (
     <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
@@ -123,7 +124,11 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
-          onEndReached={loadHistory}
+          onEndReached={() => {
+            if (!isInitialLoad) {
+              loadHistory();
+            }
+          }}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             isLoading ? <ActivityIndicator size="large" color="#fff" /> : null
