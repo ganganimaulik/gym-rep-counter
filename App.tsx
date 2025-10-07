@@ -144,12 +144,12 @@ const App: React.FC = () => {
   const appState = useRef<AppStateStatus>(AppState.currentState)
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        if (user && activeExercise) {
+        if (activeExercise) {
           fetchTodaysCompletions(user, activeExercise.id)
         }
       }
@@ -165,11 +165,10 @@ const App: React.FC = () => {
   }, [user, activeExercise, fetchTodaysCompletions])
 
   useEffect(() => {
-    if (user && activeExercise) {
+    if (activeExercise) {
       fetchTodaysCompletions(user, activeExercise.id)
     }
-  }, [user, activeExercise])
-
+  }, [user, activeExercise, fetchTodaysCompletions])
 
   useEffect(() => {
     if (isExerciseComplete) {
@@ -248,7 +247,7 @@ const App: React.FC = () => {
   }
 
   const handleAddSetDetails = async (reps: number, weight: number) => {
-    if (completedSetData && user && activeExercise) {
+    if (completedSetData && activeExercise) {
       await addHistoryEntry(
         {
           workoutId: currentWorkout!.id,
@@ -260,10 +259,12 @@ const App: React.FC = () => {
         completedSetData.set,
         user,
       )
-      setAddSetModalVisible(false)
-      setCompletedSetData(null)
-      continueToNextPhase()
     }
+    // This part should run whether the user is logged in or not,
+    // and even if the data saving fails, to not block the UI flow.
+    setAddSetModalVisible(false)
+    setCompletedSetData(null)
+    continueToNextPhase()
   }
 
   if (initializing) {
