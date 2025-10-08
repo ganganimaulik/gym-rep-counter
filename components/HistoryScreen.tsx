@@ -77,15 +77,12 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   }, [visible, isInitialLoad, loadHistory]);
 
   const renderItem = ({ item }: { item: WorkoutSet }) => (
-    <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
-      <StyledText className="text-white font-bold text-lg">
-        {item.exerciseName}
-      </StyledText>
+    <StyledView className="bg-gray-800 p-3 rounded-lg mb-2 ml-4">
       <StyledText className="text-gray-300">
         {item.reps} reps at {item.weight} kg
       </StyledText>
       <StyledText className="text-gray-500 text-xs mt-1">
-        {item.date.toDate().toLocaleTimeString()}
+        Set recorded at {item.date.toDate().toLocaleTimeString()}
       </StyledText>
     </StyledView>
   );
@@ -99,20 +96,28 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
       const dateKey = `${year}-${month}-${day}`;
 
       if (!acc[dateKey]) {
-        acc[dateKey] = [];
+        acc[dateKey] = {};
       }
-      acc[dateKey].push(item);
+
+      if (!acc[dateKey][item.exerciseName]) {
+        acc[dateKey][item.exerciseName] = [];
+      }
+
+      acc[dateKey][item.exerciseName].push(item);
       return acc;
     },
-    {} as Record<string, WorkoutSet[]>,
+    {} as Record<string, Record<string, WorkoutSet[]>>,
   );
 
   const sections = Object.keys(groupedHistory)
-    .sort((a, b) => b.localeCompare(a)) // Sorts YYYY-MM-DD strings descending
-    .map(date => ({
-      title: date,
-      data: groupedHistory[date],
-    }));
+    .sort((a, b) => b.localeCompare(a)) // Sort days descending
+    .flatMap(date =>
+      Object.keys(groupedHistory[date]).map(exerciseName => ({
+        title: date, // Keep track of the date for the day header
+        exerciseName: exerciseName,
+        data: groupedHistory[date][exerciseName],
+      })),
+    );
 
   return (
     <Modal
@@ -134,24 +139,35 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           renderItem={renderItem}
           stickySectionHeadersEnabled={false}
           keyExtractor={item => item.id}
-          renderSectionHeader={({ section: { title } }) => {
+          renderSectionHeader={({ section, index }) => {
+            const { title, exerciseName } = section;
+            const showDateHeader =
+              index === 0 || sections[index - 1].title !== title;
+
             // Manually parse the date to avoid timezone issues.
-            // new Date('YYYY-MM-DD') can be interpreted as UTC, rolling back the date.
             const parts = title.split('-');
             const year = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
             const day = parseInt(parts[2], 10);
             const date = new Date(year, month, day);
+            const formattedDate = date.toLocaleDateString(undefined, {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            });
 
             return (
-              <StyledText className="text-white text-xl font-bold mt-4 mb-2">
-                {date.toLocaleDateString(undefined, {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </StyledText>
+              <View>
+                {showDateHeader && (
+                  <StyledText className="text-white text-xl font-bold mt-6 mb-2">
+                    {formattedDate}
+                  </StyledText>
+                )}
+                <StyledText className="text-white font-bold text-lg mb-2 mt-2">
+                  {exerciseName}
+                </StyledText>
+              </View>
             );
           }}
           contentContainerStyle={{ paddingHorizontal: 16 }}
