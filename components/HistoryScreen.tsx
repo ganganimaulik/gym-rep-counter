@@ -138,7 +138,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           sections={sections}
           renderItem={renderItem}
           stickySectionHeadersEnabled={false}
-          keyExtractor={item => item.id}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
           renderSectionHeader={({ section, index }) => {
             const { title, exerciseName } = section;
             const showDateHeader =
