@@ -21,6 +21,15 @@ import type { User as FirebaseUser } from 'firebase/auth'
 import type { WorkoutSet } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
+// Interface for a WorkoutSet object that has been serialized to JSON
+// where the Firestore Timestamp is just a plain object.
+interface SerializedWorkoutSetData extends Omit<WorkoutSet, 'date'> {
+  date: {
+    seconds: number
+    nanoseconds: number
+  }
+}
+
 // Interfaces
 export interface Settings {
   countdownSeconds: number
@@ -124,7 +133,7 @@ export const useData = (): DataHook => {
             .filter(
               item => item && item.date && typeof item.date.seconds === 'number',
             )
-            .map((item: any) => ({
+            .map((item: SerializedWorkoutSetData) => ({
               ...item,
               date: new Timestamp(item.date.seconds, item.date.nanoseconds),
             }))
@@ -351,7 +360,7 @@ export const useData = (): DataHook => {
           if (!savedHistoryRaw) return []
 
           const allHistory = JSON.parse(savedHistoryRaw)
-            .map((item: any) => ({
+            .map((item: SerializedWorkoutSetData) => ({
               ...item,
               date: new Timestamp(item.date.seconds, item.date.nanoseconds),
             }))
@@ -410,7 +419,7 @@ export const useData = (): DataHook => {
           const savedCompletionsRaw = await AsyncStorage.getItem(todayKey)
           if (savedCompletionsRaw) {
             const allCompletions = JSON.parse(savedCompletionsRaw).map(
-              (item: any) => ({
+              (item: SerializedWorkoutSetData) => ({
                 ...item,
                 date: new Timestamp(item.date.seconds, item.date.nanoseconds),
               }),
@@ -570,7 +579,7 @@ export const useData = (): DataHook => {
 
         const guestHistory: WorkoutSet[] = parsedHistory
           .filter(item => item && item.date && typeof item.date.seconds === 'number')
-          .map((item: any) => ({
+          .map((item: SerializedWorkoutSetData) => ({
             ...item,
             date: new Timestamp(item.date.seconds, item.date.nanoseconds),
           }))
