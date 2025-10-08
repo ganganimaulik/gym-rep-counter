@@ -110,7 +110,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               {currentWorkout.exercises[currentExerciseIndex]?.name}
             </StyledText>
             <SetTracker
-              totalSets={settings.maxSets}
+              totalSets={currentWorkout.exercises[currentExerciseIndex]?.sets ?? settings.maxSets}
               isSetCompleted={(setNumber) =>
                 isSetCompleted(activeExerciseId ?? '', setNumber)
               }
