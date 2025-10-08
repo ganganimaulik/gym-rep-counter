@@ -132,6 +132,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
         <SectionList
           sections={sections}
           renderItem={renderItem}
+          stickySectionHeadersEnabled={false}
           keyExtractor={item => item.id}
           renderSectionHeader={({ section: { title } }) => {
             // Manually parse the date to avoid timezone issues.
