@@ -3,8 +3,7 @@ import {
   Modal,
   View,
   Text,
-  Button,
-  FlatList,
+  SectionList,
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
@@ -100,10 +99,12 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     return acc;
   }, {} as Record<string, WorkoutSet[]>);
 
-  const sections = Object.keys(groupedHistory).map((date) => ({
-    title: date,
-    data: groupedHistory[date],
-  }));
+  const sections = Object.keys(groupedHistory)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    .map(date => ({
+      title: date,
+      data: groupedHistory[date],
+    }));
 
   return (
     <Modal
@@ -120,11 +121,21 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           <X color="white" size={30} onPress={onClose} />
         </StyledView>
 
-        <FlatList
-          data={history}
+        <SectionList
+          sections={sections}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16 }}
+          keyExtractor={item => item.id}
+          renderSectionHeader={({ section: { title } }) => (
+            <StyledText className="text-white text-xl font-bold mt-4 mb-2">
+              {new Date(title).toLocaleDateString(undefined, {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </StyledText>
+          )}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
           onEndReached={() => {
             if (!isInitialLoad) {
               loadHistory();
@@ -132,10 +143,12 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           }}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            isLoading ? <ActivityIndicator size="large" color="#fff" /> : null
+            isLoading ? (
+              <ActivityIndicator size="large" color="#fff" className="mt-4" />
+            ) : null
           }
           ListEmptyComponent={
-            !isLoading ? (
+            !isLoading && history.length === 0 ? (
               <StyledText className="text-gray-400 text-center mt-10">
                 No history yet. Complete a set to get started!
               </StyledText>
