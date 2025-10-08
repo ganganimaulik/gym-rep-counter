@@ -134,8 +134,14 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           renderItem={renderItem}
           keyExtractor={item => item.id}
           renderSectionHeader={({ section: { title } }) => {
-            // Replace hyphens with slashes to ensure parsing as local time, not UTC
-            const date = new Date(title.replace(/-/g, '/'));
+            // Manually parse the date to avoid timezone issues.
+            // new Date('YYYY-MM-DD') can be interpreted as UTC, rolling back the date.
+            const parts = title.split('-');
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const day = parseInt(parts[2], 10);
+            const date = new Date(year, month, day);
+
             return (
               <StyledText className="text-white text-xl font-bold mt-4 mb-2">
                 {date.toLocaleDateString(undefined, {
