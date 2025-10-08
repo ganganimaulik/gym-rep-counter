@@ -13,7 +13,7 @@ import { getDefaultWorkouts } from '../../utils/defaultWorkouts'
 
 // Mock Firestore
 jest.mock('firebase/firestore', () => ({
-  doc: jest.fn(),
+  doc: jest.fn().mockImplementation(() => ({ id: `mock-doc-${Math.random()}` })),
   getDoc: jest.fn(),
   setDoc: jest.fn(),
   collection: jest.fn(),
@@ -24,20 +24,31 @@ jest.mock('firebase/firestore', () => ({
   orderBy: jest.fn(),
   limit: jest.fn(),
   startAfter: jest.fn(),
-  Timestamp: {
-    now: jest.fn(() => ({
+  Timestamp: class {
+    constructor(seconds, nanoseconds) {
+      this.seconds = seconds
+      this.nanoseconds = nanoseconds
+    }
+    static now = jest.fn(() => ({
       toDate: () => new Date(),
       toMillis: () => Date.now(),
-    })),
-    fromDate: jest.fn((date) => ({
+    }))
+    static fromDate = jest.fn(date => ({
       toDate: () => date,
       toMillis: () => date.getTime(),
-    })),
+    }))
+    toDate() {
+      return new Date(this.seconds * 1000)
+    }
+    toMillis() {
+      return this.seconds * 1000 + this.nanoseconds / 1000000
+    }
   },
   writeBatch: jest.fn(),
 }))
 
 const mockBatch = {
+  set: jest.fn(),
   delete: jest.fn(),
   commit: jest.fn().mockResolvedValue(undefined),
 }
@@ -69,6 +80,7 @@ describe('useData Hook', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockBatch.set.mockClear()
     mockBatch.delete.mockClear()
     mockBatch.commit.mockClear()
   })
@@ -397,6 +409,31 @@ describe('useData Hook', () => {
       expect(setDocCall[1]).not.toHaveProperty('setCompletions')
       expect(setDocCall[1]).toHaveProperty('settings', localSettings)
       expect(setDocCall[1]).toHaveProperty('workouts', localWorkouts)
+    })
+
+    it('should migrate guest history to firestore', async () => {
+      const guestHistory = [
+        {
+          id: 'guest-1',
+          exerciseId: 'ex1',
+          set: 1,
+          date: { seconds: 1672531200, nanoseconds: 0 },
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestHistory),
+      )
+      ;(getDoc as jest.Mock).mockResolvedValue({ exists: () => false }) // Simulate new user
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.migrateGuestHistory(mockUser)
+      })
+
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith('guestHistory')
+      expect(writeBatch).toHaveBeenCalled()
+      expect(mockBatch.commit).toHaveBeenCalled()
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('guestHistory')
     })
   })
 })

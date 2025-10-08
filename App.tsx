@@ -30,6 +30,8 @@ import {
 } from 'expo-background-timer'
 import type { User as FirebaseUser } from 'firebase/auth'
 
+import { useNetInfo } from '@react-native-community/netinfo'
+
 // Hooks
 import { useAuth } from './hooks/useAuth'
 import { useData, Settings, Workout } from './hooks/useData'
@@ -77,6 +79,7 @@ const App: React.FC = () => {
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
 
   // Custom Hooks
+  const { isConnected } = useNetInfo()
   const dataHook = useData()
   const {
     settings,
@@ -93,6 +96,7 @@ const App: React.FC = () => {
     arePreviousSetsCompleted,
     getNextUncompletedSet,
     fetchTodaysCompletions,
+    syncOfflineQueue,
   } = dataHook
 
   const onAuthSuccess = useCallback(
@@ -183,6 +187,12 @@ const App: React.FC = () => {
       fetchTodaysCompletions(user, activeExercise.id)
     }
   }, [user, activeExercise, fetchTodaysCompletions])
+
+  useEffect(() => {
+    if (isConnected && user) {
+      syncOfflineQueue(user)
+    }
+  }, [isConnected, user, syncOfflineQueue])
 
   useEffect(() => {
     if (isExerciseComplete) {
