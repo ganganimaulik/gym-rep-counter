@@ -213,7 +213,7 @@ export function useWorkoutTimer(
   const continueToNextPhase = useCallback(() => {
     const maxSets = activeExercise?.sets ?? settings.maxSets
     const nextSet = wState.current.set + 1
-    console.log({ nextSet, maxSets })
+
     if (nextSet > maxSets) {
       fullReset()
       updateUI({
@@ -319,7 +319,8 @@ export function useWorkoutTimer(
         : settings.eccentricSeconds
     wState.current.remainingTime = 0
 
-    const { eccentricCountdownEnabled, maxReps } = settings
+    const { eccentricCountdownEnabled } = settings
+    const maxReps = activeExercise?.reps ?? settings.maxReps;
     wState.current.phase = PHASES.ECCENTRIC
     wState.current.phaseStart = Date.now()
     wState.current.lastSpokenSecond = -1

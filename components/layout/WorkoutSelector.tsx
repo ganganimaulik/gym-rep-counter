@@ -136,7 +136,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               {currentWorkout.exercises.length}
             </StyledText>
             <StyledText className="text-sm font-semibold text-gray-200">
-              Reps: {settings.maxReps}
+              Reps: {currentWorkout.exercises[currentExerciseIndex]?.reps??settings.maxReps}
             </StyledText>
           </StyledView>
         </StyledView>
