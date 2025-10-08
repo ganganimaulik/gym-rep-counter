@@ -1,4 +1,4 @@
-import { useState, Dispatch, SetStateAction, useCallback } from 'react'
+import { useState, Dispatch, SetStateAction, useCallback, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   doc,
@@ -50,6 +50,7 @@ export interface DataHook {
   settings: Settings
   workouts: Workout[]
   todaysCompletions: WorkoutSet[]
+  offlineQueue: WorkoutSet[]
   loadSettings: () => Promise<Settings>
   saveSettings: (
     newSettings: Settings,
@@ -73,6 +74,7 @@ export interface DataHook {
     user: FirebaseUser,
     exerciseId: string,
   ) => Promise<void>
+  fetchAllTodaysCompletions: (user: FirebaseUser | null) => Promise<void>
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
   getNextUncompletedSet: (exerciseId: string) => number
   resetSetsFrom: (
@@ -86,8 +88,11 @@ export interface DataHook {
     localSettings: Settings,
     localWorkouts: Workout[],
   ) => Promise<void>
+  migrateGuestHistory: (user: FirebaseUser) => Promise<WorkoutSet[]>
+  syncOfflineQueue: (user: FirebaseUser) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
+  setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
 }
 
 const defaultSettings: Settings = {
@@ -107,6 +112,33 @@ export const useData = (): DataHook => {
     getDefaultWorkouts(),
   )
   const [todaysCompletions, setTodaysCompletions] = useState<WorkoutSet[]>([])
+  const [offlineQueue, setOfflineQueue] = useState<WorkoutSet[]>([])
+
+  const loadOfflineQueue = useCallback(async () => {
+    try {
+      const queue = await AsyncStorage.getItem('offlineQueue')
+      if (queue) {
+        const parsedQueue = JSON.parse(queue)
+        if (Array.isArray(parsedQueue)) {
+          const validQueue = parsedQueue
+            .filter(
+              item => item && item.date && typeof item.date.seconds === 'number',
+            )
+            .map((item: any) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+          setOfflineQueue(validQueue)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load offline queue.', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadOfflineQueue()
+  }, [loadOfflineQueue])
 
   const loadSettings = useCallback(async (): Promise<Settings> => {
     try {
@@ -139,6 +171,34 @@ export const useData = (): DataHook => {
         }
       } catch (e) {
         console.error('Failed to save settings.', e)
+      }
+    },
+    [],
+  )
+
+  const fetchAllTodaysCompletions = useCallback(
+    async (user: FirebaseUser | null) => {
+      if (!user) {
+        setTodaysCompletions([])
+        return
+      }
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const startOfToday = Timestamp.fromDate(today)
+
+      try {
+        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+        const q = query(historyCollectionRef, where('date', '>=', startOfToday))
+        const querySnapshot = await getDocs(q)
+        const todaysSets = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as WorkoutSet[]
+        setTodaysCompletions(todaysSets)
+      } catch (e) {
+        console.error("Failed to fetch all of today's completions", e)
+        setTodaysCompletions([])
       }
     },
     [],
@@ -188,6 +248,8 @@ export const useData = (): DataHook => {
       set: number,
       user: FirebaseUser | null,
     ) => {
+      const newEntryBase = { ...entry, set, date: Timestamp.now() }
+
       if (user) {
         try {
           const historyCollectionRef = collection(
@@ -196,24 +258,31 @@ export const useData = (): DataHook => {
             user.uid,
             'history',
           )
-          const newEntry = {
-            ...entry,
-            set,
-            date: Timestamp.now(),
-          }
-          const docRef = await addDoc(historyCollectionRef, newEntry)
-          setTodaysCompletions(prev => [...prev, { ...newEntry, id: docRef.id }])
+          const docRef = await addDoc(historyCollectionRef, newEntryBase)
+          setTodaysCompletions(prev => [
+            ...prev,
+            { ...newEntryBase, id: docRef.id },
+          ])
         } catch (e) {
-          console.error('Failed to save history entry', e)
+          console.error('Failed to save history entry, queuing offline.', e)
+          const offlineEntry: WorkoutSet = {
+            ...newEntryBase,
+            id: `${Date.now()}-${entry.exerciseId}-${set}`,
+          }
+          setTodaysCompletions(prev => [...prev, offlineEntry])
+          const updatedQueue = [...offlineQueue, offlineEntry]
+          setOfflineQueue(updatedQueue)
+          await AsyncStorage.setItem(
+            'offlineQueue',
+            JSON.stringify(updatedQueue),
+          )
         }
       } else {
         // Guest user
         try {
           const newEntry: WorkoutSet = {
-            ...entry,
-            set,
+            ...newEntryBase,
             id: `${Date.now()}-${entry.exerciseId}-${set}`,
-            date: Timestamp.now(),
           }
 
           // Save to today's completions
@@ -243,7 +312,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [todaysCompletions],
+    [todaysCompletions, offlineQueue],
   )
 
   const fetchHistory = useCallback(
@@ -484,18 +553,113 @@ export const useData = (): DataHook => {
     [todaysCompletions],
   )
 
+  const migrateGuestHistory = useCallback(
+    async (user: FirebaseUser): Promise<WorkoutSet[]> => {
+      try {
+        const historyKey = 'guestHistory'
+        const savedHistoryRaw = await AsyncStorage.getItem(historyKey)
+        if (!savedHistoryRaw) return []
+
+        const parsedHistory = JSON.parse(savedHistoryRaw)
+        if (!Array.isArray(parsedHistory)) {
+          console.warn(
+            'Guest history in AsyncStorage is not an array, skipping migration.',
+          )
+          return []
+        }
+
+        const guestHistory: WorkoutSet[] = parsedHistory
+          .filter(item => item && item.date && typeof item.date.seconds === 'number')
+          .map((item: any) => ({
+            ...item,
+            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+          }))
+
+        if (guestHistory.length === 0) return []
+
+        const batch = writeBatch(db)
+        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+        const migratedEntries: WorkoutSet[] = []
+
+        guestHistory.forEach(entry => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, ...dataToUpload } = entry
+          const docRef = doc(historyCollectionRef) // Create a new doc with a new ID
+          batch.set(docRef, dataToUpload)
+          migratedEntries.push({ ...entry, id: docRef.id })
+        })
+
+        await batch.commit()
+        await AsyncStorage.removeItem(historyKey)
+        await AsyncStorage.removeItem(`todaysCompletions-${getLocalDateString()}`)
+
+        console.log('Guest history migrated successfully.')
+        return migratedEntries
+      } catch (e) {
+        console.error('Failed to migrate guest history', e)
+        return []
+      }
+    },
+    [],
+  )
+
+  const syncOfflineQueue = useCallback(
+    async (user: FirebaseUser) => {
+      if (offlineQueue.length === 0) return
+
+      console.log(`Syncing ${offlineQueue.length} offline entries...`)
+      const batch = writeBatch(db)
+      const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+
+      offlineQueue.forEach(entry => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, ...dataToUpload } = entry
+        const docRef = doc(historyCollectionRef) // Create a new doc with a new ID
+        batch.set(docRef, dataToUpload)
+      })
+
+      try {
+        await batch.commit()
+        setOfflineQueue([])
+        await AsyncStorage.removeItem('offlineQueue')
+        console.log('Offline queue synced successfully.')
+      } catch (e) {
+        console.error('Failed to sync offline queue', e)
+      }
+    },
+    [offlineQueue],
+  )
+
   const syncUserData = useCallback(
     async (
       firebaseUser: FirebaseUser,
       localSettings: Settings,
       localWorkouts: Workout[],
     ) => {
-      const userDocRef = doc(db, 'users', firebaseUser.uid)
       try {
+        // Step 1: Migrate local data to Firestore
+        await migrateGuestHistory(firebaseUser)
+        await syncOfflineQueue(firebaseUser)
+
+        const userDocRef = doc(db, 'users', firebaseUser.uid)
         const userDoc = await getDoc(userDocRef)
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
+        // Step 2: Create user document if it doesn't exist
+        if (!userDoc.exists()) {
+          console.log('New user detected, creating document...')
+          await setDoc(userDocRef, {
+            email: firebaseUser.email,
+            name: firebaseUser.displayName,
+            settings: localSettings,
+            workouts: localWorkouts,
+          })
+        }
+
+        // Step 3: Fetch all data from Firestore to ensure local state is a mirror of the server
+        console.log('Fetching latest user data from Firestore...')
+        const freshUserDoc = await getDoc(userDocRef) // Re-fetch in case it was just created
+        if (freshUserDoc.exists()) {
+          const userData = freshUserDoc.data()
           // Sync Settings
           if (userData.settings) {
             setSettings(userData.settings)
@@ -515,39 +679,23 @@ export const useData = (): DataHook => {
               'workouts',
               JSON.stringify(userData.workouts),
             )
-          } else {
-            const defaultWorkouts = getDefaultWorkouts()
-            setWorkouts(defaultWorkouts)
-            await AsyncStorage.setItem(
-              'workouts',
-              JSON.stringify(defaultWorkouts),
-            )
-            await setDoc(
-              userDocRef,
-              { workouts: defaultWorkouts },
-              { merge: true },
-            )
           }
-        } else {
-          // New user, upload local data
-          await setDoc(userDocRef, {
-            email: firebaseUser.email,
-            name: firebaseUser.displayName,
-            settings: localSettings,
-            workouts: localWorkouts,
-          })
         }
+
+        // Step 4: Fetch a fresh copy of today's completions
+        await fetchAllTodaysCompletions(firebaseUser)
       } catch (error) {
         console.error('Error syncing user data:', error)
       }
     },
-    [],
+    [migrateGuestHistory, syncOfflineQueue, fetchAllTodaysCompletions],
   )
 
   return {
     settings,
     workouts,
     todaysCompletions,
+    offlineQueue,
     loadSettings,
     saveSettings,
     loadWorkouts,
@@ -555,12 +703,16 @@ export const useData = (): DataHook => {
     addHistoryEntry,
     fetchHistory,
     fetchTodaysCompletions,
+    fetchAllTodaysCompletions,
     isSetCompleted,
     getNextUncompletedSet,
     resetSetsFrom,
     arePreviousSetsCompleted,
     syncUserData,
+    migrateGuestHistory,
+    syncOfflineQueue,
     setWorkouts,
     setSettings,
+    setOfflineQueue,
   }
 }
