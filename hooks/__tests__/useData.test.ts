@@ -6,7 +6,6 @@ import {
   addDoc,
   getDocs,
   writeBatch,
-  Timestamp,
 } from 'firebase/firestore'
 import { useData, Settings, Workout } from '../useData'
 import { getDefaultWorkouts } from '../../utils/defaultWorkouts'
@@ -373,7 +372,7 @@ describe('useData Hook', () => {
 
       const { result } = renderHook(() => useData())
       await act(async () => {
-        await result.current.syncUserData(mockUser, {} as any, [])
+        await result.current.syncUserData(mockUser, {} as Settings, [])
       })
 
       expect(result.current.settings).toEqual(firestoreData.settings)
