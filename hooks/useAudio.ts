@@ -34,26 +34,38 @@ export const useAudio = (settings: Settings): AudioHandler => {
   const findFemaleVoice = async () => {
     try {
       const voices = await Speech.getAvailableVoicesAsync()
-      const foundVoice = voices.find(
-        (v) =>
-          v.quality === Speech.VoiceQuality.Enhanced &&
-          (v.name.includes('Female') ||
-            v.name.includes('Samantha') ||
-            v.name.includes('Serena') ||
-            v.name.includes('Karen') ||
-            v.name.includes('Victoria')),
-      )
-      if (foundVoice) {
-        setFemaleVoice(foundVoice.identifier)
+      if (voices.length === 0) {
+        console.warn('No speech voices available on this device.')
         return
       }
-      // Fallback to any female voice
-      const anyFemale = voices.find((v) => v.name.includes('Female'))
-      if (anyFemale) {
-        setFemaleVoice(anyFemale.identifier)
+
+      const femaleVoiceNames = ['female', 'samantha', 'serena', 'karen', 'victoria']
+
+      // 1. Prioritize Enhanced quality female voices
+      let foundVoice = voices.find(
+        (v) =>
+          v.quality === Speech.VoiceQuality.Enhanced &&
+          femaleVoiceNames.some((name) => v.name.toLowerCase().includes(name)),
+      )
+
+      // 2. Fallback to any female voice
+      if (!foundVoice) {
+        foundVoice = voices.find((v) =>
+          femaleVoiceNames.some((name) => v.name.toLowerCase().includes(name)),
+        )
+      }
+
+      // 3. Default to the first available voice
+      if (!foundVoice) {
+        foundVoice = voices[0]
+        console.warn('Female voice not found, defaulting to the first available voice.')
+      }
+
+      if (foundVoice) {
+        setFemaleVoice(foundVoice.identifier)
       }
     } catch (error) {
-      console.error('Error finding female voice:', error)
+      console.error('Error finding a suitable voice:', error)
     }
   }
 
