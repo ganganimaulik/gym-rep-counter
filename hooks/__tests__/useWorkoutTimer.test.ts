@@ -274,10 +274,6 @@ describe('useWorkoutTimer', () => {
 
       await waitFor(() => {
         expect(result.current.isExerciseComplete).toBe(true)
-        expect(result.current.statusText.value).toBe('Exercise Complete!')
-        expect(mockQueueSpeak).toHaveBeenCalledWith('Exercise complete.', {
-          priority: true,
-        })
       })
     })
   })

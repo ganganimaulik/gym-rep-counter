@@ -292,11 +292,6 @@ const App: React.FC = () => {
     setCompletedSetData(null)
   }
 
-  const handleSkipLogSet = () => {
-    setAddSetModalVisible(false)
-    setCompletedSetData(null)
-  }
-
   if (initializing) {
     return (
       <StyledSafeAreaView className="flex-1 bg-gray-900 justify-center items-center">
@@ -406,7 +401,10 @@ const App: React.FC = () => {
       />
       <AddSetDetailsModal
         visible={addSetModalVisible}
-        onClose={handleSkipLogSet}
+        onClose={() => {
+          setAddSetModalVisible(false)
+          setCompletedSetData(null)
+        }}
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
       />

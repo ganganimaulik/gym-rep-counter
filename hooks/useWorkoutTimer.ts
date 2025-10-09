@@ -262,10 +262,7 @@ export function useWorkoutTimer(
 
     const onRestComplete = () => {
       if (nextSet > maxSets) {
-        fullReset()
         updateUI({ isExerciseComplete: true })
-        statusText.value = 'Exercise Complete!'
-        queueSpeak('Exercise complete.', { priority: true })
       } else {
         wState.current.set = nextSet
         wState.current.rep = 0
