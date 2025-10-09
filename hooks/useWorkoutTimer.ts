@@ -61,7 +61,6 @@ export interface WorkoutTimerHook {
   jumpToSet: (set: number) => void
   setStatusText: (text: string) => void
   resetExerciseCompleteFlag: () => void
-  continueToNextPhase: () => void
   addCountdownTime: () => void
   endSet: () => void
 }
@@ -148,46 +147,54 @@ export function useWorkoutTimer(
     [clearTimer],
   )
 
-  const startRest = useCallback(() => {
-    const duration =
-      wState.current.remainingTime > 0
-        ? wState.current.remainingTime / 1000
-        : settings.restSeconds
-    wState.current.remainingTime = 0
+  const startRest = useCallback(
+    (onRestComplete?: () => void) => {
+      const duration =
+        wState.current.remainingTime > 0
+          ? wState.current.remainingTime / 1000
+          : settings.restSeconds
+      wState.current.remainingTime = 0
 
-    wState.current.phase = PHASES.REST
-    wState.current.phaseStart = Date.now()
-    wState.current.lastSpokenSecond = -1
+      wState.current.phase = PHASES.REST
+      wState.current.phaseStart = Date.now()
+      wState.current.lastSpokenSecond = -1
+      updateUI({ phase: PHASE_DISPLAY[PHASES.REST] })
 
-    const tick = () => {
-      const elapsed = (Date.now() - wState.current.phaseStart) / 1000
-      const remaining = duration - elapsed
-      const whole = Math.ceil(remaining)
+      const tick = () => {
+        const elapsed = (Date.now() - wState.current.phaseStart) / 1000
+        const remaining = duration - elapsed
+        const whole = Math.ceil(remaining)
 
-      statusText.value = `Rest: ${Math.max(0, whole)}s`
+        statusText.value = `Rest: ${Math.max(0, whole)}s`
 
-      if (remaining > 0) {
-        if (
-          whole <= 3 &&
-          whole > 0 &&
-          whole !== wState.current.lastSpokenSecond
-        ) {
-          wState.current.lastSpokenSecond = whole
+        if (remaining > 0) {
+          if (
+            whole <= 3 &&
+            whole > 0 &&
+            whole !== wState.current.lastSpokenSecond
+          ) {
+            wState.current.lastSpokenSecond = whole
+          }
+          schedule(1000, tick, false)
+        } else {
+          clearTimer()
+          if (onRestComplete) {
+            onRestComplete()
+          } else {
+            statusText.value = `Press Start for Set ${wState.current.set}`
+            queueSpeak(
+              `Rest complete. Press start for set ${wState.current.set}.`,
+              {
+                priority: true,
+              },
+            )
+          }
         }
-        schedule(1000 - (Date.now() % 1000), tick)
-      } else {
-        clearTimer()
-        statusText.value = `Press Start for Set ${wState.current.set}`
-        queueSpeak(
-          `Rest complete. Press start for set ${wState.current.set}.`,
-          {
-            priority: true,
-          },
-        )
       }
-    }
-    tick()
-  }, [settings, queueSpeak, schedule, clearTimer, statusText])
+      tick()
+    },
+    [settings, queueSpeak, schedule, clearTimer, statusText, updateUI],
+  )
 
   const fullReset = useCallback(() => {
     clearTimer()
@@ -210,43 +217,6 @@ export function useWorkoutTimer(
     statusText.value = 'Press Start'
   }, [clearTimer, displayRep, displaySet, updateUI, statusText])
 
-  const continueToNextPhase = useCallback(() => {
-    const maxSets = activeExercise?.sets ?? settings.maxSets
-    const nextSet = wState.current.set + 1
-
-    if (nextSet > maxSets) {
-      fullReset()
-      updateUI({
-        isExerciseComplete: true,
-      })
-      statusText.value = 'Exercise Complete!'
-    } else {
-      wState.current.set = nextSet
-      wState.current.rep = 0
-      displaySet.value = nextSet
-      displayRep.value = 0
-
-      updateUI({
-        isRunning: false,
-        isPaused: false,
-        phase: PHASE_DISPLAY[PHASES.REST],
-      })
-      queueSpeak(`Set complete. Rest now.`, {
-        priority: true,
-        onDone: startRest,
-      })
-    }
-  }, [
-    settings,
-    fullReset,
-    updateUI,
-    displayRep,
-    displaySet,
-    queueSpeak,
-    statusText,
-    startRest,
-  ])
-
   const stopWorkout = useCallback(() => {
     clearTimer()
     wState.current.phase = PHASES.STOPPED
@@ -268,28 +238,63 @@ export function useWorkoutTimer(
       return
     }
 
-    // If the user ends the set during the countdown, we need to stop the timer.
     if (wState.current.phase === PHASES.COUNTDOWN) {
       clearTimer()
       wState.current.phase = PHASES.STOPPED
-      updateUI({
-        isRunning: false,
-        isPaused: false,
-        phase: '',
-      })
+      updateUI({ isRunning: false, isPaused: false, phase: '' })
     } else {
       clearTimer(false)
     }
-    if (activeExercise) {
-      onSetComplete({
-        exerciseId: activeExercise.id,
-        reps: wState.current.rep,
-        set: wState.current.set,
-      })
-    } else {
+
+    if (!activeExercise) {
       fullReset()
+      return
     }
-  }, [activeExercise, onSetComplete, clearTimer, fullReset, stopWorkout])
+
+    onSetComplete({
+      exerciseId: activeExercise.id,
+      reps: wState.current.rep,
+      set: wState.current.set,
+    })
+
+    const maxSets = activeExercise.sets
+    const nextSet = wState.current.set + 1
+
+    const onRestComplete = () => {
+      if (nextSet > maxSets) {
+        updateUI({ isExerciseComplete: true })
+      } else {
+        wState.current.set = nextSet
+        wState.current.rep = 0
+        displaySet.value = nextSet
+        displayRep.value = 0
+        updateUI({ isRunning: false, isPaused: false })
+        statusText.value = `Press Start for Set ${wState.current.set}`
+        queueSpeak(
+          `Rest complete. Press start for set ${wState.current.set}.`,
+          { priority: true },
+        )
+      }
+    }
+
+    queueSpeak(`Set complete. Rest now.`, {
+      priority: true,
+      onDone: () => startRest(onRestComplete),
+    })
+  }, [
+    activeExercise,
+    settings,
+    onSetComplete,
+    clearTimer,
+    fullReset,
+    stopWorkout,
+    updateUI,
+    displayRep,
+    displaySet,
+    queueSpeak,
+    statusText,
+    startRest,
+  ])
 
   const startConcentric = useCallback(() => {
     const duration =
@@ -310,7 +315,7 @@ export function useWorkoutTimer(
       },
       stopSpeechOnClear,
     )
-  }, [settings, schedule, updateUI])
+  }, [settings, schedule, updateUI, startEccentric])
 
   const startEccentric = useCallback(() => {
     const duration =
@@ -319,8 +324,12 @@ export function useWorkoutTimer(
         : settings.eccentricSeconds
     wState.current.remainingTime = 0
 
+    if (!activeExercise) {
+      fullReset()
+      return
+    }
     const { eccentricCountdownEnabled } = settings
-    const maxReps = activeExercise?.reps ?? settings.maxReps;
+    const maxReps = activeExercise.reps
     wState.current.phase = PHASES.ECCENTRIC
     wState.current.phaseStart = Date.now()
     wState.current.lastSpokenSecond = -1
@@ -364,6 +373,7 @@ export function useWorkoutTimer(
     }
   }, [
     settings,
+    activeExercise,
     speakEccentric,
     queueSpeak,
     schedule,
@@ -635,7 +645,6 @@ export function useWorkoutTimer(
         statusText.value = text
       },
       resetExerciseCompleteFlag: () => updateUI({ isExerciseComplete: false }),
-      continueToNextPhase,
       addCountdownTime,
       endSet,
     }),
@@ -651,8 +660,8 @@ export function useWorkoutTimer(
       jumpToRep,
       jumpToSet,
       updateUI,
-      continueToNextPhase,
       addCountdownTime,
+      endSet,
     ],
   )
 }

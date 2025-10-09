@@ -148,7 +148,6 @@ const App: React.FC = () => {
     isExerciseComplete,
     setStatusText,
     resetExerciseCompleteFlag,
-    continueToNextPhase,
     addCountdownTime,
     endSet,
   } = useWorkoutTimer(
@@ -223,19 +222,6 @@ const App: React.FC = () => {
     resetExerciseCompleteFlag,
   ])
 
-  useEffect(() => {
-    if (currentWorkout && currentWorkout.exercises.length > 0) {
-      const exercise = currentWorkout.exercises[currentExerciseIndex]
-      if (exercise) {
-        setDataSettings((prev: Settings) => ({
-          ...prev,
-          maxReps: exercise.reps,
-          maxSets: exercise.sets,
-        }))
-      }
-    }
-  }, [currentWorkout, currentExerciseIndex, setDataSettings])
-
   const selectWorkout = (workoutId: string | null) => {
     stopWorkout()
     if (workoutId === null) {
@@ -291,7 +277,6 @@ const App: React.FC = () => {
     // and even if the data saving fails, to not block the UI flow.
     setAddSetModalVisible(false)
     setCompletedSetData(null)
-    continueToNextPhase()
   }
 
   if (initializing) {
@@ -405,6 +390,7 @@ const App: React.FC = () => {
         visible={addSetModalVisible}
         onClose={() => {
           setAddSetModalVisible(false)
+          setCompletedSetData(null)
         }}
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
