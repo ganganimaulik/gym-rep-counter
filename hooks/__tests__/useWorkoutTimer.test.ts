@@ -169,11 +169,17 @@ describe('useWorkoutTimer', () => {
       )
 
       act(() => result.current.startWorkout())
-      act(() => jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000))
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000),
+      )
 
       for (let i = 0; i < defaultSettings.maxReps; i++) {
-        act(() => jest.advanceTimersByTime(defaultSettings.concentricSeconds * 1000))
-        act(() => jest.advanceTimersByTime(defaultSettings.eccentricSeconds * 1000))
+        act(() =>
+          jest.advanceTimersByTime(defaultSettings.concentricSeconds * 1000),
+        )
+        act(() =>
+          jest.advanceTimersByTime(defaultSettings.eccentricSeconds * 1000),
+        )
       }
 
       await waitFor(() => {
@@ -185,57 +191,95 @@ describe('useWorkoutTimer', () => {
       })
     })
 
-    it('should transition to rest phase when continueToNextPhase is called', async () => {
+    it('should transition to rest phase when endSet is called', async () => {
       const { result } = renderHook(() =>
         useWorkoutTimer(
           defaultSettings,
           mockAudioHandler,
           activeExercise,
           mockOnSetComplete,
-          1,
+          1, // Start on set 1
         ),
       )
 
       // Manually trigger the end of a set
       act(() => {
-        result.current.continueToNextPhase()
+        result.current.endSet()
       })
 
+      // onSetComplete should be called immediately
+      expect(mockOnSetComplete).toHaveBeenCalledWith({
+        exerciseId: activeExercise.id,
+        reps: 0, // Reps are 0 because we didn't do any
+        set: 1,
+      })
+
+      // It should announce the set is complete and then start resting
       await waitFor(() => {
+        expect(mockQueueSpeak).toHaveBeenCalledWith(
+          'Set complete. Rest now.',
+          expect.any(Object),
+        )
         expect(result.current.phase).toBe('Rest')
-        expect(result.current.currentSet.value).toBe(2)
-        expect(mockQueueSpeak).toHaveBeenCalledWith('Set complete. Rest now.', expect.any(Object))
       })
 
       // Advance timers to finish the rest
-      act(() => jest.advanceTimersByTime(defaultSettings.restSeconds * 1000 + 500))
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.restSeconds * 1000 + 500),
+      ) // Advance past rest time
 
+      // After rest, the set should be incremented and status text updated
       await waitFor(() => {
-          expect(result.current.statusText.value).toBe('Press Start for Set 2')
+        expect(result.current.currentSet.value).toBe(2)
+        expect(result.current.statusText.value).toBe('Press Start for Set 2')
       })
     })
 
     it('should complete the exercise after the last set', async () => {
-        const { result } = renderHook(() =>
-          useWorkoutTimer(
-            defaultSettings,
-            mockAudioHandler,
-            activeExercise,
-            mockOnSetComplete,
-            defaultSettings.maxSets, // Start on the last set
-          ),
-        );
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          defaultSettings.maxSets, // Start on the last set
+        ),
+      )
 
-        // Manually trigger the end of the last set
-        act(() => {
-          result.current.continueToNextPhase();
-        });
+      // Manually trigger the end of the last set
+      act(() => {
+        result.current.endSet()
+      })
 
-        await waitFor(() => {
-          expect(result.current.isExerciseComplete).toBe(true);
-          expect(result.current.statusText.value).toBe('Exercise Complete!');
-        });
-      });
+      // onSetComplete should be called for the last set
+      expect(mockOnSetComplete).toHaveBeenCalledWith({
+        exerciseId: activeExercise.id,
+        reps: 0,
+        set: defaultSettings.maxSets,
+      })
+
+      // It should announce rest, then complete the exercise after resting
+      await waitFor(() => {
+        expect(mockQueueSpeak).toHaveBeenCalledWith(
+          'Set complete. Rest now.',
+          expect.any(Object),
+        )
+        expect(result.current.phase).toBe('Rest')
+      })
+
+      // Advance timers to finish the rest
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.restSeconds * 1000 + 500),
+      )
+
+      await waitFor(() => {
+        expect(result.current.isExerciseComplete).toBe(true)
+        expect(result.current.statusText.value).toBe('Exercise Complete!')
+        expect(mockQueueSpeak).toHaveBeenCalledWith('Exercise complete.', {
+          priority: true,
+        })
+      })
+    })
   })
 
   describe('Advanced Controls', () => {
