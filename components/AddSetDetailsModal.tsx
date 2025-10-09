@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, Button, StyleSheet, Keyboard } from 'react-native';
+import { Modal, View, Text, TextInput, Button, Keyboard } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { styled } from 'nativewind';
 

@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { styled } from 'nativewind';
 import { X } from 'lucide-react-native';
 
@@ -17,7 +16,6 @@ import { DataHook } from '../hooks/useData';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
-const StyledBlurView = styled(BlurView);
 const StyledSafeAreaView = styled(SafeAreaView);
 
 interface HistoryScreenProps {
