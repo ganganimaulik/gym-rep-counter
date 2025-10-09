@@ -46,7 +46,7 @@ import WorkoutSelector from './components/layout/WorkoutSelector'
 import MainDisplay from './components/layout/MainDisplay'
 import Controls from './components/layout/Controls'
 import RepJumper from './components/layout/RepJumper'
-import AddSetDetailsModal from './components/AddSetDetailsModal'
+import SetDetailsModal from './components/SetDetailsModal'
 import Toast from 'react-native-toast-message'
 import HistoryScreen from './components/HistoryScreen'
 
@@ -60,6 +60,7 @@ interface CompletedSetData {
   exerciseId: string
   reps: number
   set: number
+  weight?: number
 }
 
 const App: React.FC = () => {
@@ -68,10 +69,10 @@ const App: React.FC = () => {
   // UI State
   const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
   const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
-  const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
+  const [editSetModalVisible, setEditSetModalVisible] = useState<boolean>(false)
   const [historyScreenVisible, setHistoryScreenVisible] =
     useState<boolean>(false)
-  const [completedSetData, setCompletedSetData] =
+  const [lastCompletedSetData, setLastCompletedSetData] =
     useState<CompletedSetData | null>(null)
 
   // Workout State
@@ -127,9 +128,25 @@ const App: React.FC = () => {
     ? getNextUncompletedSet(activeExercise.id)
     : 1
 
-  const handleSetComplete = (details: CompletedSetData) => {
-    setCompletedSetData(details)
-    setAddSetModalVisible(true)
+  const handleSetComplete = async (details: CompletedSetData) => {
+    if (activeExercise && currentWorkout) {
+      // Log the set immediately with 0 weight
+      await addHistoryEntry(
+        {
+          workoutId: currentWorkout.id,
+          exerciseId: activeExercise.id,
+          exerciseName: activeExercise.name,
+          reps: details.reps,
+          weight: 0, // Default weight
+        },
+        details.set,
+        user,
+      )
+      // Store details for potential editing
+      setLastCompletedSetData({ ...details, weight: 0 })
+      // Proceed to the next phase (rest)
+      continueToNextPhase()
+    }
   }
 
   const {
@@ -273,25 +290,22 @@ const App: React.FC = () => {
     saveWorkouts(newWorkouts, user)
   }
 
-  const handleAddSetDetails = async (reps: number, weight: number) => {
-    if (completedSetData && activeExercise) {
+  const handleUpdateSetDetails = async (reps: number, weight: number) => {
+    if (lastCompletedSetData && activeExercise && currentWorkout) {
       await addHistoryEntry(
         {
-          workoutId: currentWorkout!.id,
+          workoutId: currentWorkout.id,
           exerciseId: activeExercise.id,
           exerciseName: activeExercise.name,
           reps,
           weight,
         },
-        completedSetData.set,
+        lastCompletedSetData.set,
         user,
       )
+      setLastCompletedSetData(null) // Clear after editing
     }
-    // This part should run whether the user is logged in or not,
-    // and even if the data saving fails, to not block the UI flow.
-    setAddSetModalVisible(false)
-    setCompletedSetData(null)
-    continueToNextPhase()
+    setEditSetModalVisible(false)
   }
 
   if (initializing) {
@@ -360,6 +374,7 @@ const App: React.FC = () => {
             stopWorkout={stopWorkout}
             pauseWorkout={pauseWorkout}
             endSet={endSet}
+            onEditLastSet={() => setEditSetModalVisible(true)}
           />
 
           <RepJumper
@@ -401,13 +416,13 @@ const App: React.FC = () => {
         disconnectAccount={disconnectAccount}
         isSigningIn={isSigningIn}
       />
-      <AddSetDetailsModal
-        visible={addSetModalVisible}
-        onClose={() => {
-          setAddSetModalVisible(false)
-        }}
-        onSubmit={handleAddSetDetails}
-        initialReps={completedSetData?.reps ?? settings.maxReps}
+      <SetDetailsModal
+        visible={editSetModalVisible}
+        title="Edit Last Set"
+        onClose={() => setEditSetModalVisible(false)}
+        onSubmit={handleUpdateSetDetails}
+        initialReps={lastCompletedSetData?.reps ?? 0}
+        initialWeight={lastCompletedSetData?.weight ?? 0}
       />
       <HistoryScreen
         visible={historyScreenVisible}

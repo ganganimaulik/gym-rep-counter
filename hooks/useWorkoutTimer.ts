@@ -211,41 +211,24 @@ export function useWorkoutTimer(
   }, [clearTimer, displayRep, displaySet, updateUI, statusText])
 
   const continueToNextPhase = useCallback(() => {
-    const maxSets = activeExercise?.sets ?? settings.maxSets
+    // Increment the set number for the upcoming set
     const nextSet = wState.current.set + 1
+    wState.current.set = nextSet
+    wState.current.rep = 0
+    displaySet.value = nextSet
+    displayRep.value = 0
 
-    if (nextSet > maxSets) {
-      fullReset()
-      updateUI({
-        isExerciseComplete: true,
-      })
-      statusText.value = 'Exercise Complete!'
-    } else {
-      wState.current.set = nextSet
-      wState.current.rep = 0
-      displaySet.value = nextSet
-      displayRep.value = 0
+    updateUI({
+      isRunning: false,
+      isPaused: false,
+      phase: PHASE_DISPLAY[PHASES.REST],
+    })
 
-      updateUI({
-        isRunning: false,
-        isPaused: false,
-        phase: PHASE_DISPLAY[PHASES.REST],
-      })
-      queueSpeak(`Set complete. Rest now.`, {
-        priority: true,
-        onDone: startRest,
-      })
-    }
-  }, [
-    settings,
-    fullReset,
-    updateUI,
-    displayRep,
-    displaySet,
-    queueSpeak,
-    statusText,
-    startRest,
-  ])
+    queueSpeak(`Set complete. Rest now.`, {
+      priority: true,
+      onDone: startRest,
+    })
+  }, [updateUI, displayRep, displaySet, queueSpeak, startRest])
 
   const stopWorkout = useCallback(() => {
     clearTimer()
@@ -577,11 +560,27 @@ export function useWorkoutTimer(
   )
 
   const runNextSet = useCallback(() => {
+    const maxSets = activeExercise?.sets ?? settings.maxSets
+    if (wState.current.set > maxSets) {
+      fullReset()
+      updateUI({ isExerciseComplete: true })
+      statusText.value = 'Exercise Complete!'
+      return
+    }
+
     clearTimer()
     wState.current.isJumping = false
     updateUI({ isRunning: true, isPaused: false })
     startCountdown()
-  }, [clearTimer, updateUI, startCountdown])
+  }, [
+    activeExercise,
+    settings.maxSets,
+    clearTimer,
+    updateUI,
+    startCountdown,
+    fullReset,
+    statusText,
+  ])
 
   const addCountdownTime = useCallback(() => {
     if (wState.current.phase === PHASES.COUNTDOWN) {
@@ -653,6 +652,7 @@ export function useWorkoutTimer(
       updateUI,
       continueToNextPhase,
       addCountdownTime,
+      endSet,
     ],
   )
 }

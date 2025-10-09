@@ -15,6 +15,7 @@ interface ControlsProps {
   stopWorkout: () => void
   pauseWorkout: () => void
   endSet: () => void
+  onEditLastSet: () => void
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -26,18 +27,39 @@ const Controls: React.FC<ControlsProps> = ({
   stopWorkout,
   pauseWorkout,
   endSet,
+  onEditLastSet,
 }) => {
   return (
     <StyledView className="flex-row gap-4">
       {(() => {
         if (!isRunning) {
+          if (isResting) {
+            return [
+              <StyledTouchableOpacity
+                key="next-set"
+                onPress={runNextSet}
+                className="p-4 rounded-lg flex-1 items-center bg-green-600">
+                <StyledText className="text-lg font-semibold text-white">
+                  Next Set
+                </StyledText>
+              </StyledTouchableOpacity>,
+              <StyledTouchableOpacity
+                key="edit-last-set"
+                onPress={onEditLastSet}
+                className="p-4 rounded-lg flex-1 items-center bg-gray-500">
+                <StyledText className="text-lg font-semibold text-white">
+                  Edit Last Set
+                </StyledText>
+              </StyledTouchableOpacity>,
+            ]
+          }
           return (
             <StyledTouchableOpacity
               key="start"
-              onPress={isResting ? runNextSet : startWorkout}
+              onPress={startWorkout}
               className="p-4 rounded-lg flex-1 items-center bg-green-600">
               <StyledText className="text-lg font-semibold text-white">
-                {isResting ? 'Next Set' : 'Start'}
+                Start
               </StyledText>
             </StyledTouchableOpacity>
           )
