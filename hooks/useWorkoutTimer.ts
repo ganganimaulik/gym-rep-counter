@@ -257,7 +257,7 @@ export function useWorkoutTimer(
       set: wState.current.set,
     })
 
-    const maxSets = activeExercise?.sets ?? settings.maxSets
+    const maxSets = activeExercise.sets
     const nextSet = wState.current.set + 1
 
     const onRestComplete = () => {
@@ -324,8 +324,12 @@ export function useWorkoutTimer(
         : settings.eccentricSeconds
     wState.current.remainingTime = 0
 
+    if (!activeExercise) {
+      fullReset()
+      return
+    }
     const { eccentricCountdownEnabled } = settings
-    const maxReps = activeExercise?.reps ?? settings.maxReps
+    const maxReps = activeExercise.reps
     wState.current.phase = PHASES.ECCENTRIC
     wState.current.phaseStart = Date.now()
     wState.current.lastSpokenSecond = -1

@@ -222,19 +222,6 @@ const App: React.FC = () => {
     resetExerciseCompleteFlag,
   ])
 
-  useEffect(() => {
-    if (currentWorkout && currentWorkout.exercises.length > 0) {
-      const exercise = currentWorkout.exercises[currentExerciseIndex]
-      if (exercise) {
-        setDataSettings((prev: Settings) => ({
-          ...prev,
-          maxReps: exercise.reps,
-          maxSets: exercise.sets,
-        }))
-      }
-    }
-  }, [currentWorkout, currentExerciseIndex, setDataSettings])
-
   const selectWorkout = (workoutId: string | null) => {
     stopWorkout()
     if (workoutId === null) {
