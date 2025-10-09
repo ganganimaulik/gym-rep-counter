@@ -216,26 +216,38 @@ describe('useWorkoutTimer', () => {
     })
 
     it('should complete the exercise after the last set', async () => {
-        const { result } = renderHook(() =>
-          useWorkoutTimer(
-            defaultSettings,
-            mockAudioHandler,
-            activeExercise,
-            mockOnSetComplete,
-            defaultSettings.maxSets, // Start on the last set
-          ),
-        );
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          defaultSettings.maxSets, // Start on the last set
+        ),
+      )
 
-        // Manually trigger the end of the last set
-        act(() => {
-          result.current.continueToNextPhase();
-        });
+      // Manually trigger the end of the last set, which starts the rest period
+      act(() => {
+        result.current.continueToNextPhase()
+      })
 
-        await waitFor(() => {
-          expect(result.current.isExerciseComplete).toBe(true);
-          expect(result.current.statusText.value).toBe('Exercise Complete!');
-        });
-      });
+      // At this point, we should be resting, not complete
+      await waitFor(() => {
+        expect(result.current.isResting).toBe(true)
+        expect(result.current.isExerciseComplete).toBe(false)
+      })
+
+      // Now, simulate the user pressing "Next Set" after the rest
+      act(() => {
+        result.current.runNextSet()
+      })
+
+      // Now the exercise should be marked as complete
+      await waitFor(() => {
+        expect(result.current.isExerciseComplete).toBe(true)
+        expect(result.current.statusText.value).toBe('Exercise Complete!')
+      })
+    })
   })
 
   describe('Advanced Controls', () => {

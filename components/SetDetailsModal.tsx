@@ -1,55 +1,60 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, Button, Keyboard } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { styled } from 'nativewind';
+import React, { useState, useEffect } from 'react'
+import { Modal, View, Text, TextInput, Button, Keyboard } from 'react-native'
+import { BlurView } from 'expo-blur'
+import { styled } from 'nativewind'
 
-const StyledView = styled(View);
-const StyledText = styled(Text);
-const StyledTextInput = styled(TextInput);
-const StyledBlurView = styled(BlurView);
+const StyledView = styled(View)
+const StyledText = styled(Text)
+const StyledTextInput = styled(TextInput)
+const StyledBlurView = styled(BlurView)
 
-interface AddSetDetailsModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onSubmit: (reps: number, weight: number) => void;
-  initialReps: number;
+interface SetDetailsModalProps {
+  visible: boolean
+  title: string
+  onClose: () => void
+  onSubmit: (reps: number, weight: number) => void
+  initialReps: number
+  initialWeight?: number
 }
 
-const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
+const SetDetailsModal: React.FC<SetDetailsModalProps> = ({
   visible,
+  title,
   onClose,
   onSubmit,
   initialReps,
+  initialWeight = 0,
 }) => {
-  const [reps, setReps] = useState(initialReps.toString());
-  const [weight, setWeight] = useState('');
+  const [reps, setReps] = useState(initialReps.toString())
+  const [weight, setWeight] = useState(initialWeight.toString())
 
   const handleSubmit = () => {
-    const repsNum = parseInt(reps, 10);
-    const weightNum = parseInt(weight, 10) || 0; // Default to 0 if weight is not entered
+    const repsNum = parseInt(reps, 10)
+    const weightNum = parseInt(weight, 10) || 0 // Default to 0 if weight is not entered
     if (!isNaN(repsNum)) {
-      onSubmit(repsNum, weightNum);
-      setWeight(''); // Reset for next time
-      onClose();
+      onSubmit(repsNum, weightNum)
+      onClose()
     }
-  };
+  }
 
-  // Update reps state if initialReps prop changes
-  React.useEffect(() => {
-    setReps(initialReps.toString());
-  }, [initialReps]);
+  useEffect(() => {
+    setReps(initialReps.toString())
+    setWeight(initialWeight.toString())
+  }, [initialReps, initialWeight, visible])
 
   return (
     <Modal
       animationType="fade"
       transparent={true}
       visible={visible}
-      onRequestClose={onClose}
-    >
-      <StyledBlurView intensity={20} tint="dark" className="flex-1 justify-center items-center">
+      onRequestClose={onClose}>
+      <StyledBlurView
+        intensity={20}
+        tint="dark"
+        className="flex-1 justify-center items-center">
         <StyledView className="bg-gray-800 p-6 rounded-lg w-11/12">
           <StyledText className="text-white text-2xl font-bold mb-4 text-center">
-            Set Complete
+            {title}
           </StyledText>
           <StyledText className="text-gray-300 mb-2">Reps</StyledText>
           <StyledTextInput
@@ -74,7 +79,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
         </StyledView>
       </StyledBlurView>
     </Modal>
-  );
-};
+  )
+}
 
-export default AddSetDetailsModal;
+export default SetDetailsModal
