@@ -434,5 +434,164 @@ describe('useData Hook', () => {
       expect(mockBatch.commit).toHaveBeenCalled()
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('guestHistory')
     })
+
+    it('should handle guest history migration failure', async () => {
+      const error = new Error('Migration failed')
+      ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(error)
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.migrateGuestHistory(mockUser)
+      })
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to migrate guest history', error)
+      consoleErrorSpy.mockRestore()
+    })
+  })
+
+  describe('Guest User Data', () => {
+    it('should add history entry for guest user', async () => {
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('[]')
+      const { result } = renderHook(() => useData())
+      const entry = {
+        workoutId: 'w1',
+        exerciseId: 'ex1',
+        exerciseName: 'Test Exercise',
+        reps: 10,
+        weight: 50,
+      }
+      const setNumber = 1
+
+      await act(async () => {
+        await result.current.addHistoryEntry(entry, setNumber, null)
+      })
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        expect.stringContaining('todaysCompletions'),
+        expect.any(String),
+      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestHistory',
+        expect.any(String),
+      )
+      expect(result.current.todaysCompletions).toHaveLength(1)
+    })
+
+    it('should fetch history for guest user', async () => {
+      const guestHistory = [
+        {
+          id: 'guest-1',
+          exerciseId: 'ex1',
+          set: 1,
+          date: { seconds: 1672531200, nanoseconds: 0 },
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestHistory),
+      )
+      const { result } = renderHook(() => useData())
+
+      let history
+      await act(async () => {
+        history = await result.current.fetchHistory(null)
+      })
+
+      expect(history).toHaveLength(1)
+      expect(history[0].id).toBe('guest-1')
+    })
+  })
+
+  describe('Offline Queue', () => {
+    it('should add entry to offline queue when firestore fails', async () => {
+      ;(addDoc as jest.Mock).mockRejectedValue(new Error('Firestore unavailable'))
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+      const { result } = renderHook(() => useData())
+
+      const entry = {
+        workoutId: 'w1',
+        exerciseId: 'ex1',
+        exerciseName: 'Test Exercise',
+        reps: 10,
+        weight: 50,
+      }
+      const setNumber = 1
+
+      await act(async () => {
+        await result.current.addHistoryEntry(entry, setNumber, mockUser)
+      })
+
+      expect(result.current.offlineQueue).toHaveLength(1)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'offlineQueue',
+        expect.any(String),
+      )
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to save history entry, queuing offline.',
+        expect.any(Error),
+      )
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('should sync offline queue to firestore', async () => {
+      const { result } = renderHook(() => useData())
+      const offlineEntry = {
+        id: 'offline-1',
+        exerciseId: 'ex1',
+        set: 1,
+        date: { seconds: 1672531200, nanoseconds: 0 },
+      }
+
+      await act(async () => {
+        result.current.setOfflineQueue([offlineEntry])
+      })
+
+      await act(async () => {
+        await result.current.syncOfflineQueue(mockUser)
+      })
+
+      expect(writeBatch).toHaveBeenCalled()
+      expect(mockBatch.set).toHaveBeenCalled()
+      expect(mockBatch.commit).toHaveBeenCalled()
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('offlineQueue')
+      expect(result.current.offlineQueue).toHaveLength(0)
+    })
+
+    it('should not sync empty offline queue', async () => {
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.syncOfflineQueue(mockUser)
+      })
+
+      expect(writeBatch).not.toHaveBeenCalled()
+    })
+
+    it('should handle offline queue sync failure', async () => {
+      ;(mockBatch.commit as jest.Mock).mockRejectedValue(
+        new Error('Sync failed'),
+      )
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+      const { result } = renderHook(() => useData())
+      const offlineEntry = { id: 'offline-1' }
+
+      await act(async () => {
+        result.current.setOfflineQueue([offlineEntry])
+      })
+
+      await act(async () => {
+        await result.current.syncOfflineQueue(mockUser)
+      })
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to sync offline queue',
+        expect.any(Error),
+      )
+      consoleErrorSpy.mockRestore()
+    })
   })
 })
