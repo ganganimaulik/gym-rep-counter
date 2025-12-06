@@ -101,6 +101,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledView>
                 <StyledView>
                   <StyledText className="text-sm font-medium text-gray-300">
+                    Countdown Announcement
+                  </StyledText>
+                  <StyledTextInput
+                    className="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-white"
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    value={String(localSettings.countdownAnnouncementThreshold)}
+                    onChangeText={(text) =>
+                      handleValueChange('countdownAnnouncementThreshold', Number(text))
+                    }
+                  />
+                </StyledView>
+                <StyledView>
+                  <StyledText className="text-sm font-medium text-gray-300">
                     Rest (s)
                   </StyledText>
                   <StyledTextInput
