@@ -152,6 +152,7 @@ const App: React.FC = () => {
     continueToNextPhase,
     addCountdownTime,
     endSet,
+    runNextSet,
   } = useWorkoutTimer(
     settings,
     audioHandler,
@@ -358,6 +359,20 @@ const App: React.FC = () => {
                 return
               }
               startWorkout()
+            }}
+            runNextSet={() => {
+              if (
+                activeExercise &&
+                isSetCompleted(activeExercise.id, currentSet.value)
+              ) {
+                Toast.show({
+                  type: 'info',
+                  text1: 'Set Already Completed',
+                  text2: `You have already completed set ${currentSet.value} for this exercise.`,
+                })
+                return
+              }
+              runNextSet()
             }}
             stopWorkout={stopWorkout}
             pauseWorkout={pauseWorkout}
