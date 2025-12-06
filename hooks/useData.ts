@@ -156,8 +156,10 @@ export const useData = (): DataHook => {
       const savedSettings = await AsyncStorage.getItem('repCounterSettings')
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings)
-        setSettings(parsed)
-        return parsed
+        // Merge with defaults to ensure new settings properties have values for existing users
+        const mergedSettings = { ...defaultSettings, ...parsed }
+        setSettings(mergedSettings)
+        return mergedSettings
       }
       setSettings(defaultSettings)
       return defaultSettings
