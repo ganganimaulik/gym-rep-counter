@@ -74,19 +74,56 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     }
   }, [visible, isInitialLoad, loadHistory]);
 
-  const renderItem = ({ item }: { item: WorkoutSet }) => (
-    <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
-      <StyledText className="text-white font-bold text-lg">
-        {item.exerciseName}
-      </StyledText>
-      <StyledText className="text-gray-300">
-        {item.reps} reps at {item.weight} kg
-      </StyledText>
-      <StyledText className="text-gray-500 text-xs mt-1">
-        {item.date.toDate().toLocaleTimeString()}
-      </StyledText>
-    </StyledView>
-  );
+  const formatRestTime = (milliseconds: number): string => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s rest`;
+    }
+    return `${seconds}s rest`;
+  };
+
+  const renderItem = ({ item, index, section }: { item: WorkoutSet; index: number; section: { data: WorkoutSet[] } }) => {
+    // Calculate rest time from previous set in the same day section
+    // Note: section.data is in reverse chronological order (newest first)
+    // So the "previous" set (completed before this one) is at index + 1
+    let restTimeText: string | null = null;
+    if (index < section.data.length - 1) {
+      const previousSet = section.data[index + 1];
+      const currentTime = item.date.toDate().getTime();
+      const previousTime = previousSet.date.toDate().getTime();
+      const restMs = currentTime - previousTime;
+      if (restMs > 0) {
+        restTimeText = formatRestTime(restMs);
+      }
+    }
+
+    return (
+      <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
+        <StyledView className="flex-row justify-between items-start">
+          <StyledView className="flex-1">
+            <StyledText className="text-white font-bold text-lg">
+              {item.exerciseName}
+            </StyledText>
+            <StyledText className="text-gray-300">
+              {item.reps} reps at {item.weight} kg
+            </StyledText>
+          </StyledView>
+          {restTimeText && (
+            <StyledView className="bg-blue-600/30 px-2 py-1 rounded">
+              <StyledText className="text-blue-300 text-xs font-medium">
+                {restTimeText}
+              </StyledText>
+            </StyledView>
+          )}
+        </StyledView>
+        <StyledText className="text-gray-500 text-xs mt-1">
+          {item.date.toDate().toLocaleTimeString()}
+        </StyledText>
+      </StyledView>
+    );
+  };
 
   const groupedHistory = history.reduce(
     (acc, item) => {

@@ -7,5 +7,6 @@ export interface WorkoutSet {
   exerciseName: string;
   reps: number;
   weight: number;
+  set: number;
   date: Timestamp;
 }
