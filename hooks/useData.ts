@@ -675,10 +675,12 @@ export const useData = (): DataHook => {
           const userData = freshUserDoc.data()
           // Sync Settings
           if (userData.settings) {
-            setSettings(userData.settings)
+            // Merge with defaults to ensure new settings properties have values for existing users
+            const mergedSettings = { ...defaultSettings, ...userData.settings }
+            setSettings(mergedSettings)
             await AsyncStorage.setItem(
               'repCounterSettings',
-              JSON.stringify(userData.settings),
+              JSON.stringify(mergedSettings),
             )
           }
           // Sync Workouts
