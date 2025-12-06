@@ -86,12 +86,13 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
 
   const renderItem = ({ item, index, section }: { item: WorkoutSet; index: number; section: { data: WorkoutSet[] } }) => {
     // Calculate rest time from previous set in the same day section
+    // Only show rest time if startTime is available for accurate calculation
     // Note: section.data is in reverse chronological order (newest first)
     // So the "previous" set (completed before this one) is at index + 1
     let restTimeText: string | null = null;
-    if (index < section.data.length - 1) {
+    if (item.startTime && index < section.data.length - 1) {
       const previousSet = section.data[index + 1];
-      const currentStartTime = item.startTime?.toDate().getTime() ?? item.date.toDate().getTime();
+      const currentStartTime = item.startTime.toDate().getTime();
       const previousEndTime = previousSet.date.toDate().getTime();
       const restMs = currentStartTime - previousEndTime;
       if (restMs > 0) {
