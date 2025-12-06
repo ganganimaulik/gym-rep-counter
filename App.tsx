@@ -60,6 +60,7 @@ interface CompletedSetData {
   exerciseId: string
   reps: number
   set: number
+  startTime: number // Unix timestamp when set started
 }
 
 const App: React.FC = () => {
@@ -284,6 +285,7 @@ const App: React.FC = () => {
           weight,
         },
         completedSetData.set,
+        completedSetData.startTime,
         user,
       )
     }

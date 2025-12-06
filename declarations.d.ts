@@ -8,5 +8,6 @@ export interface WorkoutSet {
   reps: number;
   weight: number;
   set: number;
-  date: Timestamp;
+  startTime?: Timestamp; // When the set started (optional for backward compat)
+  date: Timestamp; // When the set ended/was completed
 }

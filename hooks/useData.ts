@@ -72,8 +72,9 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   addHistoryEntry: (
-    entry: Omit<WorkoutSet, 'id' | 'date' | 'set'>,
+    entry: Omit<WorkoutSet, 'id' | 'date' | 'set' | 'startTime'>,
     set: number,
+    startTime: number,
     user: FirebaseUser | null,
   ) => Promise<void>
   fetchHistory: (
@@ -257,11 +258,17 @@ export const useData = (): DataHook => {
 
   const addHistoryEntry = useCallback(
     async (
-      entry: Omit<WorkoutSet, 'id' | 'date' | 'set'>,
+      entry: Omit<WorkoutSet, 'id' | 'date' | 'set' | 'startTime'>,
       set: number,
+      startTime: number,
       user: FirebaseUser | null,
     ) => {
-      const newEntryBase = { ...entry, set, date: Timestamp.now() }
+      const newEntryBase = {
+        ...entry,
+        set,
+        startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : undefined,
+        date: Timestamp.now(),
+      }
 
       if (user) {
         try {

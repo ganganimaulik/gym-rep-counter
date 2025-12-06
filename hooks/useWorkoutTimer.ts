@@ -42,6 +42,7 @@ interface WorkoutState {
   remainingTime: number
   lastSpokenSecond: number
   isJumping: boolean
+  setStartTime: number // Timestamp when the current set started (after countdown)
 }
 
 export interface WorkoutTimerHook {
@@ -70,6 +71,7 @@ interface OnSetCompleteDetails {
   exerciseId: string
   reps: number
   set: number
+  startTime: number // Unix timestamp when the set started
 }
 
 // Hook
@@ -109,6 +111,7 @@ export function useWorkoutTimer(
     remainingTime: 0,
     lastSpokenSecond: -1,
     isJumping: false,
+    setStartTime: 0,
   })
 
   const timeoutRef = useRef<number | null>(null)
@@ -199,6 +202,7 @@ export function useWorkoutTimer(
       remainingTime: 0,
       lastSpokenSecond: -1,
       isJumping: false,
+      setStartTime: 0,
     }
     displayRep.value = 0
     displaySet.value = 1
@@ -285,6 +289,7 @@ export function useWorkoutTimer(
         exerciseId: activeExercise.id,
         reps: wState.current.rep,
         set: wState.current.set,
+        startTime: wState.current.setStartTime,
       })
     } else {
       fullReset()
@@ -405,6 +410,7 @@ export function useWorkoutTimer(
 
       if (remaining <= 0) {
         queueSpeak('Go!', { priority: true })
+        wState.current.setStartTime = Date.now() // Record when the set actually starts
         if (!wState.current.isJumping && wState.current.rep === 0) {
           wState.current.rep = 1
           queueSpeak('1')
@@ -442,6 +448,7 @@ export function useWorkoutTimer(
         remainingTime: 0,
         lastSpokenSecond: -1,
         isJumping: false,
+        setStartTime: 0,
       }
       displayRep.value = 0
       displaySet.value = newStartingSet

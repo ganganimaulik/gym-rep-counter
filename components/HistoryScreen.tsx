@@ -74,14 +74,14 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     }
   }, [visible, isInitialLoad, loadHistory]);
 
-  const formatRestTime = (milliseconds: number): string => {
+  const formatDuration = (milliseconds: number): string => {
     const totalSeconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     if (minutes > 0) {
-      return `${minutes}m ${seconds}s rest`;
+      return `${minutes}m ${seconds}s`;
     }
-    return `${seconds}s rest`;
+    return `${seconds}s`;
   };
 
   const renderItem = ({ item, index, section }: { item: WorkoutSet; index: number; section: { data: WorkoutSet[] } }) => {
@@ -91,11 +91,11 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     let restTimeText: string | null = null;
     if (index < section.data.length - 1) {
       const previousSet = section.data[index + 1];
-      const currentTime = item.date.toDate().getTime();
-      const previousTime = previousSet.date.toDate().getTime();
-      const restMs = currentTime - previousTime;
+      const currentStartTime = item.startTime?.toDate().getTime() ?? item.date.toDate().getTime();
+      const previousEndTime = previousSet.date.toDate().getTime();
+      const restMs = currentStartTime - previousEndTime;
       if (restMs > 0) {
-        restTimeText = formatRestTime(restMs);
+        restTimeText = formatDuration(restMs) + ' rest';
       }
     }
 
