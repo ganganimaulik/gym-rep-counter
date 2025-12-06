@@ -398,7 +398,7 @@ export function useWorkoutTimer(
 
       if (whole > 0 && whole !== wState.current.lastSpokenSecond) {
         wState.current.lastSpokenSecond = whole
-        if (whole <= 15) {
+        if (whole <= settings.countdownAnnouncementThreshold) {
           queueSpeak(String(whole))
         }
       }

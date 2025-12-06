@@ -39,6 +39,7 @@ export interface Settings {
   concentricSeconds: number
   eccentricSeconds: number
   eccentricCountdownEnabled: boolean
+  countdownAnnouncementThreshold: number
   volume: number
 }
 
@@ -112,6 +113,7 @@ const defaultSettings: Settings = {
   concentricSeconds: 1,
   eccentricSeconds: 4,
   eccentricCountdownEnabled: true,
+  countdownAnnouncementThreshold: 15,
   volume: 1.0,
 }
 
