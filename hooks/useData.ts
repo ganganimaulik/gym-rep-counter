@@ -101,6 +101,7 @@ export interface DataHook {
   ) => Promise<void>
   migrateGuestHistory: (user: FirebaseUser) => Promise<WorkoutSet[]>
   syncOfflineQueue: (user: FirebaseUser) => Promise<void>
+  fetchFullHistory: (user: FirebaseUser | null, daysBack?: number) => Promise<WorkoutSet[]>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
   setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
@@ -713,6 +714,55 @@ export const useData = (): DataHook => {
     [migrateGuestHistory, syncOfflineQueue, fetchAllTodaysCompletions],
   )
 
+  const fetchFullHistory = useCallback(
+    async (user: FirebaseUser | null, daysBack: number = 90): Promise<WorkoutSet[]> => {
+      const cutoffDate = new Date()
+      cutoffDate.setDate(cutoffDate.getDate() - daysBack)
+      cutoffDate.setHours(0, 0, 0, 0)
+      const cutoffTimestamp = Timestamp.fromDate(cutoffDate)
+
+      if (user) {
+        try {
+          const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+          const q = query(
+            historyCollectionRef,
+            where('date', '>=', cutoffTimestamp),
+            orderBy('date', 'desc'),
+          )
+          const querySnapshot = await getDocs(q)
+          return querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as WorkoutSet[]
+        } catch (e) {
+          console.error('Failed to fetch full history', e)
+          return []
+        }
+      } else {
+        // Guest user
+        try {
+          const historyKey = 'guestHistory'
+          const savedHistoryRaw = await AsyncStorage.getItem(historyKey)
+          if (!savedHistoryRaw) return []
+
+          const allHistory = JSON.parse(savedHistoryRaw)
+            .map((item: SerializedWorkoutSetData) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .filter((item: WorkoutSet) => item.date.toDate() >= cutoffDate)
+            .sort((a: WorkoutSet, b: WorkoutSet) => b.date.toMillis() - a.date.toMillis())
+
+          return allHistory
+        } catch (e) {
+          console.error('Failed to fetch guest full history', e)
+          return []
+        }
+      }
+    },
+    [],
+  )
+
   return {
     settings,
     workouts,
@@ -733,6 +783,7 @@ export const useData = (): DataHook => {
     syncUserData,
     migrateGuestHistory,
     syncOfflineQueue,
+    fetchFullHistory,
     setWorkouts,
     setSettings,
     setOfflineQueue,

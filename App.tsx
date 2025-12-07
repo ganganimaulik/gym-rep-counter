@@ -23,7 +23,7 @@ import {
 } from 'react-native'
 import { styled } from 'nativewind'
 import { useKeepAwake } from 'expo-keep-awake'
-import { Settings as SettingsIcon, History } from 'lucide-react-native'
+import { Settings as SettingsIcon, History, BarChart3 } from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
@@ -37,6 +37,7 @@ import { useAuth } from './hooks/useAuth'
 import { useData, Settings, Workout } from './hooks/useData'
 import { useAudio } from './hooks/useAudio'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
+import { useAnalytics } from './hooks/useAnalytics'
 
 // Components
 import SettingsModal from './components/SettingsModal'
@@ -49,6 +50,7 @@ import RepJumper from './components/layout/RepJumper'
 import AddSetDetailsModal from './components/AddSetDetailsModal'
 import Toast from 'react-native-toast-message'
 import HistoryScreen from './components/HistoryScreen'
+import ProgressScreen from './components/ProgressScreen'
 
 const StyledSafeAreaView = styled(SafeAreaView)
 const StyledView = styled(View)
@@ -71,6 +73,8 @@ const App: React.FC = () => {
   const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
   const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
   const [historyScreenVisible, setHistoryScreenVisible] =
+    useState<boolean>(false)
+  const [progressScreenVisible, setProgressScreenVisible] =
     useState<boolean>(false)
   const [completedSetData, setCompletedSetData] =
     useState<CompletedSetData | null>(null)
@@ -99,6 +103,8 @@ const App: React.FC = () => {
     fetchTodaysCompletions,
     syncOfflineQueue,
   } = dataHook
+
+  const analyticsHook = useAnalytics(dataHook)
 
   const onAuthSuccess = useCallback(
     async (firebaseUser: FirebaseUser | null) => {
@@ -393,6 +399,12 @@ const App: React.FC = () => {
               <StyledText className="text-blue-400">History</StyledText>
             </StyledTouchableOpacity>
             <StyledTouchableOpacity
+              onPress={() => setProgressScreenVisible(true)}
+              className="flex-row items-center space-x-2">
+              <BarChart3 color="#10b981" size={16} />
+              <StyledText className="text-green-400">Progress</StyledText>
+            </StyledTouchableOpacity>
+            <StyledTouchableOpacity
               onPress={() => setSettingsVisible(!settingsVisible)}
               className="flex-row items-center space-x-2">
               <SettingsIcon color="#60a5fa" size={16} />
@@ -431,6 +443,12 @@ const App: React.FC = () => {
         onClose={() => setHistoryScreenVisible(false)}
         user={user}
         dataHook={dataHook}
+      />
+      <ProgressScreen
+        visible={progressScreenVisible}
+        onClose={() => setProgressScreenVisible(false)}
+        user={user}
+        analyticsHook={analyticsHook}
       />
     </StyledSafeAreaView>
   )

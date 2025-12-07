@@ -11,3 +11,33 @@ export interface WorkoutSet {
   startTime?: Timestamp; // When the set started (optional for backward compat)
   date: Timestamp; // When the set ended/was completed
 }
+
+// Analytics Types
+export interface PRRecord {
+  exerciseId: string;
+  exerciseName: string;
+  maxWeight: number;
+  repsAtMax: number;
+  date: Timestamp;
+}
+
+export interface StreakInfo {
+  currentStreak: number; // Number of consecutive qualifying weeks
+  longestStreak: number;
+  lastWorkoutDate: Date | null;
+  currentWeekWorkouts: number; // Days worked out this week so far
+}
+
+export interface VolumeData {
+  label: string; // e.g., "Week 1" or "Dec"
+  startDate: Date;
+  endDate: Date;
+  totalVolume: number; // weight × reps sum
+}
+
+export interface TrendData {
+  date: Date;
+  avgWeight: number;
+  avgReps: number;
+  setCount: number;
+}
