@@ -315,61 +315,64 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
 
           {/* Edit Exercise Overlay */}
           {editExercise.visible && (
-            <StyledView className="absolute inset-0 justify-center items-center bg-black/50">
+            <StyledView className="absolute inset-0 bg-black/50">
               <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1, justifyContent: 'flex-start', paddingTop: 60 }}
                 keyboardVerticalOffset={0}>
-                <StyledView className="bg-gray-800 p-6 rounded-lg w-11/12" style={{ minWidth: 320 }}>
-                  <StyledText className="text-white text-2xl font-bold mb-2 text-center">
-                    Edit Exercise
-                  </StyledText>
-                  {editExercise.exercise && (
-                    <StyledText className="text-gray-400 text-center mb-4">
-                      {editExercise.exercise.name}
+                <StyledView className="items-center px-4">
+                  <StyledView className="bg-gray-800 p-6 rounded-lg w-full">
+                    <StyledText className="text-white text-2xl font-bold mb-2 text-center">
+                      Edit Exercise
                     </StyledText>
-                  )}
-                  
-                  <StyledText className="text-gray-300 mb-2">Name</StyledText>
-                  <StyledTextInput
-                    className="bg-gray-700 text-white p-3 rounded-lg mb-4 text-lg"
-                    placeholder="Exercise name"
-                    placeholderTextColor="#6b7280"
-                    value={editName}
-                    onChangeText={setEditName}
-                  />
-                  
-                  <StyledView className="flex-row gap-4 mb-4">
-                    <StyledView className="flex-1">
-                      <StyledText className="text-gray-300 mb-2">Sets</StyledText>
-                      <StyledTextInput
-                        className="bg-gray-700 text-white p-3 rounded-lg text-lg text-center"
-                        keyboardType="number-pad"
-                        value={editSets}
-                        onChangeText={setEditSets}
-                      />
+                    {editExercise.exercise && (
+                      <StyledText className="text-gray-400 text-center mb-4">
+                        {editExercise.exercise.name}
+                      </StyledText>
+                    )}
+                    
+                    <StyledText className="text-gray-300 mb-2">Name</StyledText>
+                    <StyledTextInput
+                      className="bg-gray-700 text-white p-2 rounded-lg mb-4"
+                      placeholder="Exercise name"
+                      placeholderTextColor="#6b7280"
+                      value={editName}
+                      onChangeText={setEditName}
+                    />
+                    
+                    <StyledView className="flex-row gap-4 mb-4">
+                      <StyledView className="flex-1">
+                        <StyledText className="text-gray-300 mb-2">Sets</StyledText>
+                        <StyledTextInput
+                          className="bg-gray-700 text-white p-2 rounded-lg text-center"
+                          keyboardType="number-pad"
+                          value={editSets}
+                          onChangeText={setEditSets}
+                        />
+                      </StyledView>
+                      <StyledView className="flex-1">
+                        <StyledText className="text-gray-300 mb-2">Reps</StyledText>
+                        <StyledTextInput
+                          className="bg-gray-700 text-white p-2 rounded-lg text-center"
+                          keyboardType="number-pad"
+                          value={editReps}
+                          onChangeText={setEditReps}
+                        />
+                      </StyledView>
                     </StyledView>
-                    <StyledView className="flex-1">
-                      <StyledText className="text-gray-300 mb-2">Reps</StyledText>
-                      <StyledTextInput
-                        className="bg-gray-700 text-white p-3 rounded-lg text-lg text-center"
-                        keyboardType="number-pad"
-                        value={editReps}
-                        onChangeText={setEditReps}
-                      />
+                    
+                    <StyledView className="flex-row gap-3">
+                      <StyledTouchableOpacity
+                        onPress={closeEditModal}
+                        className="flex-1 bg-gray-600 p-3 rounded-lg items-center">
+                        <StyledText className="text-white font-semibold">Cancel</StyledText>
+                      </StyledTouchableOpacity>
+                      <StyledTouchableOpacity
+                        onPress={saveEditExercise}
+                        className="flex-1 bg-indigo-600 p-3 rounded-lg items-center">
+                        <StyledText className="text-white font-semibold">Save</StyledText>
+                      </StyledTouchableOpacity>
                     </StyledView>
-                  </StyledView>
-                  
-                  <StyledView className="flex-row gap-3">
-                    <StyledTouchableOpacity
-                      onPress={closeEditModal}
-                      className="flex-1 bg-gray-600 p-3 rounded-lg items-center">
-                      <StyledText className="text-white font-semibold">Cancel</StyledText>
-                    </StyledTouchableOpacity>
-                    <StyledTouchableOpacity
-                      onPress={saveEditExercise}
-                      className="flex-1 bg-indigo-600 p-3 rounded-lg items-center">
-                      <StyledText className="text-white font-semibold">Save</StyledText>
-                    </StyledTouchableOpacity>
                   </StyledView>
                 </StyledView>
               </KeyboardAvoidingView>
