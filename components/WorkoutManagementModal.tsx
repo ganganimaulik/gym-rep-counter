@@ -9,6 +9,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native'
 import { styled } from 'nativewind'
 import { X, Trash2, Plus, GripVertical } from 'lucide-react-native'
@@ -315,13 +316,14 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
 
           {/* Edit Exercise Overlay */}
           {editExercise.visible && (
-            <StyledView className="absolute inset-0 bg-black/50">
+            <StyledView className="absolute inset-0">
               <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1, justifyContent: 'flex-start', paddingTop: 60 }}
-                keyboardVerticalOffset={0}>
-                <StyledView className="items-center px-4">
-                  <StyledView className="bg-gray-800 p-6 rounded-lg w-full">
+                behavior={Platform.OS === 'ios' ? 'position' : 'height'}
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}>
+                  <StyledView 
+                    className="bg-gray-800 p-6 rounded-lg border-2 border-gray-600"
+                    style={{ width: Dimensions.get('window').width * 0.8, marginBottom: 100 }}>
                     <StyledText className="text-white text-2xl font-bold mb-2 text-center">
                       Edit Exercise
                     </StyledText>
@@ -374,7 +376,6 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                       </StyledTouchableOpacity>
                     </StyledView>
                   </StyledView>
-                </StyledView>
               </KeyboardAvoidingView>
             </StyledView>
           )}
