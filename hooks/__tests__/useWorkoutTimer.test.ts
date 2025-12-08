@@ -181,6 +181,7 @@ describe('useWorkoutTimer', () => {
           exerciseId: activeExercise.id,
           reps: defaultSettings.maxReps,
           set: 1,
+          startTime: expect.any(Number),
         })
       })
     })
@@ -348,11 +349,40 @@ describe('useWorkoutTimer', () => {
           exerciseId: activeExercise.id,
           reps: 0, // Reps should be 0 as the set was ended during countdown
           set: 1,
+          startTime: 0, // startTime is 0 during countdown
         })
       })
 
       // Check that the timer is no longer running
       expect(result.current.isRunning).toBe(false)
+    })
+
+    it('should not reset timer when startingSet changes during active workout', async () => {
+      const { result, rerender } = renderHook(
+        ({ exercise, set }) =>
+          useWorkoutTimer(
+            defaultSettings,
+            mockAudioHandler,
+            exercise,
+            mockOnSetComplete,
+            set,
+          ),
+        { initialProps: { exercise: activeExercise, set: 1 } },
+      )
+
+      // Start workout and enter countdown
+      act(() => result.current.startWorkout())
+      expect(result.current.isRunning).toBe(true)
+      expect(result.current.phase).toBe('Get Ready')
+
+      act(() => jest.advanceTimersByTime(1000))
+
+      // Simulate startingSet changing (as if history was updated)
+      rerender({ exercise: activeExercise, set: 2 })
+
+      // Timer should STILL be running - not reset
+      expect(result.current.isRunning).toBe(true)
+      expect(result.current.currentSet.value).toBe(1) // Still on set 1
     })
   })
 })

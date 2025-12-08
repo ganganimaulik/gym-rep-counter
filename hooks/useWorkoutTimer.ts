@@ -116,6 +116,9 @@ export function useWorkoutTimer(
 
   const timeoutRef = useRef<number | null>(null)
   const audioTimeoutRef = useRef<number | null>(null)
+  // Track previous exercise ID. Initialize to a sentinel value to ensure
+  // initial mount triggers the reset (undefined !== activeExercise?.id on first render if exercise exists)
+  const prevExerciseIdRef = useRef<string | undefined | null>(null)
 
   const clearTimer = useCallback((stopSpeech = true) => {
     if (timeoutRef.current != null) {
@@ -597,18 +600,25 @@ export function useWorkoutTimer(
   }, [])
 
   useEffect(() => {
-    clearTimer()
-    if (activeExercise) {
-      resetInternalState(startingSet)
-      updateUI({
-        isRunning: false,
-        isPaused: false,
-        phase: '',
-        isExerciseComplete: false,
-      })
-      statusText.value = `Press Start for Set ${startingSet}`
-    } else {
-      fullReset()
+    const prevId = prevExerciseIdRef.current
+    const currentId = activeExercise?.id
+    prevExerciseIdRef.current = currentId
+
+    // Only reset when switching to a different exercise
+    if (prevId !== currentId) {
+      clearTimer()
+      if (activeExercise) {
+        resetInternalState(startingSet)
+        updateUI({
+          isRunning: false,
+          isPaused: false,
+          phase: '',
+          isExerciseComplete: false,
+        })
+        statusText.value = `Press Start for Set ${startingSet}`
+      } else {
+        fullReset()
+      }
     }
   }, [
     activeExercise,
