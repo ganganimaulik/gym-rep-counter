@@ -320,7 +320,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1, justifyContent: 'flex-start' }}
                 keyboardVerticalOffset={0}>
-                <StyledView className="items-center px-3">
+                <StyledView className="items-center px-2">
                   <StyledView className="bg-gray-800 rounded-3xl shadow-2xl p-6 w-full">
                     {/* Header */}
                     <StyledView className="flex-row justify-between items-center pb-5 mb-5 border-b border-gray-600">
