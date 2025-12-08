@@ -9,7 +9,7 @@
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
-    "preybuild": "expo prebuild --clean",
+    "prebuild": "expo prebuild --clean",
     "test": "jest",
     "coverage": "jest --coverage"
   },
