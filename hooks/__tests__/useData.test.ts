@@ -5,6 +5,8 @@ import {
   getDoc,
   addDoc,
   getDocs,
+  updateDoc,
+  deleteDoc,
   writeBatch,
 } from 'firebase/firestore'
 import { useData, Settings, Workout } from '../useData'
@@ -18,6 +20,8 @@ jest.mock('firebase/firestore', () => ({
   collection: jest.fn(),
   addDoc: jest.fn(),
   getDocs: jest.fn(),
+  updateDoc: jest.fn(),
+  deleteDoc: jest.fn(),
   query: jest.fn(),
   where: jest.fn(),
   orderBy: jest.fn(),
@@ -618,6 +622,258 @@ describe('useData Hook', () => {
         'Failed to sync offline queue',
         expect.any(Error),
       )
+      consoleErrorSpy.mockRestore()
+    })
+  })
+
+  describe('Update and Delete History Entry', () => {
+    it('should update history entry for authenticated user', async () => {
+      const { updateDoc } = require('firebase/firestore')
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.updateHistoryEntry(
+          'entry-id',
+          { reps: 12, weight: 60 },
+          mockUser,
+        )
+      })
+
+      expect(updateDoc).toHaveBeenCalled()
+    })
+
+    it('should update history entry for guest user', async () => {
+      const guestHistory = [
+        {
+          id: 'entry-1',
+          exerciseId: 'ex1',
+          reps: 10,
+          weight: 50,
+          date: { seconds: 1672531200, nanoseconds: 0 },
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestHistory),
+      )
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.updateHistoryEntry(
+          'entry-1',
+          { reps: 15 },
+          null,
+        )
+      })
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestHistory',
+        expect.any(String),
+      )
+    })
+
+    it('should delete history entry for authenticated user', async () => {
+      const { deleteDoc } = require('firebase/firestore')
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.deleteHistoryEntry('entry-id', mockUser)
+      })
+
+      expect(deleteDoc).toHaveBeenCalled()
+    })
+
+    it('should delete history entry for guest user', async () => {
+      const guestHistory = [
+        {
+          id: 'entry-1',
+          exerciseId: 'ex1',
+          reps: 10,
+          weight: 50,
+          date: { seconds: 1672531200, nanoseconds: 0 },
+        },
+        {
+          id: 'entry-2',
+          exerciseId: 'ex1',
+          reps: 12,
+          weight: 55,
+          date: { seconds: 1672531300, nanoseconds: 0 },
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestHistory),
+      )
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.deleteHistoryEntry('entry-1', null)
+      })
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestHistory',
+        expect.any(String),
+      )
+    })
+  })
+
+  describe('arePreviousSetsCompleted', () => {
+    const exerciseId = 'ex1'
+    const workoutId = 'w1'
+
+    it('should return true for set 1 (no previous sets)', () => {
+      const { result } = renderHook(() => useData())
+      expect(result.current.arePreviousSetsCompleted(exerciseId, 1)).toBe(true)
+    })
+
+    it('should return true when all previous sets are completed', async () => {
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      ;(addDoc as jest.Mock)
+        .mockResolvedValueOnce({ id: 'doc1' })
+        .mockResolvedValueOnce({ id: 'doc2' })
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          mockUser,
+        )
+      })
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          2,
+          startTime,
+          mockUser,
+        )
+      })
+
+      expect(result.current.arePreviousSetsCompleted(exerciseId, 3)).toBe(true)
+    })
+
+    it('should return false when a previous set is missing', async () => {
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
+
+      // Complete set 1, skip set 2
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId,
+            exerciseId,
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          mockUser,
+        )
+      })
+
+      // Trying to start set 3 without set 2 completed
+      expect(result.current.arePreviousSetsCompleted(exerciseId, 3)).toBe(false)
+    })
+  })
+
+  describe('fetchAllTodaysCompletions', () => {
+    it('should fetch all completions for today for authenticated user', async () => {
+      const mockCompletions = [
+        { id: 'doc1', data: () => ({ exerciseId: 'ex1', set: 1 }) },
+        { id: 'doc2', data: () => ({ exerciseId: 'ex2', set: 1 }) },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({ docs: mockCompletions })
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.fetchAllTodaysCompletions(mockUser)
+      })
+
+      expect(getDocs).toHaveBeenCalled()
+      expect(result.current.todaysCompletions).toHaveLength(2)
+    })
+
+    it('should set empty array when user is null', async () => {
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.fetchAllTodaysCompletions(null)
+      })
+
+      expect(result.current.todaysCompletions).toEqual([])
+    })
+  })
+
+  describe('fetchFullHistory', () => {
+    it('should fetch history with date filter for authenticated user', async () => {
+      const mockHistory = [
+        { id: 'doc1', data: () => ({ exerciseId: 'ex1', reps: 10 }) },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({ docs: mockHistory })
+      const { result } = renderHook(() => useData())
+
+      let history
+      await act(async () => {
+        history = await result.current.fetchFullHistory(mockUser, 30)
+      })
+
+      expect(getDocs).toHaveBeenCalled()
+      expect(history).toHaveLength(1)
+    })
+
+    it('should fetch filtered history for guest user', async () => {
+      const now = new Date()
+      const guestHistory = [
+        {
+          id: 'recent',
+          exerciseId: 'ex1',
+          reps: 10,
+          date: { seconds: Math.floor(now.getTime() / 1000), nanoseconds: 0 },
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestHistory),
+      )
+      const { result } = renderHook(() => useData())
+
+      let history
+      await act(async () => {
+        history = await result.current.fetchFullHistory(null, 30)
+      })
+
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith('guestHistory')
+      expect(history).toHaveLength(1)
+    })
+
+    it('should return empty array on error', async () => {
+      ;(getDocs as jest.Mock).mockRejectedValue(new Error('Fetch failed'))
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+      const { result } = renderHook(() => useData())
+
+      let history
+      await act(async () => {
+        history = await result.current.fetchFullHistory(mockUser, 30)
+      })
+
+      expect(history).toEqual([])
       consoleErrorSpy.mockRestore()
     })
   })
