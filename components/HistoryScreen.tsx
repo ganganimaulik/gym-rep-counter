@@ -6,9 +6,13 @@ import {
   SectionList,
   ActivityIndicator,
   SafeAreaView,
+  TouchableOpacity,
+  TextInput,
+  Keyboard,
 } from 'react-native';
 import { styled } from 'nativewind';
-import { X } from 'lucide-react-native';
+import { X, Pencil, Trash2 } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { WorkoutSet } from '../declarations';
@@ -17,6 +21,9 @@ import { DataHook } from '../hooks/useData';
 const StyledView = styled(View);
 const StyledText = styled(Text);
 const StyledSafeAreaView = styled(SafeAreaView);
+const StyledTouchableOpacity = styled(TouchableOpacity);
+const StyledTextInput = styled(TextInput);
+const StyledBlurView = styled(BlurView);
 
 interface HistoryScreenProps {
   visible: boolean;
@@ -25,13 +32,18 @@ interface HistoryScreenProps {
   dataHook: DataHook;
 }
 
+interface EditModalState {
+  visible: boolean;
+  item: WorkoutSet | null;
+}
+
 const HistoryScreen: React.FC<HistoryScreenProps> = ({
   visible,
   onClose,
   user,
   dataHook,
 }) => {
-  const { fetchHistory } = dataHook;
+  const { fetchHistory, updateHistoryEntry, deleteHistoryEntry } = dataHook;
   const [history, setHistory] = useState<WorkoutSet[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -39,6 +51,12 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     undefined,
   );
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [editModal, setEditModal] = useState<EditModalState>({
+    visible: false,
+    item: null,
+  });
+  const [editReps, setEditReps] = useState('');
+  const [editWeight, setEditWeight] = useState('');
 
   const loadHistory = useCallback(async () => {
     // The user check is removed as fetchHistory now supports guest users
@@ -84,6 +102,52 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     return `${seconds}s`;
   };
 
+  const handleItemPress = (item: WorkoutSet) => {
+    setEditReps(item.reps.toString());
+    setEditWeight(item.weight.toString());
+    setEditModal({ visible: true, item });
+  };
+
+  const handleEditSave = async () => {
+    if (!editModal.item) return;
+
+    const repsNum = parseInt(editReps, 10);
+    const weightNum = parseInt(editWeight, 10) || 0;
+
+    if (!isNaN(repsNum)) {
+      await updateHistoryEntry(
+        editModal.item.id,
+        { reps: repsNum, weight: weightNum },
+        user,
+      );
+
+      // Update local history state
+      setHistory(prev =>
+        prev.map(h =>
+          h.id === editModal.item!.id
+            ? { ...h, reps: repsNum, weight: weightNum }
+            : h,
+        ),
+      );
+    }
+
+    setEditModal({ visible: false, item: null });
+  };
+
+  const handleEditClose = () => {
+    setEditModal({ visible: false, item: null });
+  };
+
+  const handleDelete = async () => {
+    if (!editModal.item) return;
+
+    await deleteHistoryEntry(editModal.item.id, user);
+
+    // Remove from local history state
+    setHistory(prev => prev.filter(h => h.id !== editModal.item!.id));
+    setEditModal({ visible: false, item: null });
+  };
+
   const renderItem = ({ item, index, section }: { item: WorkoutSet; index: number; section: { data: WorkoutSet[] } }) => {
     // Calculate rest time from previous set in the same day section
     // Only show rest time if startTime is available for accurate calculation
@@ -101,7 +165,11 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     }
 
     return (
-      <StyledView className="bg-gray-800 p-4 rounded-lg mb-3">
+      <StyledTouchableOpacity
+        onPress={() => handleItemPress(item)}
+        activeOpacity={0.7}
+        className="bg-gray-800 p-4 rounded-lg mb-3"
+      >
         <StyledView className="flex-row justify-between items-start">
           <StyledView className="flex-1">
             <StyledText className="text-white font-bold text-lg">
@@ -111,18 +179,21 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
               {item.reps} reps at {item.weight} kg
             </StyledText>
           </StyledView>
-          {restTimeText && (
-            <StyledView className="bg-blue-600/30 px-2 py-1 rounded">
-              <StyledText className="text-blue-300 text-xs font-medium">
-                {restTimeText}
-              </StyledText>
-            </StyledView>
-          )}
+          <StyledView className="flex-row items-center">
+            {restTimeText && (
+              <StyledView className="bg-blue-600/30 px-2 py-1 rounded mr-2">
+                <StyledText className="text-blue-300 text-xs font-medium">
+                  {restTimeText}
+                </StyledText>
+              </StyledView>
+            )}
+            <Pencil color="#9ca3af" size={16} />
+          </StyledView>
         </StyledView>
         <StyledText className="text-gray-500 text-xs mt-1">
           {item.date.toDate().toLocaleTimeString()}
         </StyledText>
-      </StyledView>
+      </StyledTouchableOpacity>
     );
   };
 
@@ -211,6 +282,67 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           }
         />
       </StyledSafeAreaView>
+
+      {/* Edit History Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={editModal.visible}
+        onRequestClose={handleEditClose}
+      >
+        <StyledBlurView intensity={20} tint="dark" className="flex-1 justify-center items-center">
+          <StyledView className="bg-gray-800 p-6 rounded-lg w-11/12">
+            <StyledText className="text-white text-2xl font-bold mb-2 text-center">
+              Edit Set
+            </StyledText>
+            {editModal.item && (
+              <StyledText className="text-gray-400 text-center mb-4">
+                {editModal.item.exerciseName}
+              </StyledText>
+            )}
+            <StyledText className="text-gray-300 mb-2">Reps</StyledText>
+            <StyledTextInput
+              className="bg-gray-700 text-white p-3 rounded-lg mb-4 text-lg"
+              keyboardType="number-pad"
+              value={editReps}
+              onChangeText={setEditReps}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
+            <StyledText className="text-gray-300 mb-2">Weight (kg)</StyledText>
+            <StyledTextInput
+              className="bg-gray-700 text-white p-3 rounded-lg mb-4 text-lg"
+              keyboardType="number-pad"
+              value={editWeight}
+              onChangeText={setEditWeight}
+              returnKeyType="done"
+              onSubmitEditing={handleEditSave}
+              autoFocus={true}
+            />
+            <StyledView className="flex-row gap-3">
+              <StyledTouchableOpacity
+                onPress={handleEditClose}
+                className="flex-1 bg-gray-600 p-3 rounded-lg items-center"
+              >
+                <StyledText className="text-white font-semibold">Cancel</StyledText>
+              </StyledTouchableOpacity>
+              <StyledTouchableOpacity
+                onPress={handleEditSave}
+                className="flex-1 bg-indigo-600 p-3 rounded-lg items-center"
+              >
+                <StyledText className="text-white font-semibold">Save</StyledText>
+              </StyledTouchableOpacity>
+            </StyledView>
+            <StyledTouchableOpacity
+              onPress={handleDelete}
+              className="mt-3 bg-red-600/20 p-3 rounded-lg items-center flex-row justify-center"
+            >
+              <Trash2 color="#ef4444" size={18} />
+              <StyledText className="text-red-500 font-semibold ml-2">Delete</StyledText>
+            </StyledTouchableOpacity>
+          </StyledView>
+        </StyledBlurView>
+      </Modal>
     </Modal>
   );
 };

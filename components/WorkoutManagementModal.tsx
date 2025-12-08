@@ -6,6 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { styled } from 'nativewind'
 import { X, Trash2, Plus, GripVertical } from 'lucide-react-native'
@@ -27,6 +30,12 @@ interface WorkoutManagementModalProps {
   setWorkouts: (workouts: Workout[]) => void
 }
 
+interface EditExerciseState {
+  visible: boolean
+  workoutId: string
+  exercise: Exercise | null
+}
+
 const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   visible,
   onClose,
@@ -34,6 +43,53 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   setWorkouts,
 }) => {
   const [newWorkoutName, setNewWorkoutName] = useState('')
+  const [editExercise, setEditExercise] = useState<EditExerciseState>({
+    visible: false,
+    workoutId: '',
+    exercise: null,
+  })
+  const [editName, setEditName] = useState('')
+  const [editSets, setEditSets] = useState('')
+  const [editReps, setEditReps] = useState('')
+
+  const openEditModal = (workoutId: string, exercise: Exercise) => {
+    setEditExercise({ visible: true, workoutId, exercise })
+    setEditName(exercise.name)
+    setEditSets(exercise.sets.toString())
+    setEditReps(exercise.reps.toString())
+  }
+
+  const closeEditModal = () => {
+    setEditExercise({ visible: false, workoutId: '', exercise: null })
+    setEditName('')
+    setEditSets('')
+    setEditReps('')
+  }
+
+  const saveEditExercise = () => {
+    if (!editExercise.exercise || !editName.trim()) return
+
+    const updatedWorkouts = workouts.map((w) => {
+      if (w.id === editExercise.workoutId) {
+        return {
+          ...w,
+          exercises: w.exercises.map((ex) =>
+            ex.id === editExercise.exercise!.id
+              ? {
+                  ...ex,
+                  name: editName.trim(),
+                  sets: parseInt(editSets, 10) || ex.sets,
+                  reps: parseInt(editReps, 10) || ex.reps,
+                }
+              : ex,
+          ),
+        }
+      }
+      return w
+    })
+    setWorkouts(updatedWorkouts)
+    closeEditModal()
+  }
 
   const generateId = () => {
     return Date.now().toString(36) + Math.random().toString(36).substr(2)
@@ -128,6 +184,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
       getIndex,
     }: RenderItemParams<Exercise>) => (
       <StyledTouchableOpacity
+        onPress={() => openEditModal(workout.id, ex)}
         onLongPress={drag}
         disabled={isActive}
         className={`flex-row items-center justify-between bg-gray-600/50 p-2 rounded-md mb-2 ${isActive ? 'opacity-50' : ''}`}>
@@ -140,11 +197,11 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
         <StyledText className="text-xs text-gray-400 font-mono mx-3">
           {ex.sets}x{ex.reps}
         </StyledText>
-        <StyledTouchableOpacity
+        <Pressable
           onPress={() => deleteExercise(workout.id, ex.id)}
-          className="p-1">
+          style={{ padding: 4 }}>
           <X color="#f87171" size={16} />
-        </StyledTouchableOpacity>
+        </Pressable>
       </StyledTouchableOpacity>
     )
 
@@ -255,6 +312,94 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
               containerStyle={{ flex: 1 }}
             />
           </StyledView>
+
+          {/* Edit Exercise Overlay */}
+          {editExercise.visible && (
+            <StyledView className="absolute inset-0">
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1, justifyContent: 'flex-start' }}
+                keyboardVerticalOffset={0}>
+                <StyledView className="items-center px-3">
+                  <StyledView className="bg-gray-800 rounded-3xl shadow-2xl p-6 w-full">
+                    {/* Header */}
+                    <StyledView className="flex-row justify-between items-center pb-5 mb-5 border-b border-gray-600">
+                      <StyledText className="text-2xl font-bold text-white">
+                        Edit Exercise
+                      </StyledText>
+                      <StyledTouchableOpacity 
+                        onPress={closeEditModal}
+                        className="p-2 bg-gray-700 rounded-full">
+                        <X color="#9ca3af" size={20} />
+                      </StyledTouchableOpacity>
+                    </StyledView>
+
+                    {/* Exercise Name Field */}
+                    <StyledView className="mb-5">
+                      <StyledText className="text-sm font-medium text-gray-300 mb-2">
+                        Exercise Name
+                      </StyledText>
+                      <StyledTextInput
+                        placeholder="Enter exercise name"
+                        placeholderTextColor="#6b7280"
+                        className="w-full bg-gray-700 border border-gray-600 rounded-xl p-4 text-white text-base"
+                        value={editName}
+                        onChangeText={setEditName}
+                      />
+                    </StyledView>
+
+                    {/* Sets and Reps Row */}
+                    <StyledView className="flex-row gap-4 mb-6">
+                      <StyledView className="flex-1">
+                        <StyledText className="text-sm font-medium text-gray-300 mb-2">
+                          Sets
+                        </StyledText>
+                        <StyledTextInput
+                          placeholder="0"
+                          placeholderTextColor="#6b7280"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-xl p-4 text-white text-lg text-center font-semibold"
+                          keyboardType="number-pad"
+                          value={editSets}
+                          onChangeText={setEditSets}
+                        />
+                      </StyledView>
+                      <StyledView className="flex-1">
+                        <StyledText className="text-sm font-medium text-gray-300 mb-2">
+                          Reps
+                        </StyledText>
+                        <StyledTextInput
+                          placeholder="0"
+                          placeholderTextColor="#6b7280"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-xl p-4 text-white text-lg text-center font-semibold"
+                          keyboardType="number-pad"
+                          value={editReps}
+                          onChangeText={setEditReps}
+                        />
+                      </StyledView>
+                    </StyledView>
+
+                    {/* Action Buttons */}
+                    <StyledView className="flex-row gap-4">
+                      <StyledTouchableOpacity
+                        onPress={closeEditModal}
+                        className="flex-1 py-4 bg-gray-700 rounded-xl items-center border border-gray-600">
+                        <StyledText className="font-semibold text-gray-300 text-base">
+                          Cancel
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                      <StyledTouchableOpacity
+                        onPress={saveEditExercise}
+                        className="flex-1 py-4 bg-green-500 rounded-xl items-center">
+                        <StyledText className="font-bold text-white text-base">
+                          Save Changes
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    </StyledView>
+                  </StyledView>
+                </StyledView>
+              </KeyboardAvoidingView>
+            </StyledView>
+          )}
         </StyledView>
       </GestureHandlerRootView>
     </Modal>

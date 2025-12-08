@@ -4,6 +4,8 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
+  deleteDoc,
   collection,
   addDoc,
   query,
@@ -75,6 +77,15 @@ export interface DataHook {
     entry: Omit<WorkoutSet, 'id' | 'date' | 'set' | 'startTime'>,
     set: number,
     startTime: number,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  updateHistoryEntry: (
+    entryId: string,
+    updates: { reps?: number; weight?: number },
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  deleteHistoryEntry: (
+    entryId: string,
     user: FirebaseUser | null,
   ) => Promise<void>
   fetchHistory: (
@@ -334,6 +345,92 @@ export const useData = (): DataHook => {
       }
     },
     [todaysCompletions, offlineQueue],
+  )
+
+  const updateHistoryEntry = useCallback(
+    async (
+      entryId: string,
+      updates: { reps?: number; weight?: number },
+      user: FirebaseUser | null,
+    ) => {
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'history', entryId)
+          await updateDoc(docRef, updates)
+        } catch (e) {
+          console.error('Failed to update history entry', e)
+        }
+      } else {
+        // Guest user
+        try {
+          // Update in full history
+          const historyKey = 'guestHistory'
+          const savedHistoryRaw = await AsyncStorage.getItem(historyKey)
+          if (savedHistoryRaw) {
+            const allHistory = JSON.parse(savedHistoryRaw)
+            const updatedHistory = allHistory.map((item: WorkoutSet) =>
+              item.id === entryId ? { ...item, ...updates } : item,
+            )
+            await AsyncStorage.setItem(historyKey, JSON.stringify(updatedHistory))
+          }
+
+          // Update in today's completions if it's from today
+          const todayKey = `todaysCompletions-${getLocalDateString()}`
+          const savedCompletionsRaw = await AsyncStorage.getItem(todayKey)
+          if (savedCompletionsRaw) {
+            const allCompletions = JSON.parse(savedCompletionsRaw)
+            const updatedCompletions = allCompletions.map((item: WorkoutSet) =>
+              item.id === entryId ? { ...item, ...updates } : item,
+            )
+            await AsyncStorage.setItem(todayKey, JSON.stringify(updatedCompletions))
+          }
+        } catch (e) {
+          console.error('Failed to update guest history entry', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const deleteHistoryEntry = useCallback(
+    async (entryId: string, user: FirebaseUser | null) => {
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'history', entryId)
+          await deleteDoc(docRef)
+        } catch (e) {
+          console.error('Failed to delete history entry', e)
+        }
+      } else {
+        // Guest user
+        try {
+          // Delete from full history
+          const historyKey = 'guestHistory'
+          const savedHistoryRaw = await AsyncStorage.getItem(historyKey)
+          if (savedHistoryRaw) {
+            const allHistory = JSON.parse(savedHistoryRaw)
+            const updatedHistory = allHistory.filter(
+              (item: WorkoutSet) => item.id !== entryId,
+            )
+            await AsyncStorage.setItem(historyKey, JSON.stringify(updatedHistory))
+          }
+
+          // Delete from today's completions if applicable
+          const todayKey = `todaysCompletions-${getLocalDateString()}`
+          const savedCompletionsRaw = await AsyncStorage.getItem(todayKey)
+          if (savedCompletionsRaw) {
+            const allCompletions = JSON.parse(savedCompletionsRaw)
+            const updatedCompletions = allCompletions.filter(
+              (item: WorkoutSet) => item.id !== entryId,
+            )
+            await AsyncStorage.setItem(todayKey, JSON.stringify(updatedCompletions))
+          }
+        } catch (e) {
+          console.error('Failed to delete guest history entry', e)
+        }
+      }
+    },
+    [],
   )
 
   const fetchHistory = useCallback(
@@ -773,6 +870,8 @@ export const useData = (): DataHook => {
     loadWorkouts,
     saveWorkouts,
     addHistoryEntry,
+    updateHistoryEntry,
+    deleteHistoryEntry,
     fetchHistory,
     fetchTodaysCompletions,
     fetchAllTodaysCompletions,

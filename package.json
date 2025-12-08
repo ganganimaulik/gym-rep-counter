@@ -9,7 +9,7 @@
     "prepare": "husky",
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
-    "prebuild": "expo prebuild --clean",
+    "preybuild": "expo prebuild --clean",
     "test": "jest",
     "coverage": "jest --coverage"
   },
@@ -27,6 +27,7 @@
     "expo-keep-awake": "^15.0.7",
     "expo-speech": "^14.0.7",
     "expo-status-bar": "~3.0.8",
+    "expo-system-ui": "~6.0.9",
     "firebase": "^12.3.0",
     "lucide-react-native": "^0.544.0",
     "nativewind": "^2.0.11",
