@@ -24,7 +24,9 @@ jest.mock('firebase/firestore', () => ({
   limit: jest.fn(),
   startAfter: jest.fn(),
   Timestamp: class {
-    constructor(seconds, nanoseconds) {
+    seconds: number
+    nanoseconds: number
+    constructor(seconds: number, nanoseconds: number) {
       this.seconds = seconds
       this.nanoseconds = nanoseconds
     }
@@ -32,9 +34,13 @@ jest.mock('firebase/firestore', () => ({
       toDate: () => new Date(),
       toMillis: () => Date.now(),
     }))
-    static fromDate = jest.fn(date => ({
+    static fromDate = jest.fn((date: Date) => ({
       toDate: () => date,
       toMillis: () => date.getTime(),
+    }))
+    static fromMillis = jest.fn((millis: number) => ({
+      toDate: () => new Date(millis),
+      toMillis: () => millis,
     }))
     toDate() {
       return new Date(this.seconds * 1000)
@@ -74,6 +80,7 @@ describe('useData Hook', () => {
     concentricSeconds: 1,
     eccentricSeconds: 4,
     eccentricCountdownEnabled: true,
+    countdownAnnouncementThreshold: 15,
     volume: 1.0,
   }
 
@@ -195,9 +202,10 @@ describe('useData Hook', () => {
         weight: 50,
       }
       const setNumber = 1
+      const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, mockUser)
+        await result.current.addHistoryEntry(entry, setNumber, startTime, mockUser)
       })
 
       expect(addDoc).toHaveBeenCalledWith(
@@ -232,6 +240,7 @@ describe('useData Hook', () => {
 
     it('should correctly identify if a set is completed', async () => {
       const { result } = renderHook(() => useData())
+      const startTime = Date.now()
 
       await act(async () => {
         ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc1' })
@@ -244,6 +253,7 @@ describe('useData Hook', () => {
             weight: 50,
           },
           1,
+          startTime,
           mockUser,
         )
       })
@@ -254,6 +264,7 @@ describe('useData Hook', () => {
 
     it('should get the next uncompleted set', async () => {
       const { result } = renderHook(() => useData())
+      const startTime = Date.now()
       expect(result.current.getNextUncompletedSet(exerciseId)).toBe(1)
 
       await act(async () => {
@@ -266,6 +277,7 @@ describe('useData Hook', () => {
             weight: 50,
           },
           1,
+          startTime,
           mockUser,
         )
       })
@@ -281,6 +293,7 @@ describe('useData Hook', () => {
             weight: 50,
           },
           3,
+          startTime,
           mockUser,
         )
       })
@@ -296,6 +309,7 @@ describe('useData Hook', () => {
             weight: 50,
           },
           2,
+          startTime,
           mockUser,
         )
       })
@@ -304,9 +318,16 @@ describe('useData Hook', () => {
 
     it('should reset sets from a given set number', async () => {
       const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      // Mock addDoc to return unique IDs for each call
+      ;(addDoc as jest.Mock)
+        .mockResolvedValueOnce({ id: 'doc1' })
+        .mockResolvedValueOnce({ id: 'doc2' })
+        .mockResolvedValueOnce({ id: 'doc3' })
 
       await act(async () => {
-        result.current.addHistoryEntry(
+        await result.current.addHistoryEntry(
           {
             workoutId,
             exerciseId,
@@ -315,9 +336,12 @@ describe('useData Hook', () => {
             weight: 50,
           },
           1,
+          startTime,
           mockUser,
         )
-        result.current.addHistoryEntry(
+      })
+      await act(async () => {
+        await result.current.addHistoryEntry(
           {
             workoutId,
             exerciseId,
@@ -326,9 +350,12 @@ describe('useData Hook', () => {
             weight: 50,
           },
           2,
+          startTime,
           mockUser,
         )
-        result.current.addHistoryEntry(
+      })
+      await act(async () => {
+        await result.current.addHistoryEntry(
           {
             workoutId,
             exerciseId,
@@ -337,12 +364,10 @@ describe('useData Hook', () => {
             weight: 50,
           },
           3,
+          startTime,
           mockUser,
         )
       })
-      result.current.todaysCompletions[0].id = 'doc1'
-      result.current.todaysCompletions[1].id = 'doc2'
-      result.current.todaysCompletions[2].id = 'doc3'
 
       await act(async () => {
         await result.current.resetSetsFrom(exerciseId, 2, mockUser)
@@ -462,9 +487,10 @@ describe('useData Hook', () => {
         weight: 50,
       }
       const setNumber = 1
+      const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, null)
+        await result.current.addHistoryEntry(entry, setNumber, startTime, null)
       })
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
@@ -518,9 +544,10 @@ describe('useData Hook', () => {
         weight: 50,
       }
       const setNumber = 1
+      const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, mockUser)
+        await result.current.addHistoryEntry(entry, setNumber, startTime, mockUser)
       })
 
       expect(result.current.offlineQueue).toHaveLength(1)
