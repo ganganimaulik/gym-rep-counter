@@ -72,6 +72,7 @@ interface OnSetCompleteDetails {
   reps: number
   set: number
   startTime: number // Unix timestamp when the set started
+  endTime: number // Unix timestamp when the set ended (rest timer starts)
 }
 
 // Hook
@@ -275,6 +276,9 @@ export function useWorkoutTimer(
       return
     }
 
+    // Capture the end time at the moment the set ends
+    const endTime = Date.now()
+
     // If the user ends the set during the countdown, we need to stop the timer.
     if (wState.current.phase === PHASES.COUNTDOWN) {
       clearTimer()
@@ -293,11 +297,12 @@ export function useWorkoutTimer(
         reps: wState.current.rep,
         set: wState.current.set,
         startTime: wState.current.setStartTime,
+        endTime,
       })
     } else {
       fullReset()
     }
-  }, [activeExercise, onSetComplete, clearTimer, fullReset, stopWorkout])
+  }, [activeExercise, onSetComplete, clearTimer, fullReset, stopWorkout, updateUI])
 
   const startConcentric = useCallback(() => {
     const duration =

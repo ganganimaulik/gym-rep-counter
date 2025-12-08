@@ -209,7 +209,7 @@ describe('useData Hook', () => {
       const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, startTime, mockUser)
+        await result.current.addHistoryEntry(entry, setNumber, startTime, startTime + 1000, mockUser)
       })
 
       expect(addDoc).toHaveBeenCalledWith(
@@ -258,6 +258,7 @@ describe('useData Hook', () => {
           },
           1,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -282,6 +283,7 @@ describe('useData Hook', () => {
           },
           1,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -298,6 +300,7 @@ describe('useData Hook', () => {
           },
           3,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -314,6 +317,7 @@ describe('useData Hook', () => {
           },
           2,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -341,6 +345,7 @@ describe('useData Hook', () => {
           },
           1,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -355,6 +360,7 @@ describe('useData Hook', () => {
           },
           2,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -369,6 +375,7 @@ describe('useData Hook', () => {
           },
           3,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -494,7 +501,7 @@ describe('useData Hook', () => {
       const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, startTime, null)
+        await result.current.addHistoryEntry(entry, setNumber, startTime, startTime + 1000, null)
       })
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
@@ -551,7 +558,7 @@ describe('useData Hook', () => {
       const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, startTime, mockUser)
+        await result.current.addHistoryEntry(entry, setNumber, startTime, startTime + 1000, mockUser)
       })
 
       expect(result.current.offlineQueue).toHaveLength(1)
@@ -743,6 +750,7 @@ describe('useData Hook', () => {
           },
           1,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -758,6 +766,7 @@ describe('useData Hook', () => {
           },
           2,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })
@@ -783,6 +792,7 @@ describe('useData Hook', () => {
           },
           1,
           startTime,
+          startTime + 1000,
           mockUser,
         )
       })

@@ -77,6 +77,7 @@ export interface DataHook {
     entry: Omit<WorkoutSet, 'id' | 'date' | 'set' | 'startTime'>,
     set: number,
     startTime: number,
+    endTime: number, // When set ended (rest timer started) - used for date field
     user: FirebaseUser | null,
   ) => Promise<void>
   updateHistoryEntry: (
@@ -273,13 +274,14 @@ export const useData = (): DataHook => {
       entry: Omit<WorkoutSet, 'id' | 'date' | 'set' | 'startTime'>,
       set: number,
       startTime: number,
+      endTime: number, // When set ended (rest timer started) - used for date field
       user: FirebaseUser | null,
     ) => {
       const newEntryBase = {
         ...entry,
         set,
         startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : Timestamp.fromMillis(Date.now()),
-        date: Timestamp.now(),
+        date: endTime > 0 ? Timestamp.fromMillis(endTime) : Timestamp.now(),
       }
 
       if (user) {

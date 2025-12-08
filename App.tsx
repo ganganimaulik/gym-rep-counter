@@ -63,6 +63,7 @@ interface CompletedSetData {
   reps: number
   set: number
   startTime: number // Unix timestamp when set started
+  endTime: number // Unix timestamp when set ended (rest timer starts)
 }
 
 const App: React.FC = () => {
@@ -137,6 +138,8 @@ const App: React.FC = () => {
   const handleSetComplete = (details: CompletedSetData) => {
     setCompletedSetData(details)
     setAddSetModalVisible(true)
+    // Start rest timer immediately - don't wait for user to enter weight/reps
+    continueToNextPhase()
   }
 
   const {
@@ -293,6 +296,7 @@ const App: React.FC = () => {
         },
         completedSetData.set,
         completedSetData.startTime,
+        completedSetData.endTime, // Use endTime for date field (when rest started)
         user,
       )
     }
@@ -300,7 +304,7 @@ const App: React.FC = () => {
     // and even if the data saving fails, to not block the UI flow.
     setAddSetModalVisible(false)
     setCompletedSetData(null)
-    continueToNextPhase()
+    // Rest timer already started in handleSetComplete, no need to call continueToNextPhase here
   }
 
   if (initializing) {

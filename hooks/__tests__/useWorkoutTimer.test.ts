@@ -182,6 +182,7 @@ describe('useWorkoutTimer', () => {
           reps: defaultSettings.maxReps,
           set: 1,
           startTime: expect.any(Number),
+          endTime: expect.any(Number),
         })
       })
     })
@@ -350,6 +351,7 @@ describe('useWorkoutTimer', () => {
           reps: 0, // Reps should be 0 as the set was ended during countdown
           set: 1,
           startTime: 0, // startTime is 0 during countdown
+          endTime: expect.any(Number),
         })
       })
 
