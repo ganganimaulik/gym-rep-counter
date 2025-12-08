@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   TextInput,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { styled } from 'nativewind';
 import { X, Pencil, Trash2 } from 'lucide-react-native';
@@ -290,8 +292,12 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
         visible={editModal.visible}
         onRequestClose={handleEditClose}
       >
-        <StyledBlurView intensity={20} tint="dark" className="flex-1 justify-center items-center">
-          <StyledView className="bg-gray-800 p-6 rounded-lg w-11/12">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <StyledBlurView intensity={20} tint="dark" className="flex-1 justify-end items-center pb-4">
+            <StyledView className="bg-gray-800 p-6 rounded-lg w-11/12">
             <StyledText className="text-white text-2xl font-bold mb-2 text-center">
               Edit Set
             </StyledText>
@@ -342,6 +348,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
             </StyledTouchableOpacity>
           </StyledView>
         </StyledBlurView>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );
