@@ -101,7 +101,7 @@ const App: React.FC = () => {
     resetSetsFrom,
     arePreviousSetsCompleted,
     getNextUncompletedSet,
-    fetchTodaysCompletions,
+    fetchAllTodaysCompletions,
     syncOfflineQueue,
   } = dataHook
 
@@ -178,8 +178,8 @@ const App: React.FC = () => {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        if (activeExercise) {
-          fetchTodaysCompletions(user, activeExercise.id)
+        if (user) {
+          fetchAllTodaysCompletions(user)
         }
       }
       appState.current = nextAppState
@@ -191,13 +191,11 @@ const App: React.FC = () => {
       subscription.remove()
       disableBackgroundExecution()
     }
-  }, [user, activeExercise, fetchTodaysCompletions])
+  }, [user, fetchAllTodaysCompletions])
 
   useEffect(() => {
-    if (activeExercise) {
-      fetchTodaysCompletions(user, activeExercise.id)
-    }
-  }, [user, activeExercise, fetchTodaysCompletions])
+    fetchAllTodaysCompletions(user)
+  }, [user, fetchAllTodaysCompletions])
 
   useEffect(() => {
     if (isConnected && user) {
