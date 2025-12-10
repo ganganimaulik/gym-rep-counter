@@ -199,7 +199,9 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     );
   };
 
-  const groupedHistory = history.reduce(
+  const groupedHistory = history
+    .filter(item => item.date && typeof item.date.toDate === 'function')
+    .reduce(
     (acc, item) => {
       const d = item.date.toDate();
       const year = d.getFullYear();

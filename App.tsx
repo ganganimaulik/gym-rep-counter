@@ -283,10 +283,10 @@ const App: React.FC = () => {
   }
 
   const handleAddSetDetails = async (reps: number, weight: number) => {
-    if (completedSetData && activeExercise) {
+    if (completedSetData && activeExercise && currentWorkout) {
       await addHistoryEntry(
         {
-          workoutId: currentWorkout!.id,
+          workoutId: currentWorkout.id,
           exerciseId: activeExercise.id,
           exerciseName: activeExercise.name,
           reps,
