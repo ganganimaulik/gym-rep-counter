@@ -151,18 +151,25 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   };
 
   const renderItem = ({ item, index, section }: { item: WorkoutSet; index: number; section: { data: WorkoutSet[] } }) => {
+    // Skip rendering if item has no valid date
+    if (!item.date || typeof item.date.toDate !== 'function') {
+      return null;
+    }
+
     // Calculate rest time from previous set in the same day section
     // Only show rest time if startTime is available for accurate calculation
     // Note: section.data is in reverse chronological order (newest first)
     // So the "previous" set (completed before this one) is at index + 1
     let restTimeText: string | null = null;
-    if (item.startTime && index < section.data.length - 1) {
+    if (item.startTime && typeof item.startTime.toDate === 'function' && index < section.data.length - 1) {
       const previousSet = section.data[index + 1];
-      const currentStartTime = item.startTime.toDate().getTime();
-      const previousEndTime = previousSet.date.toDate().getTime();
-      const restMs = currentStartTime - previousEndTime;
-      if (restMs > 0) {
-        restTimeText = formatDuration(restMs) + ' rest';
+      if (previousSet.date && typeof previousSet.date.toDate === 'function') {
+        const currentStartTime = item.startTime.toDate().getTime();
+        const previousEndTime = previousSet.date.toDate().getTime();
+        const restMs = currentStartTime - previousEndTime;
+        if (restMs > 0) {
+          restTimeText = formatDuration(restMs) + ' rest';
+        }
       }
     }
 
@@ -202,21 +209,21 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   const groupedHistory = history
     .filter(item => item.date && typeof item.date.toDate === 'function')
     .reduce(
-    (acc, item) => {
-      const d = item.date.toDate();
-      const year = d.getFullYear();
-      const month = (d.getMonth() + 1).toString().padStart(2, '0');
-      const day = d.getDate().toString().padStart(2, '0');
-      const dateKey = `${year}-${month}-${day}`;
+      (acc, item) => {
+        const d = item.date.toDate();
+        const year = d.getFullYear();
+        const month = (d.getMonth() + 1).toString().padStart(2, '0');
+        const day = d.getDate().toString().padStart(2, '0');
+        const dateKey = `${year}-${month}-${day}`;
 
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(item);
-      return acc;
-    },
-    {} as Record<string, WorkoutSet[]>,
-  );
+        if (!acc[dateKey]) {
+          acc[dateKey] = [];
+        }
+        acc[dateKey].push(item);
+        return acc;
+      },
+      {} as Record<string, WorkoutSet[]>,
+    );
 
   const sections = Object.keys(groupedHistory)
     .sort((a, b) => b.localeCompare(a)) // Sorts YYYY-MM-DD strings descending
