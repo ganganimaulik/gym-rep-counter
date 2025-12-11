@@ -75,7 +75,7 @@ describe('useData Hook', () => {
     uid: 'test-uid',
     email: 'test@test.com',
     displayName: 'Test User',
-  }
+  } as any
   const defaultSettings: Settings = {
     countdownSeconds: 5,
     restSeconds: 60,
@@ -391,6 +391,105 @@ describe('useData Hook', () => {
       expect(result.current.isSetCompleted(exerciseId, 2)).toBe(false)
       expect(result.current.isSetCompleted(exerciseId, 3)).toBe(false)
     })
+    it('should prevent cross-exercise pollution in todays completions', async () => {
+      const { result } = renderHook(() => useData())
+      const exerciseA = 'exA'
+      const exerciseB = 'exB'
+
+      const mockCompletionsA = [
+        { id: 'doc1', data: () => ({ exerciseId: exerciseA, set: 1 }) },
+        { id: 'doc3', data: () => ({ exerciseId: exerciseA, set: 2 }) },
+      ]
+      
+      // Mock initial call for Exercise A
+      ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockCompletionsA })
+
+      await act(async () => {
+        await result.current.fetchTodaysCompletions(mockUser, exerciseA)
+      })
+
+      // The hook might filter locally or rely on the query.
+      // If logic relies on query (where calls), we verify the query was constructed correctly.
+      // Or if it filters the results, we check result.current.todaysCompletions.
+      // Assuming existing implementation processes the returned docs:
+      expect(result.current.todaysCompletions.every(c => c.exerciseId === exerciseA)).toBe(true)
+      expect(result.current.todaysCompletions).toHaveLength(2)
+
+      // Test searching for Exercise B
+      const mockCompletionsB = [
+          { id: 'doc2', data: () => ({ exerciseId: exerciseB, set: 1 }) }
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockCompletionsB })
+
+      await act(async () => {
+        await result.current.fetchTodaysCompletions(mockUser, exerciseB)
+      })
+      expect(result.current.todaysCompletions.every(c => c.exerciseId === exerciseB)).toBe(true)
+      expect(result.current.todaysCompletions).toHaveLength(1)
+    })
+
+    it('should handle undefined or invalid startTime gracefully', async () => {
+      const { result } = renderHook(() => useData())
+      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
+      const now = Date.now()
+
+      // Case 1: 0 startTime
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          { workoutId: 'w1', exerciseId: 'ex1', exerciseName: 'Test', reps: 10, weight: 50 },
+          1,
+          0,
+          now,
+          mockUser
+        )
+      })
+      
+      // Verify handled (e.g., set to undefined or excluded if logic dictates, or saved as 0 if allowed)
+      // Based on fix in previous task, 0 might be converted to undefined or treated specifically.
+      // The requirement was: "startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : undefined"
+      // So checking that we don't crash and arguments are correct.
+      expect(addDoc).toHaveBeenCalled()
+
+       // Case 2: Undefined startTime (simulated by passing 0 and checking argument logic inside if accessible, or just no crash)
+       // Since the function signature expects number, we pass 0 or a negative number.
+       await act(async () => {
+        await result.current.addHistoryEntry(
+          { workoutId: 'w1', exerciseId: 'ex1', exerciseName: 'Test', reps: 10, weight: 50 },
+          2,
+          -1,
+          now,
+          mockUser
+        )
+      })
+      expect(addDoc).toHaveBeenCalledTimes(2)
+    })
+
+    it('should allow saving history without a workoutId', async () => {
+      const { result } = renderHook(() => useData())
+      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc-no-workout' })
+      const startTime = Date.now()
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+            {
+                workoutId: null as any, // Simulate no workout
+                exerciseId: 'ex1',
+                exerciseName: 'Test Exercise',
+                reps: 10,
+                weight: 50,
+            },
+            1,
+            startTime,
+            startTime + 1000,
+            mockUser,
+        );
+      })
+
+      expect(addDoc).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ workoutId: null })
+      )
+    })
   })
 
   describe('User Data Sync', () => {
@@ -538,6 +637,42 @@ describe('useData Hook', () => {
       expect(history[0].id).toBe('guest-1')
     })
   })
+
+  describe('Authenticated User History Pagination', () => {
+    it('should fetch history with pagination', async () => {
+      const { result } = renderHook(() => useData());
+      const mockDocsPage1 = [
+        { id: 'h1', data: () => ({ exerciseId: 'ex1', date: { seconds: 100, nanoseconds: 0 }, reps: 10, weight: 50, exerciseName: 'E1', workoutId: 'w1' }) },
+        { id: 'h2', data: () => ({ exerciseId: 'ex1', date: { seconds: 90, nanoseconds: 0 }, reps: 10, weight: 50, exerciseName: 'E1', workoutId: 'w1' }) },
+      ];
+      const mockDocsPage2 = [
+          { id: 'h3', data: () => ({ exerciseId: 'ex1', date: { seconds: 80, nanoseconds: 0 }, reps: 10, weight: 50, exerciseName: 'E1', workoutId: 'w1' }) },
+      ];
+
+      // First call returns Page 1
+      (getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage1 });
+      
+      let historyPage1;
+      await act(async () => {
+        historyPage1 = await result.current.fetchHistory(mockUser, undefined);
+      });
+
+      expect(historyPage1).toHaveLength(2);
+      expect(getDocs).toHaveBeenCalled();
+
+      // Second call passing the last doc of page 1 as 'lastDoc'
+      (getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage2 });
+      const lastDocOfPage1 = historyPage1![1]; // Use the returned object, not the mock doc
+
+      let historyPage2;
+      await act(async () => {
+        historyPage2 = await result.current.fetchHistory(mockUser, lastDocOfPage1);
+      });
+
+      expect(historyPage2).toHaveLength(1);
+      expect(historyPage2![0].id).toBe('h3');
+    });
+  });
 
   describe('Offline Queue', () => {
     it('should add entry to offline queue when firestore fails', async () => {

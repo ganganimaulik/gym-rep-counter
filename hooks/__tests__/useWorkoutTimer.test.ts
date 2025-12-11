@@ -386,5 +386,70 @@ describe('useWorkoutTimer', () => {
       expect(result.current.isRunning).toBe(true)
       expect(result.current.currentSet.value).toBe(1) // Still on set 1
     })
+
+    it('should handle ending a set during the rest phase', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      // Trigger transition to rest
+      act(() => result.current.continueToNextPhase())
+      
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Rest')
+      })
+
+      // User decides to skip rest and start next set immediately (or end 'rest' set?)
+      // Actually continueToNextPhase IS the way to skip rest.
+      // But if they call endSet() during rest, what should happen?
+      // Usually endSet() is for ending the *active* set (concentric/eccentric).
+      // If called during rest, it might be ignored or act as skip.
+      // Let's assume it should probably act as "finish rest" or "start next set".
+      // Checking current behavior or desired behavior:
+      act(() => result.current.endSet())
+
+      // If implemented, it should probably stop the timer or transition.
+      // For now, let's verify it doesn't crash and perhaps stops the timer as 'endSet' implies stopping.
+      expect(result.current.isRunning).toBe(false)
+    })
+
+    it('should handle rapid set completion correctly', async () => {
+         const { result } = renderHook(() =>
+            useWorkoutTimer(
+              defaultSettings,
+              mockAudioHandler,
+              activeExercise,
+              mockOnSetComplete,
+              1,
+            ),
+          )
+
+          // Set 1
+          act(() => result.current.startWorkout())
+          act(() => result.current.continueToNextPhase()) // Finish Set 1, Enter Rest
+          await waitFor(() => expect(result.current.phase).toBe('Rest'))
+          
+          act(() => result.current.runNextSet()) // Skip Rest, Start Set 2
+          await waitFor(() => expect(result.current.phase).toBe('Get Ready')) // or Concentric depending on logic
+
+          // Finish Set 2 immediately
+           act(() => result.current.continueToNextPhase()) // Finish Set 2
+
+           await waitFor(() => {
+               // Should be in Rest for Set 2 (transitioning to Set 3) or Complete
+               if (activeExercise.sets > 2) {
+                    expect(result.current.currentSet.value).toBe(3)
+               } else {
+                   expect(result.current.isExerciseComplete).toBe(true)
+               }
+           })
+    })
   })
 })
