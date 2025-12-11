@@ -283,20 +283,28 @@ const App: React.FC = () => {
   }
 
   const handleAddSetDetails = async (reps: number, weight: number) => {
-    if (completedSetData && activeExercise && currentWorkout) {
-      await addHistoryEntry(
-        {
-          workoutId: currentWorkout.id,
-          exerciseId: activeExercise.id,
-          exerciseName: activeExercise.name,
-          reps,
-          weight,
-        },
-        completedSetData.set,
-        completedSetData.startTime,
-        completedSetData.endTime, // Use endTime for date field (when rest started)
-        user,
+    if (completedSetData && currentWorkout) {
+      // Find the exercise that was just completed, instead of relying on activeExercise
+      // which might have advanced to the next one already.
+      const completedExercise = currentWorkout.exercises.find(
+        (e) => e.id === completedSetData.exerciseId,
       )
+
+      if (completedExercise) {
+        await addHistoryEntry(
+          {
+            workoutId: currentWorkout.id,
+            exerciseId: completedExercise.id,
+            exerciseName: completedExercise.name,
+            reps,
+            weight,
+          },
+          completedSetData.set,
+          completedSetData.startTime,
+          completedSetData.endTime, // Use endTime for date field (when rest started)
+          user,
+        )
+      }
     }
     // This part should run whether the user is logged in or not,
     // and even if the data saving fails, to not block the UI flow.
