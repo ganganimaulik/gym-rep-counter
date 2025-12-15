@@ -209,11 +209,21 @@ describe('useWorkoutTimer', () => {
         expect(mockQueueSpeak).toHaveBeenCalledWith('Set complete. Rest now.', expect.any(Object))
       })
 
-      // Advance timers to finish the rest
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Rest')
+        expect(result.current.currentSet.value).toBe(2)
+        expect(mockQueueSpeak).toHaveBeenCalledWith('Set complete. Rest now.', expect.any(Object))
+      })
+
+      // Advance timers to finish the rest target
       act(() => jest.advanceTimersByTime(defaultSettings.restSeconds * 1000 + 500))
 
       await waitFor(() => {
-          expect(result.current.statusText.value).toBe('Press Start for Set 2')
+          // It should STILL be running, but effectively notifying
+           expect(result.current.phase).toBe('Rest')
+           expect(result.current.statusText.value).toContain('Rest:')
+           // The message "Rest target reached" should have been spoken
+           expect(mockQueueSpeak).toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
       })
     })
 
