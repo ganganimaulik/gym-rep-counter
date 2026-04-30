@@ -262,6 +262,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   <Picker
                     selectedValue={selectedExercise}
                     onValueChange={setSelectedExercise}
+                    // eslint-disable-next-line react-native/no-color-literals
                     style={{ color: 'white' }}
                     dropdownIconColor="white"
                   >

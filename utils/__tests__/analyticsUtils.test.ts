@@ -6,7 +6,7 @@ import {
   getUniqueExercises,
 } from '../analyticsUtils'
 import { Timestamp } from 'firebase/firestore'
-import type { WorkoutSet, PRRecord, StreakInfo, VolumeData, TrendData } from '../../declarations'
+import type { WorkoutSet } from '../../declarations'
 
 // Mock Firestore Timestamp
 jest.mock('firebase/firestore', () => ({
@@ -41,6 +41,7 @@ const createMockSet = (
   weight,
   reps,
   set: 1,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   date: new Timestamp(Math.floor(date.getTime() / 1000), 0) as any,
 })
 

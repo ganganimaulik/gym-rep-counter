@@ -30,19 +30,22 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   const animatedRepProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentRep.value)),
-    }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
   }, [])
 
   const animatedSetProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentSet.value)),
-    }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
   }, [])
 
   const animatedStatusProps = useAnimatedProps(() => {
     return {
       text: statusText.value,
-    }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
   }, [])
 
   const handlePress = () => {

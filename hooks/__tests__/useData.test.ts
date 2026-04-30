@@ -34,15 +34,18 @@ jest.mock('firebase/firestore', () => ({
       this.seconds = seconds
       this.nanoseconds = nanoseconds
     }
-    static now = jest.fn(() => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static now: any = jest.fn(() => ({
       toDate: () => new Date(),
       toMillis: () => Date.now(),
     }))
-    static fromDate = jest.fn((date: Date) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static fromDate: any = jest.fn((date: Date) => ({
       toDate: () => date,
       toMillis: () => date.getTime(),
     }))
-    static fromMillis = jest.fn((millis: number) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static fromMillis: any = jest.fn((millis: number) => ({
       toDate: () => new Date(millis),
       toMillis: () => millis,
     }))
@@ -75,6 +78,7 @@ describe('useData Hook', () => {
     uid: 'test-uid',
     email: 'test@test.com',
     displayName: 'Test User',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any
   const defaultSettings: Settings = {
     countdownSeconds: 5,
@@ -472,6 +476,7 @@ describe('useData Hook', () => {
       await act(async () => {
         await result.current.addHistoryEntry(
             {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 workoutId: null as any, // Simulate no workout
                 exerciseId: 'ex1',
                 exerciseName: 'Test Exercise',
@@ -554,9 +559,10 @@ describe('useData Hook', () => {
           date: { seconds: 1672531200, nanoseconds: 0 },
         },
       ]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(guestHistory),
-      )
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
       ;(getDoc as jest.Mock).mockResolvedValue({ exists: () => false }) // Simulate new user
       const { result } = renderHook(() => useData())
 
@@ -623,14 +629,17 @@ describe('useData Hook', () => {
           date: { seconds: 1672531200, nanoseconds: 0 },
         },
       ]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(guestHistory),
-      )
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
       const { result } = renderHook(() => useData())
 
-      let history
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let history: any
       await act(async () => {
-        history = await result.current.fetchHistory(null)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        history = await result.current.fetchHistory(null as any)
       })
 
       expect(history).toHaveLength(1)
@@ -710,7 +719,8 @@ describe('useData Hook', () => {
 
     it('should sync offline queue to firestore', async () => {
       const { result } = renderHook(() => useData())
-      const offlineEntry = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const offlineEntry: any = {
         id: 'offline-1',
         exerciseId: 'ex1',
         set: 1,
@@ -750,7 +760,8 @@ describe('useData Hook', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       const { result } = renderHook(() => useData())
-      const offlineEntry = { id: 'offline-1' }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const offlineEntry: any = { id: 'offline-1' }
 
       await act(async () => {
         result.current.setOfflineQueue([offlineEntry])
@@ -770,7 +781,6 @@ describe('useData Hook', () => {
 
   describe('Update and Delete History Entry', () => {
     it('should update history entry for authenticated user', async () => {
-      const { updateDoc } = require('firebase/firestore')
       const { result } = renderHook(() => useData())
 
       await act(async () => {
@@ -794,9 +804,10 @@ describe('useData Hook', () => {
           date: { seconds: 1672531200, nanoseconds: 0 },
         },
       ]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(guestHistory),
-      )
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
       const { result } = renderHook(() => useData())
 
       await act(async () => {
@@ -814,7 +825,6 @@ describe('useData Hook', () => {
     })
 
     it('should delete history entry for authenticated user', async () => {
-      const { deleteDoc } = require('firebase/firestore')
       const { result } = renderHook(() => useData())
 
       await act(async () => {
@@ -841,9 +851,10 @@ describe('useData Hook', () => {
           date: { seconds: 1672531300, nanoseconds: 0 },
         },
       ]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(guestHistory),
-      )
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
       const { result } = renderHook(() => useData())
 
       await act(async () => {
@@ -992,9 +1003,10 @@ describe('useData Hook', () => {
           date: { seconds: Math.floor(now.getTime() / 1000), nanoseconds: 0 },
         },
       ]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
-        JSON.stringify(guestHistory),
-      )
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
       const { result } = renderHook(() => useData())
 
       let history

@@ -27,7 +27,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
         {user.photoURL && (
           <Image
             source={{ uri: user.photoURL }}
-            className="w-12 h-12 rounded-full"
+            style={{ width: 48, height: 48, borderRadius: 24 }}
           />
         )}
         <StyledView>

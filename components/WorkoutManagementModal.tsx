@@ -190,7 +190,9 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
         disabled={isActive}
         className={`flex-row items-center justify-between bg-gray-600/50 p-2 rounded-md mb-2 ${isActive ? 'opacity-50' : ''}`}>
         <StyledView className="flex-row items-center flex-1">
-          <GripVertical color="#9ca3af" size={20} className="mr-2" />
+          <StyledView className="mr-2">
+            <GripVertical color="#9ca3af" size={20} />
+          </StyledView>
           <StyledText className="text-sm font-medium text-white flex-1">
             {getIndex()! + 1}. {ex.name}
           </StyledText>
@@ -223,7 +225,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
           renderItem={renderExercise}
           keyExtractor={(item) => item.id}
           onDragEnd={({ data }) => updateExerciseOrder(workout.id, data)}
-          containerStyle={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
         />
         <StyledView className="pt-2">
           <StyledView className="flex-row gap-2">
@@ -310,7 +312,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
               renderItem={({ item }) => <WorkoutItem workout={item} />}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
-              containerStyle={{ flex: 1 }}
+              contentContainerStyle={{ flexGrow: 1 }}
             />
           </StyledView>
 

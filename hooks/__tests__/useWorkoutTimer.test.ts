@@ -29,9 +29,7 @@ const mockOnSetComplete = jest.fn()
 const mockAudioHandler: AudioHandler = {
   queueSpeak: mockQueueSpeak,
   speakEccentric: mockSpeakEccentric,
-  isSpeaking: false,
-  stopSpeaking: jest.fn(),
-  initializeAudio: jest.fn(),
+  speak: jest.fn(),
 }
 
 const defaultSettings: Settings = {
@@ -42,6 +40,7 @@ const defaultSettings: Settings = {
   concentricSeconds: 1,
   eccentricSeconds: 2,
   eccentricCountdownEnabled: true,
+  countdownAnnouncementThreshold: 15,
   volume: 1,
 }
 
@@ -301,7 +300,7 @@ describe('useWorkoutTimer', () => {
   describe('Edge Cases and Exercise Changes', () => {
     it('should reset the state when the active exercise or starting set changes', () => {
       const { result, rerender } = renderHook(
-        ({ exercise, set }) =>
+        ({ exercise, set }: { exercise: Exercise; set: number }) =>
           useWorkoutTimer(
             defaultSettings,
             mockAudioHandler,
@@ -371,7 +370,7 @@ describe('useWorkoutTimer', () => {
 
     it('should not reset timer when startingSet changes during active workout', async () => {
       const { result, rerender } = renderHook(
-        ({ exercise, set }) =>
+        ({ exercise, set }: { exercise: Exercise; set: number }) =>
           useWorkoutTimer(
             defaultSettings,
             mockAudioHandler,

@@ -257,7 +257,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <StyledTouchableOpacity
               onPress={handleSave}
               className="py-2 px-6 bg-blue-600 rounded-lg flex-row items-center">
-              <Check color="white" size={18} className="mr-2" />
+              <StyledView className="mr-2">
+                <Check color="white" size={18} />
+              </StyledView>
               <StyledText className="font-semibold text-white">Save</StyledText>
             </StyledTouchableOpacity>
           </StyledView>

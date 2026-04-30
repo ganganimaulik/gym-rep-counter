@@ -65,7 +65,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     if (isLoading || !hasMore) return;
 
     setIsLoading(true);
-    const newHistory = await fetchHistory(user, lastVisible);
+    const newHistory = await fetchHistory(user as FirebaseUser, lastVisible);
 
     if (newHistory.length > 0) {
       setLastVisible(newHistory[newHistory.length - 1]);
@@ -281,7 +281,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             isLoading ? (
-              <ActivityIndicator size="large" color="#fff" className="mt-4" />
+              <ActivityIndicator size="large" color="#fff" style={{ marginTop: 16 }} />
             ) : null
           }
           ListEmptyComponent={

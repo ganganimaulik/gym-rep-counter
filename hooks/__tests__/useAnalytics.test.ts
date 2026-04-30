@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react-native'
+import { renderHook, act } from '@testing-library/react-native'
 import { useAnalytics } from '../useAnalytics'
 import { DataHook, Settings } from '../useData'
 import type { WorkoutSet } from '../../declarations'

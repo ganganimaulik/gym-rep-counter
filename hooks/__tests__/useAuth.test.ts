@@ -35,7 +35,7 @@ const mockUser = { uid: 'test-uid' }
 const mockIdToken = 'mock-id-token'
 
 describe('useAuth Hook', () => {
-  let onAuthStateChangedCallback: (user: any) => void
+  let onAuthStateChangedCallback: (user: unknown) => void
   const mockOnAuthSuccess = jest.fn()
 
   beforeEach(() => {

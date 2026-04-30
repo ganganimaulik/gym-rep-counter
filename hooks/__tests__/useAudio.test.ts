@@ -1,5 +1,5 @@
-import { renderHook, act, waitFor } from '@testing-library/react-native'
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av'
+import { renderHook, act } from '@testing-library/react-native'
+import { Audio } from 'expo-av'
 import * as Speech from 'expo-speech'
 import { useAudio } from '../useAudio'
 import { Settings } from '../useData'
@@ -47,6 +47,7 @@ const defaultSettings: Settings = {
   concentricSeconds: 1,
   eccentricSeconds: 4,
   eccentricCountdownEnabled: true,
+  countdownAnnouncementThreshold: 15,
 }
 
 describe('useAudio Hook', () => {
@@ -225,7 +226,7 @@ describe('useAudio Hook', () => {
 
     it('should call onDone callback and process next item when speech is finished', async () => {
       const onDoneCallback = jest.fn()
-      let speakOptions: any
+      let speakOptions: Record<string, unknown>
 
       ;(Speech.speak as jest.Mock).mockImplementation((text, options) => {
         speakOptions = options
@@ -243,7 +244,7 @@ describe('useAudio Hook', () => {
 
       // Simulate first speech finishing
       await act(async () => {
-        speakOptions.onDone()
+        ;(speakOptions.onDone as () => void)()
         await jest.runAllTimers()
       })
 
@@ -253,7 +254,7 @@ describe('useAudio Hook', () => {
     })
 
     it('should handle onError callback and process next item', async () => {
-      let speakOptions: any
+      let speakOptions: Record<string, unknown>
       ;(Speech.speak as jest.Mock).mockImplementation((text, options) => {
         speakOptions = options
       })
@@ -269,7 +270,7 @@ describe('useAudio Hook', () => {
 
       // Simulate first speech erroring
       await act(async () => {
-        speakOptions.onError()
+        ;(speakOptions.onError as () => void)()
         await jest.runAllTimers()
       })
 
