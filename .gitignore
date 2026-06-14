@@ -8,6 +8,7 @@ bower_components/
 
 # Build & Output
 dist/
+build/
 web-build/
 build/Release
 coverage/
