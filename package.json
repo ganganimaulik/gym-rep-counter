@@ -11,7 +11,10 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "prebuild": "expo prebuild --clean",
     "test": "jest",
-    "coverage": "jest --coverage"
+    "coverage": "jest --coverage",
+    "iphone-install": "expo run:ios --configuration Release --device \"Maulik’s iPhone\"",
+    "install-iphone": "npm run iphone-install",
+    "install-iphone-scheduler": "node scripts/install-iphone-scheduler.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
