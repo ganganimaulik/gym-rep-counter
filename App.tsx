@@ -494,7 +494,7 @@ const App: React.FC = () => {
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
       />
-      <Toast />
+      <Toast topOffset={60} />
     </StyledSafeAreaView>
   )
 }
