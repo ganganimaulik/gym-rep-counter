@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ganganimaulik.repcounterapp",
-      "appleTeamId": "S289LJ5AX9",
+      "appleTeamId": "9F2FM5B6L2",
       "infoPlist": {
         "UIBackgroundModes": ["audio", "processing"],
         "NSSupportsLiveActivities": true

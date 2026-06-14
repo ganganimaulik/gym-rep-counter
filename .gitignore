@@ -78,6 +78,3 @@ pids
 # Other
 .grunt
 .lock-wscript
-
-# Scheduler State
-.install-iphone-state.json

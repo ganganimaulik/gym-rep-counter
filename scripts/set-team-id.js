@@ -13,8 +13,8 @@ let content = fs.readFileSync(pbxprojPath, 'utf8');
 // 1. Configure DEVELOPMENT_TEAM in buildSettings
 // Remove any existing DEVELOPMENT_TEAM lines in buildSettings to avoid duplication
 content = content.replace(/\s*DEVELOPMENT_TEAM\s*=\s*[^;]+;/g, '');
-// Inject DEVELOPMENT_TEAM = S289LJ5AX9; into every buildSettings block
-content = content.replace(/buildSettings\s*=\s*\{/g, 'buildSettings = {\n\t\t\t\tDEVELOPMENT_TEAM = S289LJ5AX9;');
+// Inject DEVELOPMENT_TEAM = 9F2FM5B6L2; into every buildSettings block
+content = content.replace(/buildSettings\s*=\s*\{/g, 'buildSettings = {\n\t\t\t\tDEVELOPMENT_TEAM = 9F2FM5B6L2;');
 
 // 2. Configure DevelopmentTeam in TargetAttributes
 const startMatch = content.match(/TargetAttributes\s*=\s*\{/);
@@ -37,7 +37,7 @@ if (startMatch) {
   // Inject the DevelopmentTeam and ProvisioningStyle into each target's dictionary
   targetAttributesBlock = targetAttributesBlock.replace(
     /([A-Za-z0-9_xX]{24}\s*=\s*\{)/g,
-    '$1\n\t\t\t\t\tDevelopmentTeam = S289LJ5AX9;\n\t\t\t\t\tProvisioningStyle = Automatic;'
+    '$1\n\t\t\t\t\tDevelopmentTeam = 9F2FM5B6L2;\n\t\t\t\t\tProvisioningStyle = Automatic;'
   );
   
   // Replace the old TargetAttributes block with the new one
@@ -45,4 +45,4 @@ if (startMatch) {
 }
 
 fs.writeFileSync(pbxprojPath, content, 'utf8');
-console.log('Successfully configured Development Team S289LJ5AX9 (buildSettings & TargetAttributes) in project.pbxproj');
+console.log('Successfully configured Development Team 9F2FM5B6L2 (buildSettings & TargetAttributes) in project.pbxproj');
