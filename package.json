@@ -12,7 +12,7 @@
     "prebuild": "expo prebuild --clean",
     "test": "jest",
     "coverage": "jest --coverage",
-    "iphone-install": "xcodebuild -workspace ios/repcounterapp.xcworkspace -scheme repcounterapp -configuration Release -destination 'id=00008130-000215120A8B803A' -allowProvisioningUpdates -derivedDataPath build && (npx --yes ios-deploy --bundle build/Build/Products/Release-iphoneos/repcounterapp.app --id 00008130-000215120A8B803A --justlaunch || true)",
+    "iphone-install": "node scripts/set-team-id.js && xcodebuild -workspace ios/repcounterapp.xcworkspace -scheme repcounterapp -configuration Release -destination 'id=00008130-000215120A8B803A' -allowProvisioningUpdates -derivedDataPath build && (npx --yes ios-deploy --bundle build/Build/Products/Release-iphoneos/repcounterapp.app --id 00008130-000215120A8B803A --justlaunch || true)",
     "install-iphone": "npm run iphone-install",
     "install-iphone-scheduler": "node scripts/install-iphone-scheduler.js"
   },
@@ -28,6 +28,7 @@
     "expo-av": "^16.0.7",
     "expo-background-timer": "^0.2.0",
     "expo-blur": "^15.0.7",
+    "expo-build-properties": "^56.0.18",
     "expo-keep-awake": "^15.0.7",
     "expo-speech": "^14.0.7",
     "expo-status-bar": "~3.0.8",
@@ -46,10 +47,13 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "^0.21.0",
     "react-native-worklets": "0.5.1",
-    "tailwindcss": "3.3.2"
+    "tailwindcss": "3.3.2",
+    "workout-activity": "file:./modules/workout-activity",
+    "workout-attributes": "file:./modules/workout-attributes"
   },
   "private": true,
   "devDependencies": {
+    "@bacons/apple-targets": "^4.0.7",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29",
     "@types/react": "^19.2.0",

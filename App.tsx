@@ -148,6 +148,10 @@ const App: React.FC = () => {
     continueToNextPhase()
   }
 
+  const nextExerciseItem = currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1
+    ? currentWorkout.exercises[currentExerciseIndex + 1]
+    : undefined
+
   const {
     currentRep,
     currentSet,
@@ -174,6 +178,7 @@ const App: React.FC = () => {
     activeExercise,
     handleSetComplete,
     startingSet,
+    nextExerciseItem?.name ?? '',
   )
 
   const appState = useRef<AppStateStatus>(AppState.currentState)

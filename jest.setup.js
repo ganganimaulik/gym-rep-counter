@@ -34,3 +34,9 @@ jest.mock('firebase/firestore', () => {
     },
   }
 })
+
+jest.mock('./modules/workout-activity', () => ({
+  startActivity: jest.fn(),
+  updateActivity: jest.fn(),
+  stopActivity: jest.fn(),
+}))

@@ -1,0 +1,27 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+expoModule {
+  canBePublished false
+}
+
+android {
+  namespace "com.ganganimaulik.repcounterapp"
+  compileSdkVersion 34
+
+  defaultConfig {
+    minSdkVersion 23
+    targetSdkVersion 34
+    versionCode 1
+    versionName "1.0.0"
+  }
+
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+}

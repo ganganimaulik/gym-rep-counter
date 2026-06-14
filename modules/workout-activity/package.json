@@ -1,0 +1,7 @@
+{
+  "name": "workout-activity",
+  "version": "1.0.0",
+  "description": "Local Expo module for iOS Live Activities and Android Foreground Service",
+  "main": "index.ts",
+  "types": "index.ts"
+}

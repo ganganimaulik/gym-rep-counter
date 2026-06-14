@@ -8,6 +8,12 @@ import {
 import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated'
 import { Settings, Exercise } from './useData'
 import { AudioHandler } from './useAudio'
+import { Platform } from 'react-native'
+import {
+  startWorkoutActivity,
+  updateWorkoutActivity,
+  stopWorkoutActivity,
+} from '../utils/workoutActivity'
 
 // Constants
 const PHASES = {
@@ -82,6 +88,7 @@ export function useWorkoutTimer(
   activeExercise: Exercise | undefined,
   onSetComplete: (details: OnSetCompleteDetails) => void,
   startingSet: number,
+  nextExerciseName: string = '',
 ): WorkoutTimerHook {
   const { queueSpeak, speakEccentric } = handlers
 
@@ -191,8 +198,8 @@ export function useWorkoutTimer(
     const tick = () => {
       const elapsed = (Date.now() - wState.current.phaseStart) / 1000
       const whole = Math.floor(elapsed)
-
-      statusText.value = `Rest: ${whole}s`
+      const remaining = Math.max(0, settings.restSeconds - whole)
+      statusText.value = `Rest: ${remaining}s`
 
       if (
         whole === settings.restSeconds &&
@@ -660,6 +667,61 @@ export function useWorkoutTimer(
     statusText,
     clearTimer,
   ])
+
+  const isActivityActiveRef = useRef(false)
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return
+
+    const isResting = ui.phase === PHASE_DISPLAY[PHASES.REST]
+
+    if (!activeExercise || (!ui.isRunning && !isResting)) {
+      if (isActivityActiveRef.current) {
+        stopWorkoutActivity()
+        isActivityActiveRef.current = false
+      }
+      return
+    }
+
+    const restStartTimestamp = isResting ? wState.current.phaseStart : Date.now()
+    const restSeconds = settings.restSeconds
+
+    const statePayload = {
+      exerciseName: activeExercise.name,
+      nextExerciseName: nextExerciseName || '',
+      currentSet: wState.current.set,
+      totalSets: activeExercise.sets ?? settings.maxSets,
+      reps: activeExercise.reps,
+      phase: ui.phase,
+      isResting,
+      restSeconds,
+      restStartTimestamp,
+    }
+
+    if (!isActivityActiveRef.current) {
+      startWorkoutActivity(statePayload)
+      isActivityActiveRef.current = true
+    } else {
+      updateWorkoutActivity(statePayload)
+    }
+  }, [
+    activeExercise,
+    nextExerciseName,
+    ui.isRunning,
+    ui.isPaused,
+    ui.phase,
+    settings.restSeconds,
+    settings.maxSets,
+  ])
+
+  // Also clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (isActivityActiveRef.current) {
+        stopWorkoutActivity()
+      }
+    }
+  }, [])
 
   useEffect(() => clearTimer, [clearTimer])
 

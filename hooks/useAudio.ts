@@ -132,8 +132,12 @@ export const useAudio = (settings: Settings): AudioHandler => {
         }
         setTimeout(() => processNextSpeech(), 50)
       },
-      onError: () => {
+      onError: (error) => {
+        console.error('Speech error occurred:', error)
         isSpeakingRef.current = false
+        if (typeof originalOnDone === 'function') {
+          originalOnDone()
+        }
         setTimeout(() => processNextSpeech(), 50)
       },
     })
