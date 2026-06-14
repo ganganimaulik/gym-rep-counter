@@ -23,7 +23,7 @@ import {
 } from 'react-native'
 import { styled } from 'nativewind'
 import { useKeepAwake } from 'expo-keep-awake'
-import { Settings as SettingsIcon, History, BarChart3 } from 'lucide-react-native'
+import { Settings as SettingsIcon, History, BarChart3, Dumbbell, ClipboardList } from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
@@ -70,13 +70,8 @@ const App: React.FC = () => {
   useKeepAwake()
 
   // UI State
-  const [settingsVisible, setSettingsVisible] = useState<boolean>(false)
-  const [workoutModalVisible, setWorkoutModalVisible] = useState<boolean>(false)
+  const [currentTab, setCurrentTab] = useState<'workout' | 'routines' | 'history' | 'analytics' | 'settings'>('workout')
   const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
-  const [historyScreenVisible, setHistoryScreenVisible] =
-    useState<boolean>(false)
-  const [progressScreenVisible, setProgressScreenVisible] =
-    useState<boolean>(false)
   const [completedSetData, setCompletedSetData] =
     useState<CompletedSetData | null>(null)
 
@@ -315,131 +310,182 @@ const App: React.FC = () => {
 
   if (initializing) {
     return (
-      <StyledSafeAreaView className="flex-1 bg-gray-900 justify-center items-center">
-        <StyledText className="text-white text-xl">Loading...</StyledText>
+      <StyledSafeAreaView className="flex-1 bg-zinc-950 justify-center items-center">
+        <StyledText className="text-zinc-400 text-xl font-medium">Loading...</StyledText>
       </StyledSafeAreaView>
     )
   }
 
   return (
-    <StyledSafeAreaView className="flex-1 bg-gray-900">
+    <StyledSafeAreaView className="flex-1 bg-zinc-950">
       <StatusBar barStyle="light-content" />
-      <Toast />
-      <StyledScrollView
-        className="flex-1 p-4"
-        contentContainerStyle={{ paddingBottom: 40 }}
-        keyboardShouldPersistTaps="handled">
-        <StyledView className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-4 space-y-4">
-          <UserProfile user={user} disconnectAccount={disconnectAccount} />
+      
+      <StyledView className="flex-1">
+        {currentTab === 'workout' && (
+          <StyledScrollView
+            className="flex-1 p-4"
+            contentContainerStyle={{ paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled">
+            <StyledView className="w-full max-w-md mx-auto space-y-6">
+              <WorkoutSelector
+                workouts={workouts}
+                currentWorkout={currentWorkout}
+                currentExerciseIndex={currentExerciseIndex}
+                settings={settings}
+                selectWorkout={selectWorkout}
+                setModalVisible={(visible) => {
+                  if (visible) setCurrentTab('routines')
+                }}
+                prevExercise={prevExercise}
+                nextExercise={nextExercise}
+                isSetCompleted={isSetCompleted}
+                activeExerciseId={activeExercise?.id}
+                jumpToSet={jumpToSet}
+                resetSetsFrom={(exerciseId, setNumber) =>
+                  resetSetsFrom(exerciseId, setNumber, user)
+                }
+                arePreviousSetsCompleted={arePreviousSetsCompleted}
+              />
 
-          <WorkoutSelector
+              <MainDisplay
+                statusText={statusText}
+                currentRep={currentRep}
+                currentSet={currentSet}
+                phase={phase}
+                addCountdownTime={addCountdownTime}
+              />
+
+              <Controls
+                isRunning={isRunning}
+                isResting={isResting}
+                isPaused={isPaused}
+                startWorkout={() => {
+                  if (
+                    activeExercise &&
+                    isSetCompleted(activeExercise.id, startingSet)
+                  ) {
+                    Toast.show({
+                      type: 'info',
+                      text1: 'Set Already Completed',
+                      text2: `You have already completed set ${startingSet} for this exercise.`,
+                    })
+                    return
+                  }
+                  startWorkout()
+                }}
+                runNextSet={() => {
+                  if (
+                    activeExercise &&
+                    isSetCompleted(activeExercise.id, currentSet.value)
+                  ) {
+                    Toast.show({
+                      type: 'info',
+                      text1: 'Set Already Completed',
+                      text2: `You have already completed set ${currentSet.value} for this exercise.`,
+                    })
+                    return
+                  }
+                  runNextSet()
+                }}
+                stopWorkout={stopWorkout}
+                pauseWorkout={pauseWorkout}
+                endSet={endSet}
+              />
+
+              <RepJumper
+                maxReps={settings.maxReps}
+                currentRep={currentRep}
+                jumpToRep={jumpToRep}
+              />
+            </StyledView>
+          </StyledScrollView>
+        )}
+
+        {currentTab === 'routines' && (
+          <WorkoutManagementModal
+            visible={true}
+            onClose={() => setCurrentTab('workout')}
             workouts={workouts}
-            currentWorkout={currentWorkout}
-            currentExerciseIndex={currentExerciseIndex}
+            setWorkouts={handleSaveWorkouts}
+          />
+        )}
+
+        {currentTab === 'history' && (
+          <HistoryScreen
+            visible={true}
+            onClose={() => setCurrentTab('workout')}
+            user={user}
+            dataHook={dataHook}
+          />
+        )}
+
+        {currentTab === 'analytics' && (
+          <ProgressScreen
+            visible={true}
+            onClose={() => setCurrentTab('workout')}
+            user={user}
+            analyticsHook={analyticsHook}
+          />
+        )}
+
+        {currentTab === 'settings' && (
+          <SettingsModal
+            visible={true}
+            onClose={() => setCurrentTab('workout')}
             settings={settings}
-            selectWorkout={selectWorkout}
-            setModalVisible={setWorkoutModalVisible}
-            prevExercise={prevExercise}
-            nextExercise={nextExercise}
-            isSetCompleted={isSetCompleted}
-            activeExerciseId={activeExercise?.id}
-            jumpToSet={jumpToSet}
-            resetSetsFrom={(exerciseId, setNumber) =>
-              resetSetsFrom(exerciseId, setNumber, user)
-            }
-            arePreviousSetsCompleted={arePreviousSetsCompleted}
+            onSave={handleSaveSettings}
+            onGoogleButtonPress={onGoogleButtonPress}
+            user={user}
+            disconnectAccount={disconnectAccount}
+            isSigningIn={isSigningIn}
           />
+        )}
+      </StyledView>
 
-          <MainDisplay
-            statusText={statusText}
-            currentRep={currentRep}
-            currentSet={currentSet}
-            phase={phase}
-            addCountdownTime={addCountdownTime}
-          />
+      {/* Modern Bottom Tab Bar */}
+      <StyledView className="flex-row border-t border-zinc-900 bg-zinc-950 py-2 justify-around items-center">
+        <StyledTouchableOpacity
+          onPress={() => setCurrentTab('workout')}
+          className="items-center py-1 flex-1">
+          <Dumbbell color={currentTab === 'workout' ? '#3b82f6' : '#71717a'} size={22} />
+          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'workout' ? 'text-blue-500' : 'text-zinc-500'}`}>
+            Workout
+          </StyledText>
+        </StyledTouchableOpacity>
+        <StyledTouchableOpacity
+          onPress={() => setCurrentTab('routines')}
+          className="items-center py-1 flex-1">
+          <ClipboardList color={currentTab === 'routines' ? '#8b5cf6' : '#71717a'} size={22} />
+          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'routines' ? 'text-purple-500' : 'text-zinc-500'}`}>
+            Routines
+          </StyledText>
+        </StyledTouchableOpacity>
+        <StyledTouchableOpacity
+          onPress={() => setCurrentTab('history')}
+          className="items-center py-1 flex-1">
+          <History color={currentTab === 'history' ? '#fb923c' : '#71717a'} size={22} />
+          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'history' ? 'text-orange-400' : 'text-zinc-500'}`}>
+            History
+          </StyledText>
+        </StyledTouchableOpacity>
+        <StyledTouchableOpacity
+          onPress={() => setCurrentTab('analytics')}
+          className="items-center py-1 flex-1">
+          <BarChart3 color={currentTab === 'analytics' ? '#10b981' : '#71717a'} size={22} />
+          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'analytics' ? 'text-green-500' : 'text-zinc-500'}`}>
+            Analytics
+          </StyledText>
+        </StyledTouchableOpacity>
+        <StyledTouchableOpacity
+          onPress={() => setCurrentTab('settings')}
+          className="items-center py-1 flex-1">
+          <SettingsIcon color={currentTab === 'settings' ? '#f43f5e' : '#71717a'} size={22} />
+          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'settings' ? 'text-rose-500' : 'text-zinc-500'}`}>
+            Settings
+          </StyledText>
+        </StyledTouchableOpacity>
+      </StyledView>
 
-          <Controls
-            isRunning={isRunning}
-            isResting={isResting}
-            isPaused={isPaused}
-            startWorkout={() => {
-              if (
-                activeExercise &&
-                isSetCompleted(activeExercise.id, startingSet)
-              ) {
-                Toast.show({
-                  type: 'info',
-                  text1: 'Set Already Completed',
-                  text2: `You have already completed set ${startingSet} for this exercise.`,
-                })
-                return
-              }
-              startWorkout()
-            }}
-            runNextSet={() => {
-              if (
-                activeExercise &&
-                isSetCompleted(activeExercise.id, currentSet.value)
-              ) {
-                Toast.show({
-                  type: 'info',
-                  text1: 'Set Already Completed',
-                  text2: `You have already completed set ${currentSet.value} for this exercise.`,
-                })
-                return
-              }
-              runNextSet()
-            }}
-            stopWorkout={stopWorkout}
-            pauseWorkout={pauseWorkout}
-            endSet={endSet}
-          />
-
-          <RepJumper
-            maxReps={settings.maxReps}
-            currentRep={currentRep}
-            jumpToRep={jumpToRep}
-          />
-
-          <StyledView className="flex-row justify-center items-center space-x-6">
-            <StyledTouchableOpacity
-              onPress={() => setHistoryScreenVisible(true)}
-              className="flex-row items-center space-x-2">
-              <History color="#60a5fa" size={16} />
-              <StyledText className="text-blue-400">History</StyledText>
-            </StyledTouchableOpacity>
-            <StyledTouchableOpacity
-              onPress={() => setProgressScreenVisible(true)}
-              className="flex-row items-center space-x-2">
-              <BarChart3 color="#10b981" size={16} />
-              <StyledText className="text-green-400">Progress</StyledText>
-            </StyledTouchableOpacity>
-            <StyledTouchableOpacity
-              onPress={() => setSettingsVisible(!settingsVisible)}
-              className="flex-row items-center space-x-2">
-              <SettingsIcon color="#60a5fa" size={16} />
-              <StyledText className="text-blue-400">Settings</StyledText>
-            </StyledTouchableOpacity>
-          </StyledView>
-        </StyledView>
-      </StyledScrollView>
-
-      <WorkoutManagementModal
-        visible={workoutModalVisible}
-        onClose={() => setWorkoutModalVisible(false)}
-        workouts={workouts}
-        setWorkouts={handleSaveWorkouts}
-      />
-      <SettingsModal
-        visible={settingsVisible}
-        onClose={() => setSettingsVisible(false)}
-        settings={settings}
-        onSave={handleSaveSettings}
-        onGoogleButtonPress={onGoogleButtonPress}
-        user={user}
-        disconnectAccount={disconnectAccount}
-        isSigningIn={isSigningIn}
-      />
       <AddSetDetailsModal
         visible={addSetModalVisible}
         onClose={() => {
@@ -448,18 +494,7 @@ const App: React.FC = () => {
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
       />
-      <HistoryScreen
-        visible={historyScreenVisible}
-        onClose={() => setHistoryScreenVisible(false)}
-        user={user}
-        dataHook={dataHook}
-      />
-      <ProgressScreen
-        visible={progressScreenVisible}
-        onClose={() => setProgressScreenVisible(false)}
-        user={user}
-        analyticsHook={analyticsHook}
-      />
+      <Toast />
     </StyledSafeAreaView>
   )
 }
