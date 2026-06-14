@@ -2,12 +2,7 @@ import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
 import Toast from 'react-native-toast-message'
-import {
-  Edit,
-  ChevronLeft,
-  ChevronRight,
-  Check,
-} from 'lucide-react-native'
+import { Edit, ChevronLeft, ChevronRight, Check } from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
 
@@ -35,8 +30,8 @@ const SetTracker: React.FC<SetTrackerProps> = ({
           onPress={() => onSetPress(setNumber)}
           activeOpacity={0.7}
           className={`w-8 h-8 rounded-full justify-center items-center ${
-            completed 
-              ? 'bg-emerald-500 shadow-md shadow-emerald-500/20' 
+            completed
+              ? 'bg-emerald-500 shadow-md shadow-emerald-500/20'
               : 'bg-zinc-800 border border-zinc-700'
           }`}>
           {completed ? (
@@ -138,14 +133,17 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               }}
             />
           </StyledView>
-          
+
           <StyledView className="flex-row justify-between items-center mt-3 pt-2 border-t border-zinc-800/40">
             <StyledText className="text-xs font-bold text-zinc-500">
               Exercise {currentExerciseIndex + 1} of{' '}
               {currentWorkout.exercises.length}
             </StyledText>
             <StyledText className="text-xs font-black text-indigo-400">
-              Target: {currentWorkout.exercises[currentExerciseIndex]?.reps ?? settings.maxReps} Reps
+              Target:{' '}
+              {currentWorkout.exercises[currentExerciseIndex]?.reps ??
+                settings.maxReps}{' '}
+              Reps
             </StyledText>
           </StyledView>
         </StyledView>
@@ -158,13 +156,16 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
             disabled={currentExerciseIndex === 0}
             activeOpacity={0.7}
             className={`py-3 rounded-xl flex-1 items-center justify-center flex-row ${
-              currentExerciseIndex === 0 ? 'bg-zinc-950/40 opacity-40' : 'bg-zinc-800 border border-zinc-700'
+              currentExerciseIndex === 0
+                ? 'bg-zinc-950/40 opacity-40'
+                : 'bg-zinc-800 border border-zinc-700'
             }`}>
             <ChevronLeft
               color={currentExerciseIndex === 0 ? '#52525b' : 'white'}
               size={18}
             />
-            <StyledText className={`text-xs font-bold ml-1 ${currentExerciseIndex === 0 ? 'text-zinc-600' : 'text-white'}`}>
+            <StyledText
+              className={`text-xs font-bold ml-1 ${currentExerciseIndex === 0 ? 'text-zinc-600' : 'text-white'}`}>
               Previous
             </StyledText>
           </StyledTouchableOpacity>
@@ -179,9 +180,12 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
                 ? 'bg-zinc-950/40 opacity-40'
                 : 'bg-zinc-800 border border-zinc-700'
             }`}>
-            <StyledText className={`text-xs font-bold mr-1 ${
-              currentExerciseIndex >= currentWorkout.exercises.length - 1 ? 'text-zinc-600' : 'text-white'
-            }`}>
+            <StyledText
+              className={`text-xs font-bold mr-1 ${
+                currentExerciseIndex >= currentWorkout.exercises.length - 1
+                  ? 'text-zinc-600'
+                  : 'text-white'
+              }`}>
               Next
             </StyledText>
             <ChevronRight

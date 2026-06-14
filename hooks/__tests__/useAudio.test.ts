@@ -85,7 +85,8 @@ describe('useAudio Hook', () => {
       const { unmount } = await renderAndWait()
 
       expect(Audio.setAudioModeAsync).toHaveBeenCalled()
-      const { sound } = await (Audio.Sound.createAsync as jest.Mock).mock.results[0].value
+      const { sound } = await (Audio.Sound.createAsync as jest.Mock).mock
+        .results[0].value
 
       act(() => unmount())
 
@@ -227,7 +228,6 @@ describe('useAudio Hook', () => {
     it('should call onDone callback and process next item when speech is finished', async () => {
       const onDoneCallback = jest.fn()
       let speakOptions: Record<string, unknown>
-
       ;(Speech.speak as jest.Mock).mockImplementation((text, options) => {
         speakOptions = options
       })
@@ -295,7 +295,7 @@ describe('useAudio Hook', () => {
     })
 
     it('should speak eccentric message with priority and found female voice', async () => {
-       const mockVoices = [
+      const mockVoices = [
         {
           identifier: 'female-voice-id',
           name: 'Samantha',

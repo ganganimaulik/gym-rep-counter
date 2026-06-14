@@ -94,7 +94,9 @@ describe('useAuth Hook', () => {
   it('should handle Google Sign-In cancellation', async () => {
     const error = { code: 'SIGN_IN_CANCELLED' }
     ;(GoogleSignin.signIn as jest.Mock).mockRejectedValue(error)
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const consoleLogSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => {})
 
     const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
 

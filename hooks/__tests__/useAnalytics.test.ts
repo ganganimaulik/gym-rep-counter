@@ -6,20 +6,28 @@ import { Timestamp } from 'firebase/firestore'
 
 // Mock the analytics utils
 jest.mock('../../utils/analyticsUtils', () => ({
-  calculatePRs: jest.fn(() => [{ exerciseId: 'ex1', exerciseName: 'Bench Press', maxWeight: 100 }]),
+  calculatePRs: jest.fn(() => [
+    { exerciseId: 'ex1', exerciseName: 'Bench Press', maxWeight: 100 },
+  ]),
   calculateStreak: jest.fn(() => ({
     currentStreak: 2,
     longestStreak: 5,
     lastWorkoutDate: new Date(),
     currentWeekWorkouts: 3,
   })),
-  calculateVolume: jest.fn(() => [{ label: 'Week 1', totalVolume: 5000, workoutCount: 3 }]),
-  calculateTrends: jest.fn(() => [{ date: '2024-01-01', avgWeight: 80, avgReps: 10, setCount: 3 }]),
+  calculateVolume: jest.fn(() => [
+    { label: 'Week 1', totalVolume: 5000, workoutCount: 3 },
+  ]),
+  calculateTrends: jest.fn(() => [
+    { date: '2024-01-01', avgWeight: 80, avgReps: 10, setCount: 3 },
+  ]),
   getUniqueExercises: jest.fn(() => [{ id: 'ex1', name: 'Bench Press' }]),
 }))
 
 // Create a mock history entry
-const createMockWorkoutSet = (overrides: Partial<WorkoutSet> = {}): WorkoutSet => ({
+const createMockWorkoutSet = (
+  overrides: Partial<WorkoutSet> = {},
+): WorkoutSet => ({
   id: 'test-id',
   workoutId: 'workout-1',
   exerciseId: 'ex1',
@@ -27,7 +35,10 @@ const createMockWorkoutSet = (overrides: Partial<WorkoutSet> = {}): WorkoutSet =
   weight: 80,
   reps: 10,
   set: 1,
-  date: { toDate: () => new Date(), toMillis: () => Date.now() } as unknown as Timestamp,
+  date: {
+    toDate: () => new Date(),
+    toMillis: () => Date.now(),
+  } as unknown as Timestamp,
   ...overrides,
 })
 
@@ -131,9 +142,11 @@ describe('useAnalytics Hook', () => {
   })
 
   it('should handle errors during refreshAnalytics', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
     mockFetchFullHistory.mockRejectedValue(new Error('Network error'))
-    
+
     const mockDataHook = createMockDataHook()
     const { result } = renderHook(() => useAnalytics(mockDataHook))
 
@@ -143,7 +156,10 @@ describe('useAnalytics Hook', () => {
 
     expect(result.current.error).toBe('Failed to load analytics data')
     expect(result.current.isLoading).toBe(false)
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to refresh analytics', expect.any(Error))
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to refresh analytics',
+      expect.any(Error),
+    )
     consoleErrorSpy.mockRestore()
   })
 

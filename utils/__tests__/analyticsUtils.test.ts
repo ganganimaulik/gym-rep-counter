@@ -107,7 +107,7 @@ describe('analyticsUtils', () => {
       // History with qualifying weeks then a gap
       const now = new Date()
       const history: WorkoutSet[] = []
-      
+
       // Add 3 workouts this week
       for (let i = 0; i < 3; i++) {
         const d = new Date(now)

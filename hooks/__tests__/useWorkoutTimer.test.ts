@@ -95,7 +95,9 @@ describe('useWorkoutTimer', () => {
     })
 
     expect(result.current.isRunning).toBe(true)
-    expect(mockQueueSpeak).toHaveBeenCalledWith('Get ready.', { priority: true })
+    expect(mockQueueSpeak).toHaveBeenCalledWith('Get ready.', {
+      priority: true,
+    })
     expect(result.current.phase).toBe('Get Ready')
   })
 
@@ -168,11 +170,17 @@ describe('useWorkoutTimer', () => {
       )
 
       act(() => result.current.startWorkout())
-      act(() => jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000))
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000),
+      )
 
       for (let i = 0; i < defaultSettings.maxReps; i++) {
-        act(() => jest.advanceTimersByTime(defaultSettings.concentricSeconds * 1000))
-        act(() => jest.advanceTimersByTime(defaultSettings.eccentricSeconds * 1000))
+        act(() =>
+          jest.advanceTimersByTime(defaultSettings.concentricSeconds * 1000),
+        )
+        act(() =>
+          jest.advanceTimersByTime(defaultSettings.eccentricSeconds * 1000),
+        )
       }
 
       await waitFor(() => {
@@ -205,48 +213,59 @@ describe('useWorkoutTimer', () => {
       await waitFor(() => {
         expect(result.current.phase).toBe('Rest')
         expect(result.current.currentSet.value).toBe(2)
-        expect(mockQueueSpeak).toHaveBeenCalledWith('Set complete. Rest now.', expect.any(Object))
+        expect(mockQueueSpeak).toHaveBeenCalledWith(
+          'Set complete. Rest now.',
+          expect.any(Object),
+        )
       })
 
       await waitFor(() => {
         expect(result.current.phase).toBe('Rest')
         expect(result.current.currentSet.value).toBe(2)
-        expect(mockQueueSpeak).toHaveBeenCalledWith('Set complete. Rest now.', expect.any(Object))
+        expect(mockQueueSpeak).toHaveBeenCalledWith(
+          'Set complete. Rest now.',
+          expect.any(Object),
+        )
       })
 
       // Advance timers to finish the rest target
-      act(() => jest.advanceTimersByTime(defaultSettings.restSeconds * 1000 + 500))
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.restSeconds * 1000 + 500),
+      )
 
       await waitFor(() => {
-          // It should STILL be running, but effectively notifying
-           expect(result.current.phase).toBe('Rest')
-           expect(result.current.statusText.value).toContain('Rest:')
-           // The message "Rest target reached" should have been spoken
-           expect(mockQueueSpeak).toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+        // It should STILL be running, but effectively notifying
+        expect(result.current.phase).toBe('Rest')
+        expect(result.current.statusText.value).toContain('Rest:')
+        // The message "Rest target reached" should have been spoken
+        expect(mockQueueSpeak).toHaveBeenCalledWith(
+          'Rest target reached.',
+          expect.any(Object),
+        )
       })
     })
 
     it('should complete the exercise after the last set', async () => {
-        const { result } = renderHook(() =>
-          useWorkoutTimer(
-            defaultSettings,
-            mockAudioHandler,
-            activeExercise,
-            mockOnSetComplete,
-            defaultSettings.maxSets, // Start on the last set
-          ),
-        );
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          defaultSettings.maxSets, // Start on the last set
+        ),
+      )
 
-        // Manually trigger the end of the last set
-        act(() => {
-          result.current.continueToNextPhase();
-        });
+      // Manually trigger the end of the last set
+      act(() => {
+        result.current.continueToNextPhase()
+      })
 
-        await waitFor(() => {
-          expect(result.current.isExerciseComplete).toBe(true);
-          expect(result.current.statusText.value).toBe('Exercise Complete!');
-        });
-      });
+      await waitFor(() => {
+        expect(result.current.isExerciseComplete).toBe(true)
+        expect(result.current.statusText.value).toBe('Exercise Complete!')
+      })
+    })
   })
 
   describe('Advanced Controls', () => {
@@ -410,7 +429,7 @@ describe('useWorkoutTimer', () => {
       act(() => result.current.startWorkout())
       // Trigger transition to rest
       act(() => result.current.continueToNextPhase())
-      
+
       await waitFor(() => {
         expect(result.current.phase).toBe('Rest')
       })
@@ -430,35 +449,35 @@ describe('useWorkoutTimer', () => {
     })
 
     it('should handle rapid set completion correctly', async () => {
-         const { result } = renderHook(() =>
-            useWorkoutTimer(
-              defaultSettings,
-              mockAudioHandler,
-              activeExercise,
-              mockOnSetComplete,
-              1,
-            ),
-          )
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
 
-          // Set 1
-          act(() => result.current.startWorkout())
-          act(() => result.current.continueToNextPhase()) // Finish Set 1, Enter Rest
-          await waitFor(() => expect(result.current.phase).toBe('Rest'))
-          
-          act(() => result.current.runNextSet()) // Skip Rest, Start Set 2
-          await waitFor(() => expect(result.current.phase).toBe('Get Ready')) // or Concentric depending on logic
+      // Set 1
+      act(() => result.current.startWorkout())
+      act(() => result.current.continueToNextPhase()) // Finish Set 1, Enter Rest
+      await waitFor(() => expect(result.current.phase).toBe('Rest'))
 
-          // Finish Set 2 immediately
-           act(() => result.current.continueToNextPhase()) // Finish Set 2
+      act(() => result.current.runNextSet()) // Skip Rest, Start Set 2
+      await waitFor(() => expect(result.current.phase).toBe('Get Ready')) // or Concentric depending on logic
 
-           await waitFor(() => {
-               // Should be in Rest for Set 2 (transitioning to Set 3) or Complete
-               if (activeExercise.sets > 2) {
-                    expect(result.current.currentSet.value).toBe(3)
-               } else {
-                   expect(result.current.isExerciseComplete).toBe(true)
-               }
-           })
+      // Finish Set 2 immediately
+      act(() => result.current.continueToNextPhase()) // Finish Set 2
+
+      await waitFor(() => {
+        // Should be in Rest for Set 2 (transitioning to Set 3) or Complete
+        if (activeExercise.sets > 2) {
+          expect(result.current.currentSet.value).toBe(3)
+        } else {
+          expect(result.current.isExerciseComplete).toBe(true)
+        }
+      })
     })
   })
 })

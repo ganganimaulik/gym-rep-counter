@@ -224,7 +224,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
             <Trash2 color="#ef4444" size={18} />
           </StyledTouchableOpacity>
         </StyledView>
-        
+
         {workout.exercises.length > 0 ? (
           <DraggableFlatList
             data={workout.exercises}
@@ -330,8 +330,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
               behavior={Platform.OS === 'ios' ? 'position' : 'height'}
               style={{ width: '100%', alignItems: 'center' }}
               keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}>
-              <StyledView 
-                className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+              <StyledView className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
                 <StyledText className="text-white text-xl font-black mb-1 text-center">
                   Edit Exercise
                 </StyledText>
@@ -340,8 +339,10 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                     {editExercise.exercise.name}
                   </StyledText>
                 )}
-                
-                <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">Exercise Name</StyledText>
+
+                <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                  Exercise Name
+                </StyledText>
                 <StyledTextInput
                   className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-semibold text-sm"
                   placeholder="Exercise name"
@@ -349,10 +350,12 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                   value={editName}
                   onChangeText={setEditName}
                 />
-                
+
                 <StyledView className="flex-row gap-3 mb-4">
                   <StyledView className="flex-1">
-                    <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">Sets</StyledText>
+                    <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                      Sets
+                    </StyledText>
                     <StyledTextInput
                       className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl text-center font-bold text-sm"
                       keyboardType="number-pad"
@@ -361,7 +364,9 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                     />
                   </StyledView>
                   <StyledView className="flex-1">
-                    <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">Reps</StyledText>
+                    <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                      Reps
+                    </StyledText>
                     <StyledTextInput
                       className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl text-center font-bold text-sm"
                       keyboardType="number-pad"
@@ -370,19 +375,23 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                     />
                   </StyledView>
                 </StyledView>
-                
+
                 <StyledView className="flex-row gap-3 mt-2">
                   <StyledTouchableOpacity
                     onPress={closeEditModal}
                     activeOpacity={0.7}
                     className="flex-1 bg-zinc-800 border border-zinc-700 py-3 rounded-xl items-center">
-                    <StyledText className="text-zinc-300 font-bold text-sm">Cancel</StyledText>
+                    <StyledText className="text-zinc-300 font-bold text-sm">
+                      Cancel
+                    </StyledText>
                   </StyledTouchableOpacity>
                   <StyledTouchableOpacity
                     onPress={saveEditExercise}
                     activeOpacity={0.7}
                     className="flex-1 bg-indigo-600 py-3 rounded-xl items-center shadow-lg shadow-indigo-600/15">
-                    <StyledText className="text-white font-bold text-sm">Save</StyledText>
+                    <StyledText className="text-white font-bold text-sm">
+                      Save
+                    </StyledText>
                   </StyledTouchableOpacity>
                 </StyledView>
               </StyledView>

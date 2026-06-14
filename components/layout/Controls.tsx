@@ -1,7 +1,13 @@
 import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
-import { Play, Pause, RotateCcw, SkipForward, CheckCircle2 } from 'lucide-react-native'
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  SkipForward,
+  CheckCircle2,
+} from 'lucide-react-native'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)

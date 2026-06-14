@@ -1,6 +1,12 @@
 import { useState, useCallback } from 'react'
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { WorkoutSet, PRRecord, StreakInfo, VolumeData, TrendData } from '../declarations'
+import type {
+  WorkoutSet,
+  PRRecord,
+  StreakInfo,
+  VolumeData,
+  TrendData,
+} from '../declarations'
 import {
   calculatePRs,
   calculateStreak,

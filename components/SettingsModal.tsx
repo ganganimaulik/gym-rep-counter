@@ -54,10 +54,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     onSave(localSettings)
   }
 
-  const handleValueChange = (
-    key: keyof Settings,
-    value: number | boolean,
-  ) => {
+  const handleValueChange = (key: keyof Settings, value: number | boolean) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -72,13 +69,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </StyledText>
       </StyledView>
 
-      <StyledScrollView 
+      <StyledScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 60 }}>
         <StyledView className="space-y-4">
-          
           {/* User Profile Card */}
           {user ? (
             <StyledView className="mb-2">
@@ -136,7 +132,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   onSubmitEditing={Keyboard.dismiss}
                   value={String(localSettings.countdownAnnouncementThreshold)}
                   onChangeText={(text) =>
-                    handleValueChange('countdownAnnouncementThreshold', Number(text))
+                    handleValueChange(
+                      'countdownAnnouncementThreshold',
+                      Number(text),
+                    )
                   }
                 />
               </StyledView>
@@ -231,7 +230,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     handleValueChange('eccentricCountdownEnabled', value)
                   }
                   trackColor={{ false: '#27272a', true: '#6366f1' }}
-                  thumbColor={localSettings.eccentricCountdownEnabled ? '#a5b4fc' : '#71717a'}
+                  thumbColor={
+                    localSettings.eccentricCountdownEnabled
+                      ? '#a5b4fc'
+                      : '#71717a'
+                  }
                 />
               </StyledView>
             </StyledView>
@@ -249,9 +252,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 maximumValue={1}
                 step={0.05}
                 value={localSettings.volume}
-                onValueChange={(value) =>
-                  handleValueChange('volume', value)
-                }
+                onValueChange={(value) => handleValueChange('volume', value)}
                 minimumTrackTintColor="#6366f1"
                 maximumTrackTintColor="#27272a"
                 thumbTintColor="#6366f1"
@@ -272,7 +273,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               Save Changes
             </StyledText>
           </StyledTouchableOpacity>
-
         </StyledView>
       </StyledScrollView>
     </StyledView>

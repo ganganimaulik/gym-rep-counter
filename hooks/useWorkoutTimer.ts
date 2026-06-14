@@ -167,22 +167,23 @@ export function useWorkoutTimer(
     // When paused, `remainingTime` is saved.
     // For REST, let's treat `remainingTime` as "amount of rest already taken" if we resume.
     // So if clean start, remainingTime = 0.
-    
+
     // WAIT. The previous logic used remainingTime as "time left".
     // I need to be careful with `pauseWorkout` which assumes remainingTime is "time left" for all phases.
     // Let's see `pauseWorkout`. It calculates `duration - elapsed`.
     // I should probably change `pauseWorkout` for REST phase too.
 
     // Let's stick to modifying `startRest` first, then check `pauseWorkout`.
-    
-    const initialElapsed = wState.current.remainingTime > 0 ? wState.current.remainingTime / 1000 : 0
+
+    const initialElapsed =
+      wState.current.remainingTime > 0 ? wState.current.remainingTime / 1000 : 0
     wState.current.remainingTime = 0 // Reset this as we are consuming it.
 
     wState.current.phase = PHASES.REST
     // Adjust phaseStart so that (Date.now() - phaseStart) equals initialElapsed
-    wState.current.phaseStart = Date.now() - (initialElapsed * 1000)
+    wState.current.phaseStart = Date.now() - initialElapsed * 1000
     wState.current.lastSpokenSecond = -1
-    
+
     // We need to track if we have already spoken the "Rest Complete" message for this session
     // to avoid speaking it blindly if we resume after the target.
     // But `lastSpokenSecond` can handle that if we set it correctly.
@@ -193,16 +194,16 @@ export function useWorkoutTimer(
 
       statusText.value = `Rest: ${whole}s`
 
-      if (whole === settings.restSeconds && whole !== wState.current.lastSpokenSecond) {
+      if (
+        whole === settings.restSeconds &&
+        whole !== wState.current.lastSpokenSecond
+      ) {
         wState.current.lastSpokenSecond = whole
-        queueSpeak(
-          `Rest target reached.`,
-          {
-            priority: true,
-          },
-        )
+        queueSpeak(`Rest target reached.`, {
+          priority: true,
+        })
       }
-      
+
       // Keep checking every second
       schedule(1000 - (Date.now() % 1000), tick, false)
     }
@@ -315,7 +316,14 @@ export function useWorkoutTimer(
     } else {
       fullReset()
     }
-  }, [activeExercise, onSetComplete, clearTimer, fullReset, stopWorkout, updateUI])
+  }, [
+    activeExercise,
+    onSetComplete,
+    clearTimer,
+    fullReset,
+    stopWorkout,
+    updateUI,
+  ])
 
   const startConcentric = useCallback(() => {
     const duration =
@@ -346,7 +354,7 @@ export function useWorkoutTimer(
     wState.current.remainingTime = 0
 
     const { eccentricCountdownEnabled } = settings
-    const maxReps = activeExercise?.reps ?? settings.maxReps;
+    const maxReps = activeExercise?.reps ?? settings.maxReps
     wState.current.phase = PHASES.ECCENTRIC
     wState.current.phaseStart = Date.now()
     wState.current.lastSpokenSecond = -1
@@ -527,29 +535,29 @@ export function useWorkoutTimer(
       }
     } else {
       const elapsed = Date.now() - wState.current.phaseStart
-      
+
       if (wState.current.phase === PHASES.REST) {
-          // For REST, remainingTime will actually store "ELAPSED" time in ms
-          // This is a semantic change for this variable for this phase only.
-          // In `startRest`, we read it as elapsed.
-          wState.current.remainingTime = elapsed
+        // For REST, remainingTime will actually store "ELAPSED" time in ms
+        // This is a semantic change for this variable for this phase only.
+        // In `startRest`, we read it as elapsed.
+        wState.current.remainingTime = elapsed
       } else {
-          // For other phases, it stores REMAINING time.
-          let duration: number
-          switch (wState.current.phase) {
-            case PHASES.COUNTDOWN:
-              duration = settings.countdownSeconds * 1000
-              break
-            case PHASES.CONCENTRIC:
-              duration = settings.concentricSeconds * 1000
-              break
-            case PHASES.ECCENTRIC:
-              duration = settings.eccentricSeconds * 1000
-              break
-            default:
-              duration = 0
-          }
-           wState.current.remainingTime = Math.max(0, duration - elapsed)
+        // For other phases, it stores REMAINING time.
+        let duration: number
+        switch (wState.current.phase) {
+          case PHASES.COUNTDOWN:
+            duration = settings.countdownSeconds * 1000
+            break
+          case PHASES.CONCENTRIC:
+            duration = settings.concentricSeconds * 1000
+            break
+          case PHASES.ECCENTRIC:
+            duration = settings.eccentricSeconds * 1000
+            break
+          default:
+            duration = 0
+        }
+        wState.current.remainingTime = Math.max(0, duration - elapsed)
       }
 
       updateUI({ isPaused: true })

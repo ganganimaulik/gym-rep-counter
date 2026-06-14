@@ -23,7 +23,13 @@ import {
 } from 'react-native'
 import { styled } from 'nativewind'
 import { useKeepAwake } from 'expo-keep-awake'
-import { Settings as SettingsIcon, History, BarChart3, Dumbbell, ClipboardList } from 'lucide-react-native'
+import {
+  Settings as SettingsIcon,
+  History,
+  BarChart3,
+  Dumbbell,
+  ClipboardList,
+} from 'lucide-react-native'
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
@@ -70,7 +76,9 @@ const App: React.FC = () => {
   useKeepAwake()
 
   // UI State
-  const [currentTab, setCurrentTab] = useState<'workout' | 'routines' | 'history' | 'analytics' | 'settings'>('workout')
+  const [currentTab, setCurrentTab] = useState<
+    'workout' | 'routines' | 'history' | 'analytics' | 'settings'
+  >('workout')
   const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
   const [completedSetData, setCompletedSetData] =
     useState<CompletedSetData | null>(null)
@@ -98,6 +106,7 @@ const App: React.FC = () => {
     getNextUncompletedSet,
     fetchAllTodaysCompletions,
     syncOfflineQueue,
+    fetchWeightLogs,
   } = dataHook
 
   const analyticsHook = useAnalytics(dataHook)
@@ -108,12 +117,14 @@ const App: React.FC = () => {
         const localSettings = await loadSettings()
         const localWorkouts = await loadWorkouts()
         await syncUserData(firebaseUser, localSettings, localWorkouts)
+        await fetchWeightLogs(firebaseUser)
       } else {
         await loadSettings()
         await loadWorkouts()
+        await fetchWeightLogs(null)
       }
     },
-    [loadSettings, loadWorkouts, syncUserData],
+    [loadSettings, loadWorkouts, syncUserData, fetchWeightLogs],
   )
 
   const {
@@ -311,7 +322,9 @@ const App: React.FC = () => {
   if (initializing) {
     return (
       <StyledSafeAreaView className="flex-1 bg-zinc-950 justify-center items-center">
-        <StyledText className="text-zinc-400 text-xl font-medium">Loading...</StyledText>
+        <StyledText className="text-zinc-400 text-xl font-medium">
+          Loading...
+        </StyledText>
       </StyledSafeAreaView>
     )
   }
@@ -319,7 +332,7 @@ const App: React.FC = () => {
   return (
     <StyledSafeAreaView className="flex-1 bg-zinc-950">
       <StatusBar barStyle="light-content" />
-      
+
       <StyledView className="flex-1">
         {currentTab === 'workout' && (
           <StyledScrollView
@@ -425,6 +438,7 @@ const App: React.FC = () => {
             onClose={() => setCurrentTab('workout')}
             user={user}
             analyticsHook={analyticsHook}
+            dataHook={dataHook}
           />
         )}
 
@@ -447,40 +461,60 @@ const App: React.FC = () => {
         <StyledTouchableOpacity
           onPress={() => setCurrentTab('workout')}
           className="items-center py-1 flex-1">
-          <Dumbbell color={currentTab === 'workout' ? '#3b82f6' : '#71717a'} size={22} />
-          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'workout' ? 'text-blue-500' : 'text-zinc-500'}`}>
+          <Dumbbell
+            color={currentTab === 'workout' ? '#3b82f6' : '#71717a'}
+            size={22}
+          />
+          <StyledText
+            className={`text-[10px] mt-1 font-semibold ${currentTab === 'workout' ? 'text-blue-500' : 'text-zinc-500'}`}>
             Workout
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
           onPress={() => setCurrentTab('routines')}
           className="items-center py-1 flex-1">
-          <ClipboardList color={currentTab === 'routines' ? '#8b5cf6' : '#71717a'} size={22} />
-          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'routines' ? 'text-purple-500' : 'text-zinc-500'}`}>
+          <ClipboardList
+            color={currentTab === 'routines' ? '#8b5cf6' : '#71717a'}
+            size={22}
+          />
+          <StyledText
+            className={`text-[10px] mt-1 font-semibold ${currentTab === 'routines' ? 'text-purple-500' : 'text-zinc-500'}`}>
             Routines
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
           onPress={() => setCurrentTab('history')}
           className="items-center py-1 flex-1">
-          <History color={currentTab === 'history' ? '#fb923c' : '#71717a'} size={22} />
-          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'history' ? 'text-orange-400' : 'text-zinc-500'}`}>
+          <History
+            color={currentTab === 'history' ? '#fb923c' : '#71717a'}
+            size={22}
+          />
+          <StyledText
+            className={`text-[10px] mt-1 font-semibold ${currentTab === 'history' ? 'text-orange-400' : 'text-zinc-500'}`}>
             History
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
           onPress={() => setCurrentTab('analytics')}
           className="items-center py-1 flex-1">
-          <BarChart3 color={currentTab === 'analytics' ? '#10b981' : '#71717a'} size={22} />
-          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'analytics' ? 'text-green-500' : 'text-zinc-500'}`}>
+          <BarChart3
+            color={currentTab === 'analytics' ? '#10b981' : '#71717a'}
+            size={22}
+          />
+          <StyledText
+            className={`text-[10px] mt-1 font-semibold ${currentTab === 'analytics' ? 'text-green-500' : 'text-zinc-500'}`}>
             Analytics
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
           onPress={() => setCurrentTab('settings')}
           className="items-center py-1 flex-1">
-          <SettingsIcon color={currentTab === 'settings' ? '#f43f5e' : '#71717a'} size={22} />
-          <StyledText className={`text-[10px] mt-1 font-semibold ${currentTab === 'settings' ? 'text-rose-500' : 'text-zinc-500'}`}>
+          <SettingsIcon
+            color={currentTab === 'settings' ? '#f43f5e' : '#71717a'}
+            size={22}
+          />
+          <StyledText
+            className={`text-[10px] mt-1 font-semibold ${currentTab === 'settings' ? 'text-rose-500' : 'text-zinc-500'}`}>
             Settings
           </StyledText>
         </StyledTouchableOpacity>

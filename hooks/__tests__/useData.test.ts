@@ -14,7 +14,9 @@ import { getDefaultWorkouts } from '../../utils/defaultWorkouts'
 
 // Mock Firestore
 jest.mock('firebase/firestore', () => ({
-  doc: jest.fn().mockImplementation(() => ({ id: `mock-doc-${Math.random()}` })),
+  doc: jest
+    .fn()
+    .mockImplementation(() => ({ id: `mock-doc-${Math.random()}` })),
   getDoc: jest.fn(),
   setDoc: jest.fn(),
   collection: jest.fn(),
@@ -213,7 +215,13 @@ describe('useData Hook', () => {
       const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, startTime, startTime + 1000, mockUser)
+        await result.current.addHistoryEntry(
+          entry,
+          setNumber,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
       })
 
       expect(addDoc).toHaveBeenCalledWith(
@@ -242,7 +250,9 @@ describe('useData Hook', () => {
       expect(getDocs).toHaveBeenCalled()
       expect(result.current.todaysCompletions).toHaveLength(2)
       expect(
-        result.current.todaysCompletions.every((c) => c.exerciseId === exerciseId),
+        result.current.todaysCompletions.every(
+          (c) => c.exerciseId === exerciseId,
+        ),
       ).toBe(true)
     })
 
@@ -404,7 +414,7 @@ describe('useData Hook', () => {
         { id: 'doc1', data: () => ({ exerciseId: exerciseA, set: 1 }) },
         { id: 'doc3', data: () => ({ exerciseId: exerciseA, set: 2 }) },
       ]
-      
+
       // Mock initial call for Exercise A
       ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockCompletionsA })
 
@@ -416,19 +426,27 @@ describe('useData Hook', () => {
       // If logic relies on query (where calls), we verify the query was constructed correctly.
       // Or if it filters the results, we check result.current.todaysCompletions.
       // Assuming existing implementation processes the returned docs:
-      expect(result.current.todaysCompletions.every(c => c.exerciseId === exerciseA)).toBe(true)
+      expect(
+        result.current.todaysCompletions.every(
+          (c) => c.exerciseId === exerciseA,
+        ),
+      ).toBe(true)
       expect(result.current.todaysCompletions).toHaveLength(2)
 
       // Test searching for Exercise B
       const mockCompletionsB = [
-          { id: 'doc2', data: () => ({ exerciseId: exerciseB, set: 1 }) }
+        { id: 'doc2', data: () => ({ exerciseId: exerciseB, set: 1 }) },
       ]
       ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockCompletionsB })
 
       await act(async () => {
         await result.current.fetchTodaysCompletions(mockUser, exerciseB)
       })
-      expect(result.current.todaysCompletions.every(c => c.exerciseId === exerciseB)).toBe(true)
+      expect(
+        result.current.todaysCompletions.every(
+          (c) => c.exerciseId === exerciseB,
+        ),
+      ).toBe(true)
       expect(result.current.todaysCompletions).toHaveLength(1)
     })
 
@@ -440,29 +458,41 @@ describe('useData Hook', () => {
       // Case 1: 0 startTime
       await act(async () => {
         await result.current.addHistoryEntry(
-          { workoutId: 'w1', exerciseId: 'ex1', exerciseName: 'Test', reps: 10, weight: 50 },
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test',
+            reps: 10,
+            weight: 50,
+          },
           1,
           0,
           now,
-          mockUser
+          mockUser,
         )
       })
-      
+
       // Verify handled (e.g., set to undefined or excluded if logic dictates, or saved as 0 if allowed)
       // Based on fix in previous task, 0 might be converted to undefined or treated specifically.
       // The requirement was: "startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : undefined"
       // So checking that we don't crash and arguments are correct.
       expect(addDoc).toHaveBeenCalled()
 
-       // Case 2: Undefined startTime (simulated by passing 0 and checking argument logic inside if accessible, or just no crash)
-       // Since the function signature expects number, we pass 0 or a negative number.
-       await act(async () => {
+      // Case 2: Undefined startTime (simulated by passing 0 and checking argument logic inside if accessible, or just no crash)
+      // Since the function signature expects number, we pass 0 or a negative number.
+      await act(async () => {
         await result.current.addHistoryEntry(
-          { workoutId: 'w1', exerciseId: 'ex1', exerciseName: 'Test', reps: 10, weight: 50 },
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test',
+            reps: 10,
+            weight: 50,
+          },
           2,
           -1,
           now,
-          mockUser
+          mockUser,
         )
       })
       expect(addDoc).toHaveBeenCalledTimes(2)
@@ -475,24 +505,24 @@ describe('useData Hook', () => {
 
       await act(async () => {
         await result.current.addHistoryEntry(
-            {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                workoutId: null as any, // Simulate no workout
-                exerciseId: 'ex1',
-                exerciseName: 'Test Exercise',
-                reps: 10,
-                weight: 50,
-            },
-            1,
-            startTime,
-            startTime + 1000,
-            mockUser,
-        );
+          {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            workoutId: null as any, // Simulate no workout
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
       })
 
       expect(addDoc).toHaveBeenCalledWith(
         undefined,
-        expect.objectContaining({ workoutId: null })
+        expect.objectContaining({ workoutId: null }),
       )
     })
   })
@@ -541,7 +571,11 @@ describe('useData Hook', () => {
       ]
 
       await act(async () => {
-        await result.current.syncUserData(mockUser, localSettings, localWorkouts)
+        await result.current.syncUserData(
+          mockUser,
+          localSettings,
+          localWorkouts,
+        )
       })
 
       const setDocCall = (setDoc as jest.Mock).mock.calls[0]
@@ -560,7 +594,8 @@ describe('useData Hook', () => {
         },
       ]
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
       ;(getDoc as jest.Mock).mockResolvedValue({ exists: () => false }) // Simulate new user
@@ -579,14 +614,19 @@ describe('useData Hook', () => {
     it('should handle guest history migration failure', async () => {
       const error = new Error('Migration failed')
       ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(error)
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
       const { result } = renderHook(() => useData())
 
       await act(async () => {
         await result.current.migrateGuestHistory(mockUser)
       })
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to migrate guest history', error)
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to migrate guest history',
+        error,
+      )
       consoleErrorSpy.mockRestore()
     })
   })
@@ -606,7 +646,13 @@ describe('useData Hook', () => {
       const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, startTime, startTime + 1000, null)
+        await result.current.addHistoryEntry(
+          entry,
+          setNumber,
+          startTime,
+          startTime + 1000,
+          null,
+        )
       })
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
@@ -630,7 +676,8 @@ describe('useData Hook', () => {
         },
       ]
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
       const { result } = renderHook(() => useData())
@@ -649,43 +696,78 @@ describe('useData Hook', () => {
 
   describe('Authenticated User History Pagination', () => {
     it('should fetch history with pagination', async () => {
-      const { result } = renderHook(() => useData());
+      const { result } = renderHook(() => useData())
       const mockDocsPage1 = [
-        { id: 'h1', data: () => ({ exerciseId: 'ex1', date: { seconds: 100, nanoseconds: 0 }, reps: 10, weight: 50, exerciseName: 'E1', workoutId: 'w1' }) },
-        { id: 'h2', data: () => ({ exerciseId: 'ex1', date: { seconds: 90, nanoseconds: 0 }, reps: 10, weight: 50, exerciseName: 'E1', workoutId: 'w1' }) },
-      ];
+        {
+          id: 'h1',
+          data: () => ({
+            exerciseId: 'ex1',
+            date: { seconds: 100, nanoseconds: 0 },
+            reps: 10,
+            weight: 50,
+            exerciseName: 'E1',
+            workoutId: 'w1',
+          }),
+        },
+        {
+          id: 'h2',
+          data: () => ({
+            exerciseId: 'ex1',
+            date: { seconds: 90, nanoseconds: 0 },
+            reps: 10,
+            weight: 50,
+            exerciseName: 'E1',
+            workoutId: 'w1',
+          }),
+        },
+      ]
       const mockDocsPage2 = [
-          { id: 'h3', data: () => ({ exerciseId: 'ex1', date: { seconds: 80, nanoseconds: 0 }, reps: 10, weight: 50, exerciseName: 'E1', workoutId: 'w1' }) },
-      ];
+        {
+          id: 'h3',
+          data: () => ({
+            exerciseId: 'ex1',
+            date: { seconds: 80, nanoseconds: 0 },
+            reps: 10,
+            weight: 50,
+            exerciseName: 'E1',
+            workoutId: 'w1',
+          }),
+        },
+      ]
 
       // First call returns Page 1
-      (getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage1 });
-      
-      let historyPage1;
-      await act(async () => {
-        historyPage1 = await result.current.fetchHistory(mockUser, undefined);
-      });
+      ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage1 })
 
-      expect(historyPage1).toHaveLength(2);
-      expect(getDocs).toHaveBeenCalled();
+      let historyPage1
+      await act(async () => {
+        historyPage1 = await result.current.fetchHistory(mockUser, undefined)
+      })
+
+      expect(historyPage1).toHaveLength(2)
+      expect(getDocs).toHaveBeenCalled()
 
       // Second call passing the last doc of page 1 as 'lastDoc'
-      (getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage2 });
-      const lastDocOfPage1 = historyPage1![1]; // Use the returned object, not the mock doc
+      ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage2 })
+      const lastDocOfPage1 = historyPage1![1] // Use the returned object, not the mock doc
 
-      let historyPage2;
+      let historyPage2
       await act(async () => {
-        historyPage2 = await result.current.fetchHistory(mockUser, lastDocOfPage1);
-      });
+        historyPage2 = await result.current.fetchHistory(
+          mockUser,
+          lastDocOfPage1,
+        )
+      })
 
-      expect(historyPage2).toHaveLength(1);
-      expect(historyPage2![0].id).toBe('h3');
-    });
-  });
+      expect(historyPage2).toHaveLength(1)
+      expect(historyPage2![0].id).toBe('h3')
+    })
+  })
 
   describe('Offline Queue', () => {
     it('should add entry to offline queue when firestore fails', async () => {
-      ;(addDoc as jest.Mock).mockRejectedValue(new Error('Firestore unavailable'))
+      ;(addDoc as jest.Mock).mockRejectedValue(
+        new Error('Firestore unavailable'),
+      )
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {})
@@ -702,7 +784,13 @@ describe('useData Hook', () => {
       const startTime = Date.now()
 
       await act(async () => {
-        await result.current.addHistoryEntry(entry, setNumber, startTime, startTime + 1000, mockUser)
+        await result.current.addHistoryEntry(
+          entry,
+          setNumber,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
       })
 
       expect(result.current.offlineQueue).toHaveLength(1)
@@ -805,17 +893,14 @@ describe('useData Hook', () => {
         },
       ]
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
       const { result } = renderHook(() => useData())
 
       await act(async () => {
-        await result.current.updateHistoryEntry(
-          'entry-1',
-          { reps: 15 },
-          null,
-        )
+        await result.current.updateHistoryEntry('entry-1', { reps: 15 }, null)
       })
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
@@ -852,7 +937,8 @@ describe('useData Hook', () => {
         },
       ]
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
       const { result } = renderHook(() => useData())
@@ -1004,7 +1090,8 @@ describe('useData Hook', () => {
         },
       ]
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
       const { result } = renderHook(() => useData())
@@ -1032,6 +1119,221 @@ describe('useData Hook', () => {
 
       expect(history).toEqual([])
       consoleErrorSpy.mockRestore()
+    })
+  })
+
+  describe('Weight Logs', () => {
+    beforeEach(() => {
+      jest.clearAllMocks()
+      mockBatch.commit.mockResolvedValue(undefined)
+    })
+
+    it('should fetch weight logs for guest user', async () => {
+      const guestLogs = [
+        { id: '1', weight: 80, date: { seconds: 1672531200, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestLogs),
+      )
+      const { result } = renderHook(() => useData())
+
+      let logs
+      await act(async () => {
+        logs = await result.current.fetchWeightLogs(null)
+      })
+
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith('guestWeightLogs')
+      expect(logs).toHaveLength(1)
+      expect(logs![0].weight).toBe(80)
+      expect(result.current.weightLogs).toHaveLength(1)
+    })
+
+    it('should fetch weight logs for logged-in user from firestore', async () => {
+      const dbLogs = [
+        {
+          id: '1',
+          weight: 85,
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbLogs.map((log) => ({
+          id: log.id,
+          data: () => ({ weight: log.weight, date: log.date }),
+        })),
+      })
+      const { result } = renderHook(() => useData())
+
+      let logs
+      await act(async () => {
+        logs = await result.current.fetchWeightLogs(mockUser)
+      })
+
+      expect(getDocs).toHaveBeenCalled()
+      expect(logs).toHaveLength(1)
+      expect(logs![0].weight).toBe(85)
+      expect(result.current.weightLogs).toHaveLength(1)
+    })
+
+    it('should add weight log for guest user', async () => {
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('[]')
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.addWeightLog(75, new Date(), null)
+      })
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestWeightLogs',
+        expect.stringContaining('75'),
+      )
+      expect(result.current.weightLogs).toHaveLength(1)
+      expect(result.current.weightLogs[0].weight).toBe(75)
+    })
+
+    it('should add weight log for logged-in user in firestore', async () => {
+      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.addWeightLog(78, new Date(), mockUser)
+      })
+
+      expect(addDoc).toHaveBeenCalled()
+      expect(result.current.weightLogs).toHaveLength(1)
+      expect(result.current.weightLogs[0].id).toBe('new-doc-id')
+      expect(result.current.weightLogs[0].weight).toBe(78)
+    })
+
+    it('should update weight log for guest user', async () => {
+      const guestLogs = [
+        { id: '1', weight: 80, date: { seconds: 1672531200, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestLogs),
+      )
+      const { result } = renderHook(() => useData())
+
+      // fetch first to populate local state
+      await act(async () => {
+        await result.current.fetchWeightLogs(null)
+      })
+
+      await act(async () => {
+        await result.current.updateWeightLog('1', 82, new Date(), null)
+      })
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestWeightLogs',
+        expect.stringContaining('82'),
+      )
+      expect(result.current.weightLogs[0].weight).toBe(82)
+    })
+
+    it('should update weight log for logged-in user in firestore', async () => {
+      ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
+      const dbLogs = [
+        {
+          id: '1',
+          weight: 80,
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbLogs.map((log) => ({
+          id: log.id,
+          data: () => ({ weight: log.weight, date: log.date }),
+        })),
+      })
+      const { result } = renderHook(() => useData())
+
+      // fetch first to populate state
+      await act(async () => {
+        await result.current.fetchWeightLogs(mockUser)
+      })
+
+      await act(async () => {
+        await result.current.updateWeightLog('1', 83, new Date(), mockUser)
+      })
+
+      expect(updateDoc).toHaveBeenCalled()
+      expect(result.current.weightLogs[0].weight).toBe(83)
+    })
+
+    it('should delete weight log for guest user', async () => {
+      const guestLogs = [
+        { id: '1', weight: 80, date: { seconds: 1672531200, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestLogs),
+      )
+      const { result } = renderHook(() => useData())
+
+      // fetch first to populate local state
+      await act(async () => {
+        await result.current.fetchWeightLogs(null)
+      })
+
+      await act(async () => {
+        await result.current.deleteWeightLog('1', null)
+      })
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestWeightLogs', '[]')
+      expect(result.current.weightLogs).toHaveLength(0)
+    })
+
+    it('should delete weight log for logged-in user in firestore', async () => {
+      ;(deleteDoc as jest.Mock).mockResolvedValue(undefined)
+      const dbLogs = [
+        {
+          id: '1',
+          weight: 80,
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbLogs.map((log) => ({
+          id: log.id,
+          data: () => ({ weight: log.weight, date: log.date }),
+        })),
+      })
+      const { result } = renderHook(() => useData())
+
+      // fetch first to populate state
+      await act(async () => {
+        await result.current.fetchWeightLogs(mockUser)
+      })
+
+      await act(async () => {
+        await result.current.deleteWeightLog('1', mockUser)
+      })
+
+      expect(deleteDoc).toHaveBeenCalled()
+      expect(result.current.weightLogs).toHaveLength(0)
+    })
+
+    it('should migrate guest weight logs to firestore', async () => {
+      const guestLogs = [
+        {
+          id: 'guest-1',
+          weight: 70,
+          date: { seconds: 1672531200, nanoseconds: 0 },
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestWeightLogs')
+          return Promise.resolve(JSON.stringify(guestLogs))
+        return Promise.resolve(null)
+      })
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.migrateGuestWeightLogs(mockUser)
+      })
+
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith('guestWeightLogs')
+      expect(writeBatch).toHaveBeenCalled()
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('guestWeightLogs')
     })
   })
 })

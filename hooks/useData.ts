@@ -1,4 +1,10 @@
-import { useState, Dispatch, SetStateAction, useCallback, useEffect } from 'react'
+import {
+  useState,
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useEffect,
+} from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   doc,
@@ -20,12 +26,21 @@ import {
 import { db } from '../utils/firebase'
 import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { WorkoutSet } from '../declarations'
+import type { WorkoutSet, WeightLog } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
 // Interface for a WorkoutSet object that has been serialized to JSON
 // where the Firestore Timestamp is just a plain object.
 interface SerializedWorkoutSetData extends Omit<WorkoutSet, 'date'> {
+  date: {
+    seconds: number
+    nanoseconds: number
+  }
+}
+
+interface SerializedWeightLog {
+  id: string
+  weight: number
   date: {
     seconds: number
     nanoseconds: number
@@ -63,6 +78,7 @@ export interface DataHook {
   workouts: Workout[]
   todaysCompletions: WorkoutSet[]
   offlineQueue: WorkoutSet[]
+  weightLogs: WeightLog[]
   loadSettings: () => Promise<Settings>
   saveSettings: (
     newSettings: Settings,
@@ -112,8 +128,25 @@ export interface DataHook {
     localWorkouts: Workout[],
   ) => Promise<void>
   migrateGuestHistory: (user: FirebaseUser) => Promise<WorkoutSet[]>
+  migrateGuestWeightLogs: (user: FirebaseUser) => Promise<WeightLog[]>
   syncOfflineQueue: (user: FirebaseUser) => Promise<void>
-  fetchFullHistory: (user: FirebaseUser | null, daysBack?: number) => Promise<WorkoutSet[]>
+  fetchFullHistory: (
+    user: FirebaseUser | null,
+    daysBack?: number,
+  ) => Promise<WorkoutSet[]>
+  fetchWeightLogs: (user: FirebaseUser | null) => Promise<WeightLog[]>
+  addWeightLog: (
+    weight: number,
+    date: Date,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  updateWeightLog: (
+    id: string,
+    weight: number,
+    date: Date,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  deleteWeightLog: (id: string, user: FirebaseUser | null) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
   setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
@@ -147,7 +180,8 @@ export const useData = (): DataHook => {
         if (Array.isArray(parsedQueue)) {
           const validQueue = parsedQueue
             .filter(
-              item => item && item.date && typeof item.date.seconds === 'number',
+              (item) =>
+                item && item.date && typeof item.date.seconds === 'number',
             )
             .map((item: SerializedWorkoutSetData) => ({
               ...item,
@@ -215,10 +249,15 @@ export const useData = (): DataHook => {
       const startOfToday = Timestamp.fromDate(today)
 
       try {
-        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+        const historyCollectionRef = collection(
+          db,
+          'users',
+          user.uid,
+          'history',
+        )
         const q = query(historyCollectionRef, where('date', '>=', startOfToday))
         const querySnapshot = await getDocs(q)
-        const todaysSets = querySnapshot.docs.map(doc => ({
+        const todaysSets = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as WorkoutSet[]
@@ -280,7 +319,10 @@ export const useData = (): DataHook => {
       const newEntryBase = {
         ...entry,
         set,
-        startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : Timestamp.fromMillis(Date.now()),
+        startTime:
+          startTime > 0
+            ? Timestamp.fromMillis(startTime)
+            : Timestamp.fromMillis(Date.now()),
         date: endTime > 0 ? Timestamp.fromMillis(endTime) : Timestamp.now(),
       }
 
@@ -293,7 +335,7 @@ export const useData = (): DataHook => {
             'history',
           )
           const docRef = await addDoc(historyCollectionRef, newEntryBase)
-          setTodaysCompletions(prev => [
+          setTodaysCompletions((prev) => [
             ...prev,
             { ...newEntryBase, id: docRef.id },
           ])
@@ -303,7 +345,7 @@ export const useData = (): DataHook => {
             ...newEntryBase,
             id: `${Date.now()}-${entry.exerciseId}-${set}`,
           }
-          setTodaysCompletions(prev => [...prev, offlineEntry])
+          setTodaysCompletions((prev) => [...prev, offlineEntry])
           const updatedQueue = [...offlineQueue, offlineEntry]
           setOfflineQueue(updatedQueue)
           await AsyncStorage.setItem(
@@ -340,7 +382,7 @@ export const useData = (): DataHook => {
           const updatedHistory = [...savedHistory, newEntry]
           await AsyncStorage.setItem(historyKey, JSON.stringify(updatedHistory))
 
-          setTodaysCompletions(prev => [...prev, newEntry])
+          setTodaysCompletions((prev) => [...prev, newEntry])
         } catch (e) {
           console.error('Failed to save guest history entry', e)
         }
@@ -373,7 +415,10 @@ export const useData = (): DataHook => {
             const updatedHistory = allHistory.map((item: WorkoutSet) =>
               item.id === entryId ? { ...item, ...updates } : item,
             )
-            await AsyncStorage.setItem(historyKey, JSON.stringify(updatedHistory))
+            await AsyncStorage.setItem(
+              historyKey,
+              JSON.stringify(updatedHistory),
+            )
           }
 
           // Update in today's completions if it's from today
@@ -384,7 +429,10 @@ export const useData = (): DataHook => {
             const updatedCompletions = allCompletions.map((item: WorkoutSet) =>
               item.id === entryId ? { ...item, ...updates } : item,
             )
-            await AsyncStorage.setItem(todayKey, JSON.stringify(updatedCompletions))
+            await AsyncStorage.setItem(
+              todayKey,
+              JSON.stringify(updatedCompletions),
+            )
           }
         } catch (e) {
           console.error('Failed to update guest history entry', e)
@@ -414,7 +462,10 @@ export const useData = (): DataHook => {
             const updatedHistory = allHistory.filter(
               (item: WorkoutSet) => item.id !== entryId,
             )
-            await AsyncStorage.setItem(historyKey, JSON.stringify(updatedHistory))
+            await AsyncStorage.setItem(
+              historyKey,
+              JSON.stringify(updatedHistory),
+            )
           }
 
           // Delete from today's completions if applicable
@@ -425,7 +476,10 @@ export const useData = (): DataHook => {
             const updatedCompletions = allCompletions.filter(
               (item: WorkoutSet) => item.id !== entryId,
             )
-            await AsyncStorage.setItem(todayKey, JSON.stringify(updatedCompletions))
+            await AsyncStorage.setItem(
+              todayKey,
+              JSON.stringify(updatedCompletions),
+            )
           }
         } catch (e) {
           console.error('Failed to delete guest history entry', e)
@@ -453,7 +507,7 @@ export const useData = (): DataHook => {
           )
 
           const querySnapshot = await getDocs(q)
-          const newHistory = querySnapshot.docs.map(doc => ({
+          const newHistory = querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })) as WorkoutSet[]
@@ -475,13 +529,18 @@ export const useData = (): DataHook => {
               ...item,
               date: new Timestamp(item.date.seconds, item.date.nanoseconds),
             }))
-            .sort((a: WorkoutSet, b: WorkoutSet) => b.date.toMillis() - a.date.toMillis())
+            .sort(
+              (a: WorkoutSet, b: WorkoutSet) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
 
           const startIndex = lastVisible
-            ? allHistory.findIndex((item: WorkoutSet) => item.id === lastVisible.id) + 1
+            ? allHistory.findIndex(
+                (item: WorkoutSet) => item.id === lastVisible.id,
+              ) + 1
             : 0
 
-          if (startIndex >= allHistory.length) return [];
+          if (startIndex >= allHistory.length) return []
 
           const newHistory = allHistory.slice(startIndex, startIndex + 20)
           return newHistory
@@ -514,7 +573,7 @@ export const useData = (): DataHook => {
             where('date', '>=', startOfToday),
           )
           const querySnapshot = await getDocs(q)
-          const todaysSets = querySnapshot.docs.map(doc => ({
+          const todaysSets = querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })) as WorkoutSet[]
@@ -554,7 +613,7 @@ export const useData = (): DataHook => {
   const isSetCompleted = useCallback(
     (exerciseId: string, setNumber: number): boolean => {
       return todaysCompletions.some(
-        c => c.exerciseId === exerciseId && c.set === setNumber,
+        (c) => c.exerciseId === exerciseId && c.set === setNumber,
       )
     },
     [todaysCompletions],
@@ -567,8 +626,8 @@ export const useData = (): DataHook => {
       }
 
       const completedSets = todaysCompletions
-        .filter(c => c.exerciseId === exerciseId)
-        .map(c => c.set)
+        .filter((c) => c.exerciseId === exerciseId)
+        .map((c) => c.set)
 
       for (let i = 1; i < setNumber; i++) {
         if (!completedSets.includes(i)) {
@@ -583,8 +642,8 @@ export const useData = (): DataHook => {
   const getNextUncompletedSet = useCallback(
     (exerciseId: string): number => {
       const completedSets = todaysCompletions
-        .filter(c => c.exerciseId === exerciseId)
-        .map(c => c.set)
+        .filter((c) => c.exerciseId === exerciseId)
+        .map((c) => c.set)
         .sort((a, b) => a - b)
 
       if (completedSets.length === 0) return 1
@@ -610,20 +669,20 @@ export const useData = (): DataHook => {
     ) => {
       if (user) {
         const setsToRemove = todaysCompletions.filter(
-          c => c.exerciseId === exerciseId && c.set >= setNumber,
+          (c) => c.exerciseId === exerciseId && c.set >= setNumber,
         )
         if (setsToRemove.length === 0) return
 
         try {
           const batch = writeBatch(db)
-          setsToRemove.forEach(s => {
+          setsToRemove.forEach((s) => {
             const docRef = doc(db, 'users', user.uid, 'history', s.id)
             batch.delete(docRef)
           })
           await batch.commit()
 
-          setTodaysCompletions(prev =>
-            prev.filter(c => !setsToRemove.some(r => r.id === c.id)),
+          setTodaysCompletions((prev) =>
+            prev.filter((c) => !setsToRemove.some((r) => r.id === c.id)),
           )
         } catch (e) {
           console.error('Failed to reset sets', e)
@@ -631,7 +690,7 @@ export const useData = (): DataHook => {
       } else {
         // Guest user
         const setsToKeep = todaysCompletions.filter(
-          c => c.exerciseId !== exerciseId || c.set < setNumber,
+          (c) => c.exerciseId !== exerciseId || c.set < setNumber,
         )
         setTodaysCompletions(setsToKeep)
 
@@ -689,7 +748,10 @@ export const useData = (): DataHook => {
         }
 
         const guestHistory: WorkoutSet[] = parsedHistory
-          .filter(item => item && item.date && typeof item.date.seconds === 'number')
+          .filter(
+            (item) =>
+              item && item.date && typeof item.date.seconds === 'number',
+          )
           .map((item: SerializedWorkoutSetData) => ({
             ...item,
             date: new Timestamp(item.date.seconds, item.date.nanoseconds),
@@ -698,10 +760,15 @@ export const useData = (): DataHook => {
         if (guestHistory.length === 0) return []
 
         const batch = writeBatch(db)
-        const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+        const historyCollectionRef = collection(
+          db,
+          'users',
+          user.uid,
+          'history',
+        )
         const migratedEntries: WorkoutSet[] = []
 
-        guestHistory.forEach(entry => {
+        guestHistory.forEach((entry) => {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { id, ...dataToUpload } = entry
           const docRef = doc(historyCollectionRef) // Create a new doc with a new ID
@@ -711,12 +778,60 @@ export const useData = (): DataHook => {
 
         await batch.commit()
         await AsyncStorage.removeItem(historyKey)
-        await AsyncStorage.removeItem(`todaysCompletions-${getLocalDateString()}`)
+        await AsyncStorage.removeItem(
+          `todaysCompletions-${getLocalDateString()}`,
+        )
 
         console.log('Guest history migrated successfully.')
         return migratedEntries
       } catch (e) {
         console.error('Failed to migrate guest history', e)
+        return []
+      }
+    },
+    [],
+  )
+
+  const migrateGuestWeightLogs = useCallback(
+    async (user: FirebaseUser): Promise<WeightLog[]> => {
+      try {
+        const key = 'guestWeightLogs'
+        const savedRaw = await AsyncStorage.getItem(key)
+        if (!savedRaw) return []
+
+        const parsed = JSON.parse(savedRaw)
+        if (!Array.isArray(parsed)) return []
+
+        const guestLogs: WeightLog[] = parsed
+          .filter(
+            (item) =>
+              item && item.date && typeof item.date.seconds === 'number',
+          )
+          .map((item: SerializedWeightLog) => ({
+            ...item,
+            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+          }))
+
+        if (guestLogs.length === 0) return []
+
+        const batch = writeBatch(db)
+        const collRef = collection(db, 'users', user.uid, 'weightLogs')
+        const migrated: WeightLog[] = []
+
+        guestLogs.forEach((entry) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, ...dataToUpload } = entry
+          const docRef = doc(collRef) // Create a new doc with a new ID
+          batch.set(docRef, dataToUpload)
+          migrated.push({ ...entry, id: docRef.id })
+        })
+
+        await batch.commit()
+        await AsyncStorage.removeItem(key)
+        console.log('Guest weight logs migrated successfully.')
+        return migrated
+      } catch (e) {
+        console.error('Failed to migrate guest weight logs', e)
         return []
       }
     },
@@ -731,7 +846,7 @@ export const useData = (): DataHook => {
       const batch = writeBatch(db)
       const historyCollectionRef = collection(db, 'users', user.uid, 'history')
 
-      offlineQueue.forEach(entry => {
+      offlineQueue.forEach((entry) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...dataToUpload } = entry
         const docRef = doc(historyCollectionRef) // Create a new doc with a new ID
@@ -759,6 +874,7 @@ export const useData = (): DataHook => {
       try {
         // Step 1: Migrate local data to Firestore
         await migrateGuestHistory(firebaseUser)
+        await migrateGuestWeightLogs(firebaseUser)
         await syncOfflineQueue(firebaseUser)
 
         const userDocRef = doc(db, 'users', firebaseUser.uid)
@@ -810,11 +926,19 @@ export const useData = (): DataHook => {
         console.error('Error syncing user data:', error)
       }
     },
-    [migrateGuestHistory, syncOfflineQueue, fetchAllTodaysCompletions],
+    [
+      migrateGuestHistory,
+      migrateGuestWeightLogs,
+      syncOfflineQueue,
+      fetchAllTodaysCompletions,
+    ],
   )
 
   const fetchFullHistory = useCallback(
-    async (user: FirebaseUser | null, daysBack: number = 90): Promise<WorkoutSet[]> => {
+    async (
+      user: FirebaseUser | null,
+      daysBack: number = 90,
+    ): Promise<WorkoutSet[]> => {
       const cutoffDate = new Date()
       cutoffDate.setDate(cutoffDate.getDate() - daysBack)
       cutoffDate.setHours(0, 0, 0, 0)
@@ -822,14 +946,19 @@ export const useData = (): DataHook => {
 
       if (user) {
         try {
-          const historyCollectionRef = collection(db, 'users', user.uid, 'history')
+          const historyCollectionRef = collection(
+            db,
+            'users',
+            user.uid,
+            'history',
+          )
           const q = query(
             historyCollectionRef,
             where('date', '>=', cutoffTimestamp),
             orderBy('date', 'desc'),
           )
           const querySnapshot = await getDocs(q)
-          return querySnapshot.docs.map(doc => ({
+          return querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })) as WorkoutSet[]
@@ -850,7 +979,10 @@ export const useData = (): DataHook => {
               date: new Timestamp(item.date.seconds, item.date.nanoseconds),
             }))
             .filter((item: WorkoutSet) => item.date.toDate() >= cutoffDate)
-            .sort((a: WorkoutSet, b: WorkoutSet) => b.date.toMillis() - a.date.toMillis())
+            .sort(
+              (a: WorkoutSet, b: WorkoutSet) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
 
           return allHistory
         } catch (e) {
@@ -862,11 +994,217 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
+
+  const fetchWeightLogs = useCallback(
+    async (user: FirebaseUser | null): Promise<WeightLog[]> => {
+      if (user) {
+        try {
+          const collRef = collection(db, 'users', user.uid, 'weightLogs')
+          const q = query(collRef, orderBy('date', 'desc'))
+          const querySnapshot = await getDocs(q)
+          const logs = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as WeightLog[]
+          setWeightLogs(logs)
+          return logs
+        } catch (e) {
+          console.error('Failed to fetch weight logs', e)
+          return []
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestWeightLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (!savedRaw) {
+            setWeightLogs([])
+            return []
+          }
+
+          const parsed = JSON.parse(savedRaw)
+          const guestLogs = parsed
+            .map((item: SerializedWeightLog) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .sort(
+              (a: WeightLog, b: WeightLog) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
+
+          setWeightLogs(guestLogs)
+          return guestLogs
+        } catch (e) {
+          console.error('Failed to fetch guest weight logs', e)
+          return []
+        }
+      }
+    },
+    [],
+  )
+
+  const addWeightLog = useCallback(
+    async (weight: number, date: Date, user: FirebaseUser | null) => {
+      const newLogBase = {
+        weight,
+        date: Timestamp.fromDate(date),
+      }
+
+      if (user) {
+        try {
+          const collRef = collection(db, 'users', user.uid, 'weightLogs')
+          const docRef = await addDoc(collRef, newLogBase)
+          const newEntry = {
+            id: docRef.id,
+            ...newLogBase,
+          }
+          setWeightLogs((prev) =>
+            [newEntry, ...prev].sort(
+              (a, b) => b.date.toMillis() - a.date.toMillis(),
+            ),
+          )
+        } catch (e) {
+          console.error('Failed to add weight log', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestWeightLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          const guestLogs = savedRaw ? JSON.parse(savedRaw) : []
+          const newEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            ...newLogBase,
+          }
+          const updatedLogs = [newEntry, ...guestLogs]
+          await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
+
+          // Reconstruct Timestamp for local state
+          const stateLogs = updatedLogs
+            .map((item: SerializedWeightLog) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .sort(
+              (a: WeightLog, b: WeightLog) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
+
+          setWeightLogs(stateLogs)
+        } catch (e) {
+          console.error('Failed to add guest weight log', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const updateWeightLog = useCallback(
+    async (
+      id: string,
+      weight: number,
+      date: Date,
+      user: FirebaseUser | null,
+    ) => {
+      const updates = {
+        weight,
+        date: Timestamp.fromDate(date),
+      }
+
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'weightLogs', id)
+          await updateDoc(docRef, updates)
+          setWeightLogs((prev) =>
+            prev
+              .map((item) => (item.id === id ? { ...item, ...updates } : item))
+              .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+          )
+        } catch (e) {
+          console.error('Failed to update weight log', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestWeightLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (savedRaw) {
+            const guestLogs = JSON.parse(savedRaw)
+            const updatedLogs = guestLogs.map((item: SerializedWeightLog) =>
+              item.id === id ? { ...item, ...updates } : item,
+            )
+            await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
+
+            const stateLogs = updatedLogs
+              .map((item: SerializedWeightLog) => ({
+                ...item,
+                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+              }))
+              .sort(
+                (a: WeightLog, b: WeightLog) =>
+                  b.date.toMillis() - a.date.toMillis(),
+              )
+
+            setWeightLogs(stateLogs)
+          }
+        } catch (e) {
+          console.error('Failed to update guest weight log', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const deleteWeightLog = useCallback(
+    async (id: string, user: FirebaseUser | null) => {
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'weightLogs', id)
+          await deleteDoc(docRef)
+          setWeightLogs((prev) => prev.filter((item) => item.id !== id))
+        } catch (e) {
+          console.error('Failed to delete weight log', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestWeightLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (savedRaw) {
+            const guestLogs = JSON.parse(savedRaw)
+            const updatedLogs = guestLogs.filter(
+              (item: SerializedWeightLog) => item.id !== id,
+            )
+            await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
+
+            const stateLogs = updatedLogs
+              .map((item: SerializedWeightLog) => ({
+                ...item,
+                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+              }))
+              .sort(
+                (a: WeightLog, b: WeightLog) =>
+                  b.date.toMillis() - a.date.toMillis(),
+              )
+
+            setWeightLogs(stateLogs)
+          }
+        } catch (e) {
+          console.error('Failed to delete guest weight log', e)
+        }
+      }
+    },
+    [],
+  )
+
   return {
     settings,
     workouts,
     todaysCompletions,
     offlineQueue,
+    weightLogs,
     loadSettings,
     saveSettings,
     loadWorkouts,
@@ -883,8 +1221,13 @@ export const useData = (): DataHook => {
     arePreviousSetsCompleted,
     syncUserData,
     migrateGuestHistory,
+    migrateGuestWeightLogs,
     syncOfflineQueue,
     fetchFullHistory,
+    fetchWeightLogs,
+    addWeightLog,
+    updateWeightLog,
+    deleteWeightLog,
     setWorkouts,
     setSettings,
     setOfflineQueue,

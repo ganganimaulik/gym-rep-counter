@@ -1,4 +1,10 @@
-import type { WorkoutSet, PRRecord, StreakInfo, VolumeData, TrendData } from '../declarations'
+import type {
+  WorkoutSet,
+  PRRecord,
+  StreakInfo,
+  VolumeData,
+  TrendData,
+} from '../declarations'
 
 /**
  * Calculate Personal Records (PRs) - max weight lifted per exercise
@@ -12,10 +18,7 @@ export function calculatePRs(
     : history
 
   // Group by exercise to find max weight for each
-  const exerciseMap = new Map<
-    string,
-    { set: WorkoutSet; maxWeight: number }
-  >()
+  const exerciseMap = new Map<string, { set: WorkoutSet; maxWeight: number }>()
 
   for (const set of filtered) {
     const existing = exerciseMap.get(set.exerciseId)
@@ -165,16 +168,18 @@ export function calculateStreak(
 
   // Current streak is the most recent consecutive streak if it includes recent week
   currentStreak =
-    sortedWeeks.length > 0 && sortedWeeks[0] === currentWeekKey
-      ? tempStreak
-      : 0
+    sortedWeeks.length > 0 && sortedWeeks[0] === currentWeekKey ? tempStreak : 0
 
   // If the most recent week is last week (not current), still count it as current streak
   if (currentStreak === 0 && sortedWeeks.length > 0) {
     const lastWeekKey = sortedWeeks[0]
     const lastWeekDate = new Date(lastWeekKey)
-    const lastWeekNum = Math.floor(lastWeekDate.getTime() / (7 * 24 * 60 * 60 * 1000))
-    const currentWeekNum = Math.floor(getWeekStart(now).getTime() / (7 * 24 * 60 * 60 * 1000))
+    const lastWeekNum = Math.floor(
+      lastWeekDate.getTime() / (7 * 24 * 60 * 60 * 1000),
+    )
+    const currentWeekNum = Math.floor(
+      getWeekStart(now).getTime() / (7 * 24 * 60 * 60 * 1000),
+    )
 
     if (currentWeekNum - lastWeekNum <= 1) {
       // Last week is the previous week, recompute temp streak
@@ -242,8 +247,20 @@ export function calculateVolume(
     // Monthly aggregation
     for (let i = 0; i < count; i++) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
-      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999)
+      const monthStart = new Date(
+        monthDate.getFullYear(),
+        monthDate.getMonth(),
+        1,
+      )
+      const monthEnd = new Date(
+        monthDate.getFullYear(),
+        monthDate.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      )
 
       let totalVolume = 0
       for (const set of history) {
@@ -253,7 +270,20 @@ export function calculateVolume(
         }
       }
 
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ]
 
       volumeData.unshift({
         label: monthNames[monthDate.getMonth()],

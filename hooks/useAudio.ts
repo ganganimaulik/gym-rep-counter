@@ -39,7 +39,13 @@ export const useAudio = (settings: Settings): AudioHandler => {
         return
       }
 
-      const femaleVoiceNames = ['female', 'samantha', 'serena', 'karen', 'victoria']
+      const femaleVoiceNames = [
+        'female',
+        'samantha',
+        'serena',
+        'karen',
+        'victoria',
+      ]
 
       // 1. Prioritize Enhanced quality female voices
       let foundVoice = voices.find(
@@ -58,7 +64,9 @@ export const useAudio = (settings: Settings): AudioHandler => {
       // 3. Default to the first available voice
       if (!foundVoice) {
         foundVoice = voices[0]
-        console.warn('Female voice not found, defaulting to the first available voice.')
+        console.warn(
+          'Female voice not found, defaulting to the first available voice.',
+        )
       }
 
       if (foundVoice) {

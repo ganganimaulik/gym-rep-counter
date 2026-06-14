@@ -16,7 +16,7 @@ describe('getDefaultWorkouts', () => {
       expect(workout).toHaveProperty('exercises')
       expect(Array.isArray(workout.exercises)).toBe(true)
 
-      workout.exercises.forEach(exercise => {
+      workout.exercises.forEach((exercise) => {
         expect(exercise).toHaveProperty('id')
         expect(typeof exercise.id).toBe('string')
         expect(exercise).toHaveProperty('name')

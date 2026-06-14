@@ -1,8 +1,8 @@
-const tseslint = require('typescript-eslint');
-const reactNative = require('eslint-plugin-react-native');
-const react = require('eslint-plugin-react');
-const reactHooks = require('eslint-plugin-react-hooks');
-const globals = require('globals');
+const tseslint = require('typescript-eslint')
+const reactNative = require('eslint-plugin-react-native')
+const react = require('eslint-plugin-react')
+const reactHooks = require('eslint-plugin-react-hooks')
+const globals = require('globals')
 
 module.exports = tseslint.config(
   {
@@ -11,13 +11,11 @@ module.exports = tseslint.config(
     // Plugins
     plugins: {
       'react-native': reactNative,
-      'react': react,
+      react: react,
       'react-hooks': reactHooks,
     },
     // Base configs
-    extends: [
-      ...tseslint.configs.recommended,
-    ],
+    extends: [...tseslint.configs.recommended],
     // Rules
     rules: {
       ...react.configs.recommended.rules,
@@ -48,5 +46,5 @@ module.exports = tseslint.config(
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
-  }
-);
+  },
+)

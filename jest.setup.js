@@ -1,25 +1,25 @@
-import 'react-native-gesture-handler/jestSetup';
+import 'react-native-gesture-handler/jestSetup'
 
-import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
+import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 
-jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
+jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage)
 
 jest.mock('firebase/auth', () => {
   return {
     getReactNativePersistence: jest.fn(),
     initializeAuth: jest.fn(),
-  };
-});
+  }
+})
 
 jest.mock('firebase/app', () => {
   return {
     initializeApp: jest.fn(),
-  };
-});
+  }
+})
 
 jest.mock('./utils/firebase', () => ({
   db: {},
-}));
+}))
 
 jest.mock('firebase/firestore', () => {
   return {
@@ -32,5 +32,5 @@ jest.mock('firebase/firestore', () => {
         toDate: () => new Date(),
       })),
     },
-  };
-});
+  }
+})
