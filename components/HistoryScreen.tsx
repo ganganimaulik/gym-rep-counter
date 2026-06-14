@@ -213,12 +213,10 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           </StyledView>
         </StyledView>
         <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-2">
-          {item.date
-            .toDate()
-            .toLocaleTimeString(undefined, {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+          {item.date.toDate().toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
         </StyledText>
       </StyledTouchableOpacity>
     )

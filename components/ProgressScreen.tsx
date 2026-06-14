@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native'
 import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
+import DateTimePicker from '@react-native-community/datetimepicker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { TrendData, WeightLog } from '../declarations'
@@ -62,26 +63,6 @@ const chartConfig = {
   },
 }
 
-const getLocalDateStringFromDate = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const day = date.getDate().toString().padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const parseDateString = (str: string): Date => {
-  const parts = str.split('-')
-  if (parts.length === 3) {
-    const year = parseInt(parts[0], 10)
-    const month = parseInt(parts[1], 10) - 1
-    const day = parseInt(parts[2], 10)
-    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-      return new Date(year, month, day)
-    }
-  }
-  return new Date()
-}
-
 const ProgressScreen: React.FC<ProgressScreenProps> = ({
   visible,
   user,
@@ -110,7 +91,8 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const [weightModalVisible, setWeightModalVisible] = useState(false)
   const [editingLog, setEditingLog] = useState<WeightLog | null>(null)
   const [weightInput, setWeightInput] = useState('')
-  const [dateInput, setDateInput] = useState('')
+  const [dateValue, setDateValue] = useState<Date>(new Date())
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const [selectedExercise, setSelectedExercise] = useState<string>('')
   const [exerciseTrends, setExerciseTrends] = useState<TrendData[]>([])
@@ -136,14 +118,16 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const handleOpenAddWeight = () => {
     setEditingLog(null)
     setWeightInput('')
-    setDateInput(getLocalDateStringFromDate(new Date()))
+    setDateValue(new Date())
+    setShowDatePicker(false)
     setWeightModalVisible(true)
   }
 
   const handleOpenEditWeight = (log: WeightLog) => {
     setEditingLog(log)
     setWeightInput(log.weight.toString())
-    setDateInput(getLocalDateStringFromDate(log.date.toDate()))
+    setDateValue(log.date.toDate())
+    setShowDatePicker(false)
     setWeightModalVisible(true)
   }
 
@@ -151,11 +135,10 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     const weightNum = parseFloat(weightInput)
     if (isNaN(weightNum) || weightNum <= 0) return
 
-    const parsedDate = parseDateString(dateInput)
     if (editingLog) {
-      await updateWeightLog(editingLog.id, weightNum, parsedDate, user)
+      await updateWeightLog(editingLog.id, weightNum, dateValue, user)
     } else {
-      await addWeightLog(weightNum, parsedDate, user)
+      await addWeightLog(weightNum, dateValue, user)
     }
 
     setWeightModalVisible(false)
@@ -567,17 +550,54 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
               />
 
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
-                Date (YYYY-MM-DD)
+                Date
               </StyledText>
-              <StyledTextInput
-                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
-                value={dateInput}
-                onChangeText={setDateInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#52525b"
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-              />
+              {Platform.OS === 'ios' ? (
+                <StyledView className="flex-row justify-between items-center bg-zinc-950 border border-zinc-800 p-3 rounded-xl mb-4">
+                  <StyledText className="text-zinc-500 text-sm font-bold">
+                    Select Date
+                  </StyledText>
+                  <DateTimePicker
+                    value={dateValue}
+                    mode="date"
+                    display="compact"
+                    onChange={(_, selectedDate) => {
+                      if (selectedDate) setDateValue(selectedDate)
+                    }}
+                    themeVariant="dark"
+                  />
+                </StyledView>
+              ) : (
+                <StyledTouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.7}
+                  className="flex-row justify-between items-center bg-zinc-950 border border-zinc-800 p-3.5 rounded-xl mb-4">
+                  <StyledText className="text-white font-bold text-sm">
+                    {dateValue.toLocaleDateString(undefined, {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </StyledText>
+                  <StyledText className="text-indigo-400 font-extrabold text-xs uppercase tracking-wider">
+                    Change
+                  </StyledText>
+                </StyledTouchableOpacity>
+              )}
+
+              {Platform.OS !== 'ios' && showDatePicker && (
+                <DateTimePicker
+                  value={dateValue}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false)
+                    if (selectedDate) {
+                      setDateValue(selectedDate)
+                    }
+                  }}
+                />
+              )}
 
               <StyledView className="flex-row gap-3 mt-2">
                 <StyledTouchableOpacity
