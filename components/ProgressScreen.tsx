@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Alert,
 } from 'react-native'
 import { styled } from 'nativewind'
 import {
@@ -21,13 +22,14 @@ import {
   Scale,
   Trash2,
   Pencil,
+  Activity,
 } from 'lucide-react-native'
 import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
 import DateTimePicker from '@react-native-community/datetimepicker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { TrendData, WeightLog } from '../declarations'
+import type { TrendData, WeightLog, CalorieLog } from '../declarations'
 import { AnalyticsHook } from '../hooks/useAnalytics'
 import { DataHook } from '../hooks/useData'
 
@@ -80,17 +82,28 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     refreshAnalytics,
   } = analyticsHook
 
-  const { weightLogs, addWeightLog, updateWeightLog, deleteWeightLog } =
+  const { weightLogs, addWeightLog, updateWeightLog, deleteWeightLog, calorieLogs, addCalorieLog, updateCalorieLog, deleteCalorieLog } =
     dataHook
 
-  const [activeSubTab, setActiveSubTab] = useState<'workouts' | 'weight'>(
+  const [activeSubTab, setActiveSubTab] = useState<'workouts' | 'health'>(
     'workouts',
   )
 
-  // State for weight logs logging/editing modal
-  const [weightModalVisible, setWeightModalVisible] = useState(false)
-  const [editingLog, setEditingLog] = useState<WeightLog | null>(null)
+  interface HealthLogGroup {
+    dateStr: string
+    date: Date
+    weightLog?: WeightLog
+    calorieLog?: CalorieLog
+  }
+
+  const [healthLogsByDate, setHealthLogsByDate] = useState<HealthLogGroup[]>([])
+
+  // State for logs logging/editing modal
+  const [healthModalVisible, setHealthModalVisible] = useState(false)
+  const [editingWeightLog, setEditingWeightLog] = useState<WeightLog | null>(null)
+  const [editingCalorieLog, setEditingCalorieLog] = useState<CalorieLog | null>(null)
   const [weightInput, setWeightInput] = useState('')
+  const [calorieInput, setCalorieInput] = useState('')
   const [dateValue, setDateValue] = useState<Date>(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
 
@@ -115,43 +128,111 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     }
   }, [selectedExercise, getExerciseTrends])
 
-  const handleOpenAddWeight = () => {
-    setEditingLog(null)
+  useEffect(() => {
+    const map = new Map<string, HealthLogGroup>()
+    const getDateStr = (d: Date) => d.toLocaleDateString()
+
+    weightLogs.forEach(log => {
+      const d = log.date.toDate()
+      const str = getDateStr(d)
+      if (!map.has(str)) map.set(str, { dateStr: str, date: d })
+      map.get(str)!.weightLog = log
+    })
+
+    calorieLogs.forEach(log => {
+      const d = log.date.toDate()
+      const str = getDateStr(d)
+      if (!map.has(str)) map.set(str, { dateStr: str, date: d })
+      map.get(str)!.calorieLog = log
+    })
+
+    setHealthLogsByDate(Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime()))
+  }, [weightLogs, calorieLogs])
+
+  const handleOpenAddHealth = () => {
+    setEditingWeightLog(null)
+    setEditingCalorieLog(null)
     setWeightInput('')
+    setCalorieInput('')
     setDateValue(new Date())
     setShowDatePicker(false)
-    setWeightModalVisible(true)
+    setHealthModalVisible(true)
   }
 
-  const handleOpenEditWeight = (log: WeightLog) => {
-    setEditingLog(log)
-    setWeightInput(log.weight.toString())
-    setDateValue(log.date.toDate())
+  const handleOpenEditHealth = (group: HealthLogGroup) => {
+    setEditingWeightLog(group.weightLog || null)
+    setEditingCalorieLog(group.calorieLog || null)
+    setWeightInput(group.weightLog ? group.weightLog.weight.toString() : '')
+    setCalorieInput(group.calorieLog ? group.calorieLog.calories.toString() : '')
+    setDateValue(group.date)
     setShowDatePicker(false)
-    setWeightModalVisible(true)
+    setHealthModalVisible(true)
   }
 
-  const handleSaveWeight = async () => {
+  const handleSaveHealth = async () => {
     const weightNum = parseFloat(weightInput)
-    if (isNaN(weightNum) || weightNum <= 0) return
+    const calorieNum = parseInt(calorieInput, 10)
 
-    if (editingLog) {
-      await updateWeightLog(editingLog.id, weightNum, dateValue, user)
-    } else {
-      await addWeightLog(weightNum, dateValue, user)
+    const targetDateStr = dateValue.toLocaleDateString()
+    const existingGroup = healthLogsByDate.find(g => g.dateStr === targetDateStr)
+
+    const movingWeightToExisting = editingWeightLog && existingGroup?.weightLog && editingWeightLog.id !== existingGroup.weightLog.id && !isNaN(weightNum) && weightNum > 0
+    const movingCalorieToExisting = editingCalorieLog && existingGroup?.calorieLog && editingCalorieLog.id !== existingGroup.calorieLog.id && !isNaN(calorieNum) && calorieNum > 0
+
+    if (movingWeightToExisting || movingCalorieToExisting) {
+      Alert.alert(
+        'Duplicate Entry',
+        'An entry for this date already exists. Please edit the existing entry instead.'
+      )
+      return
     }
 
-    setWeightModalVisible(false)
-    setEditingLog(null)
+    const promises = []
+
+    if (!isNaN(weightNum) && weightNum > 0) {
+      if (editingWeightLog) {
+        promises.push(updateWeightLog(editingWeightLog.id, weightNum, dateValue, user))
+      } else if (existingGroup?.weightLog) {
+        promises.push(updateWeightLog(existingGroup.weightLog.id, weightNum, dateValue, user))
+      } else {
+        promises.push(addWeightLog(weightNum, dateValue, user))
+      }
+    }
+
+    if (!isNaN(calorieNum) && calorieNum > 0) {
+      if (editingCalorieLog) {
+        promises.push(updateCalorieLog(editingCalorieLog.id, calorieNum, dateValue, user))
+      } else if (existingGroup?.calorieLog) {
+        promises.push(updateCalorieLog(existingGroup.calorieLog.id, calorieNum, dateValue, user))
+      } else {
+        promises.push(addCalorieLog(calorieNum, dateValue, user))
+      }
+    }
+
+    await Promise.all(promises)
+
+    setHealthModalVisible(false)
+    setEditingWeightLog(null)
+    setEditingCalorieLog(null)
     setWeightInput('')
+    setCalorieInput('')
   }
 
-  const handleDeleteWeight = async () => {
-    if (!editingLog) return
-    await deleteWeightLog(editingLog.id, user)
-    setWeightModalVisible(false)
-    setEditingLog(null)
+  const handleDeleteHealth = async () => {
+    const promises = []
+    if (editingWeightLog) {
+      promises.push(deleteWeightLog(editingWeightLog.id, user))
+    }
+    if (editingCalorieLog) {
+      promises.push(deleteCalorieLog(editingCalorieLog.id, user))
+    }
+    await Promise.all(promises)
+    
+    setHealthModalVisible(false)
+    setEditingWeightLog(null)
+    setEditingCalorieLog(null)
     setWeightInput('')
+    setCalorieInput('')
   }
 
   const formatChartDate = (date: Date): string => {
@@ -221,16 +302,16 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
-          onPress={() => setActiveSubTab('weight')}
+          onPress={() => setActiveSubTab('health')}
           activeOpacity={0.8}
           className={`flex-1 py-2 rounded-lg items-center ${
-            activeSubTab === 'weight' ? 'bg-indigo-600 shadow-sm' : ''
+            activeSubTab === 'health' ? 'bg-indigo-600 shadow-sm' : ''
           }`}>
           <StyledText
             className={`text-xs font-black uppercase tracking-wider ${
-              activeSubTab === 'weight' ? 'text-white' : 'text-zinc-400'
+              activeSubTab === 'health' ? 'text-white' : 'text-zinc-400'
             }`}>
-            Body Weight
+            Health Stats
           </StyledText>
         </StyledTouchableOpacity>
       </StyledView>
@@ -410,21 +491,21 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
           className="flex-1"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 60 }}>
-          {/* Log weight action button */}
+          {/* Log action button */}
           <StyledTouchableOpacity
-            onPress={handleOpenAddWeight}
+            onPress={handleOpenAddHealth}
             activeOpacity={0.85}
             className="flex-row items-center justify-center bg-indigo-600 py-3.5 px-4 rounded-2xl mb-4 shadow-lg shadow-indigo-600/15">
-            <Scale color="white" size={18} />
+            <Activity color="white" size={18} />
             <StyledText className="text-white text-sm font-black uppercase tracking-wider ml-2.5">
-              Log Body Weight
+              Log Daily Stats
             </StyledText>
           </StyledTouchableOpacity>
 
           {/* Body Weight Chart */}
           <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
             <StyledView className="flex-row items-center mb-1">
-              <TrendingUp color="#6366f1" size={18} />
+              <Scale color="#6366f1" size={18} />
               <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
                 Weight Trend
               </StyledText>
@@ -472,35 +553,95 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             )}
           </StyledView>
 
-          {/* Weight Logs List */}
+          {/* Calories Chart */}
+          <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+            <StyledView className="flex-row items-center mb-1">
+              <Activity color="#f43f5e" size={18} />
+              <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
+                Calorie Trend
+              </StyledText>
+            </StyledView>
+            <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
+              Daily caloric intake (kcal)
+            </StyledText>
+            {calorieLogs.length > 1 ? (
+              <LineChart
+                data={{
+                  labels: [...calorieLogs]
+                    .reverse()
+                    .slice(-7)
+                    .map((log) => formatChartDate(log.date.toDate())),
+                  datasets: [
+                    {
+                      data: [...calorieLogs]
+                        .reverse()
+                        .slice(-7)
+                        .map((log) => log.calories),
+                    },
+                  ],
+                }}
+                width={screenWidth}
+                height={170}
+                chartConfig={{
+                  ...chartConfig,
+                  color: (opacity = 1) => `rgba(244, 63, 94, ${opacity})`,
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: '#f43f5e',
+                  },
+                }}
+                bezier
+                style={{ borderRadius: 12, marginLeft: -12 }}
+              />
+            ) : (
+              <StyledView className="h-[170] justify-center items-center border border-dashed border-zinc-800 rounded-xl py-6">
+                <Activity color="#3f3f46" size={36} />
+                <StyledText className="text-zinc-500 text-xs italic text-center mt-3 px-4">
+                  Log at least 2 entries to display calorie progress chart.
+                </StyledText>
+              </StyledView>
+            )}
+          </StyledView>
+
+          {/* Health Logs List */}
           <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
             <StyledText className="text-sm font-black text-zinc-400 mb-3 tracking-wider uppercase">
-              Weight Logs History
+              Health Logs History
             </StyledText>
-            {weightLogs.length === 0 ? (
+            {healthLogsByDate.length === 0 ? (
               <StyledText className="text-zinc-500 text-xs italic text-center py-8">
-                No weight logs yet. Log your first weight entry to get started!
+                No logs yet. Log your first health entry to get started!
               </StyledText>
             ) : (
-              weightLogs.slice(0, 15).map((log, index) => (
+              healthLogsByDate.slice(0, 15).map((group, index) => (
                 <StyledTouchableOpacity
-                  key={log.id}
-                  onPress={() => handleOpenEditWeight(log)}
+                  key={group.dateStr}
+                  onPress={() => handleOpenEditHealth(group)}
                   activeOpacity={0.7}
                   className={`flex-row justify-between items-center py-3.5 ${
-                    index < Math.min(weightLogs.length, 15) - 1
+                    index < Math.min(healthLogsByDate.length, 15) - 1
                       ? 'border-b border-zinc-800/60'
                       : ''
                   }`}>
                   <StyledView className="flex-row items-center">
-                    <Scale color="#a1a1aa" size={16} />
-                    <StyledText className="text-white font-extrabold text-base ml-3">
-                      {log.weight} kg
-                    </StyledText>
+                    <Activity color="#a1a1aa" size={16} />
+                    <StyledView className="ml-3">
+                      {group.weightLog && (
+                        <StyledText className="text-white font-extrabold text-sm">
+                          {group.weightLog.weight} kg
+                        </StyledText>
+                      )}
+                      {group.calorieLog && (
+                        <StyledText className="text-zinc-400 font-bold text-xs">
+                          {group.calorieLog.calories} kcal
+                        </StyledText>
+                      )}
+                    </StyledView>
                   </StyledView>
                   <StyledView className="flex-row items-center">
                     <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mr-3">
-                      {log.date.toDate().toLocaleDateString(undefined, {
+                      {group.date.toLocaleDateString(undefined, {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric',
@@ -516,22 +657,22 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
         </StyledScrollView>
       )}
 
-      {/* Log/Edit Weight Modal */}
+      {/* Log/Edit Modal */}
       <Modal
         animationType="fade"
         transparent={true}
-        visible={weightModalVisible}
-        onRequestClose={() => setWeightModalVisible(false)}>
+        visible={healthModalVisible}
+        onRequestClose={() => setHealthModalVisible(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}>
           <StyledView className="flex-1 justify-center items-center px-4 bg-black/60">
             <StyledView className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
               <StyledText className="text-white text-xl font-black mb-1 text-center">
-                {editingLog ? 'Edit Weight Log' : 'Log Body Weight'}
+                {(editingWeightLog || editingCalorieLog) ? 'Edit Daily Stats' : 'Log Daily Stats'}
               </StyledText>
               <StyledText className="text-zinc-500 text-xs font-bold text-center mb-4 uppercase tracking-wider">
-                Track your body weight progress
+                Track your health progress
               </StyledText>
 
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
@@ -546,7 +687,20 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 placeholderTextColor="#52525b"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
-                autoFocus={true}
+              />
+
+              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                Calories (kcal)
+              </StyledText>
+              <StyledTextInput
+                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
+                keyboardType="numeric"
+                value={calorieInput}
+                onChangeText={setCalorieInput}
+                placeholder="e.g. 2500"
+                placeholderTextColor="#52525b"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
               />
 
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
@@ -601,7 +755,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
 
               <StyledView className="flex-row gap-3 mt-2">
                 <StyledTouchableOpacity
-                  onPress={() => setWeightModalVisible(false)}
+                  onPress={() => setHealthModalVisible(false)}
                   activeOpacity={0.7}
                   className="flex-1 bg-zinc-800 border border-zinc-700 py-3 rounded-xl items-center">
                   <StyledText className="text-zinc-300 font-bold text-sm">
@@ -609,7 +763,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   </StyledText>
                 </StyledTouchableOpacity>
                 <StyledTouchableOpacity
-                  onPress={handleSaveWeight}
+                  onPress={handleSaveHealth}
                   activeOpacity={0.7}
                   className="flex-1 bg-indigo-600 py-3 rounded-xl items-center shadow-lg shadow-indigo-600/15">
                   <StyledText className="text-white font-bold text-sm">
@@ -618,9 +772,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 </StyledTouchableOpacity>
               </StyledView>
 
-              {editingLog && (
+              {(editingWeightLog || editingCalorieLog) && (
                 <StyledTouchableOpacity
-                  onPress={handleDeleteWeight}
+                  onPress={handleDeleteHealth}
                   activeOpacity={0.7}
                   className="mt-4 bg-red-950/20 border border-red-900/30 py-2.5 rounded-xl items-center flex-row justify-center">
                   <Trash2 color="#ef4444" size={16} />

@@ -26,7 +26,7 @@ import {
 import { db } from '../utils/firebase'
 import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { WorkoutSet, WeightLog } from '../declarations'
+import type { WorkoutSet, WeightLog, CalorieLog } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
 // Interface for a WorkoutSet object that has been serialized to JSON
@@ -41,6 +41,15 @@ interface SerializedWorkoutSetData extends Omit<WorkoutSet, 'date'> {
 interface SerializedWeightLog {
   id: string
   weight: number
+  date: {
+    seconds: number
+    nanoseconds: number
+  }
+}
+
+interface SerializedCalorieLog {
+  id: string
+  calories: number
   date: {
     seconds: number
     nanoseconds: number
@@ -79,6 +88,7 @@ export interface DataHook {
   todaysCompletions: WorkoutSet[]
   offlineQueue: WorkoutSet[]
   weightLogs: WeightLog[]
+  calorieLogs: CalorieLog[]
   loadSettings: () => Promise<Settings>
   saveSettings: (
     newSettings: Settings,
@@ -129,6 +139,7 @@ export interface DataHook {
   ) => Promise<void>
   migrateGuestHistory: (user: FirebaseUser) => Promise<WorkoutSet[]>
   migrateGuestWeightLogs: (user: FirebaseUser) => Promise<WeightLog[]>
+  migrateGuestCalorieLogs: (user: FirebaseUser) => Promise<CalorieLog[]>
   syncOfflineQueue: (user: FirebaseUser) => Promise<void>
   fetchFullHistory: (
     user: FirebaseUser | null,
@@ -147,6 +158,19 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   deleteWeightLog: (id: string, user: FirebaseUser | null) => Promise<void>
+  fetchCalorieLogs: (user: FirebaseUser | null) => Promise<CalorieLog[]>
+  addCalorieLog: (
+    calories: number,
+    date: Date,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  updateCalorieLog: (
+    id: string,
+    calories: number,
+    date: Date,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  deleteCalorieLog: (id: string, user: FirebaseUser | null) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
   setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
@@ -875,6 +899,7 @@ export const useData = (): DataHook => {
         // Step 1: Migrate local data to Firestore
         await migrateGuestHistory(firebaseUser)
         await migrateGuestWeightLogs(firebaseUser)
+        await migrateGuestCalorieLogs(firebaseUser)
         await syncOfflineQueue(firebaseUser)
 
         const userDocRef = doc(db, 'users', firebaseUser.uid)
@@ -995,6 +1020,7 @@ export const useData = (): DataHook => {
   )
 
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
+  const [calorieLogs, setCalorieLogs] = useState<CalorieLog[]>([])
 
   const fetchWeightLogs = useCallback(
     async (user: FirebaseUser | null): Promise<WeightLog[]> => {
@@ -1199,12 +1225,262 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const fetchCalorieLogs = useCallback(
+    async (user: FirebaseUser | null): Promise<CalorieLog[]> => {
+      if (user) {
+        try {
+          const collRef = collection(db, 'users', user.uid, 'calorieLogs')
+          const q = query(collRef, orderBy('date', 'desc'))
+          const querySnapshot = await getDocs(q)
+          const logs = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as CalorieLog[]
+          setCalorieLogs(logs)
+          return logs
+        } catch (e) {
+          console.error('Failed to fetch calorie logs', e)
+          return []
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestCalorieLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (!savedRaw) {
+            setCalorieLogs([])
+            return []
+          }
+
+          const parsed = JSON.parse(savedRaw)
+          const guestLogs = parsed
+            .map((item: SerializedCalorieLog) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .sort(
+              (a: CalorieLog, b: CalorieLog) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
+
+          setCalorieLogs(guestLogs)
+          return guestLogs
+        } catch (e) {
+          console.error('Failed to fetch guest calorie logs', e)
+          return []
+        }
+      }
+    },
+    [],
+  )
+
+  const addCalorieLog = useCallback(
+    async (calories: number, date: Date, user: FirebaseUser | null) => {
+      const newLogBase = {
+        calories,
+        date: Timestamp.fromDate(date),
+      }
+
+      if (user) {
+        try {
+          const collRef = collection(db, 'users', user.uid, 'calorieLogs')
+          const docRef = await addDoc(collRef, newLogBase)
+          const newEntry = {
+            id: docRef.id,
+            ...newLogBase,
+          }
+          setCalorieLogs((prev) =>
+            [newEntry, ...prev].sort(
+              (a, b) => b.date.toMillis() - a.date.toMillis(),
+            ),
+          )
+        } catch (e) {
+          console.error('Failed to add calorie log', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestCalorieLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          const guestLogs = savedRaw ? JSON.parse(savedRaw) : []
+          const newEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            ...newLogBase,
+          }
+          const updatedLogs = [newEntry, ...guestLogs]
+          await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
+
+          // Reconstruct Timestamp for local state
+          const stateLogs = updatedLogs
+            .map((item: SerializedCalorieLog) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .sort(
+              (a: CalorieLog, b: CalorieLog) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
+
+          setCalorieLogs(stateLogs)
+        } catch (e) {
+          console.error('Failed to add guest calorie log', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const updateCalorieLog = useCallback(
+    async (
+      id: string,
+      calories: number,
+      date: Date,
+      user: FirebaseUser | null,
+    ) => {
+      const updates = {
+        calories,
+        date: Timestamp.fromDate(date),
+      }
+
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'calorieLogs', id)
+          await updateDoc(docRef, updates)
+          setCalorieLogs((prev) =>
+            prev
+              .map((item) => (item.id === id ? { ...item, ...updates } : item))
+              .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+          )
+        } catch (e) {
+          console.error('Failed to update calorie log', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestCalorieLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (savedRaw) {
+            const guestLogs = JSON.parse(savedRaw)
+            const updatedLogs = guestLogs.map((item: SerializedCalorieLog) =>
+              item.id === id ? { ...item, ...updates } : item,
+            )
+            await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
+
+            const stateLogs = updatedLogs
+              .map((item: SerializedCalorieLog) => ({
+                ...item,
+                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+              }))
+              .sort(
+                (a: CalorieLog, b: CalorieLog) =>
+                  b.date.toMillis() - a.date.toMillis(),
+              )
+
+            setCalorieLogs(stateLogs)
+          }
+        } catch (e) {
+          console.error('Failed to update guest calorie log', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const deleteCalorieLog = useCallback(
+    async (id: string, user: FirebaseUser | null) => {
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'calorieLogs', id)
+          await deleteDoc(docRef)
+          setCalorieLogs((prev) => prev.filter((item) => item.id !== id))
+        } catch (e) {
+          console.error('Failed to delete calorie log', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestCalorieLogs'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (savedRaw) {
+            const guestLogs = JSON.parse(savedRaw)
+            const updatedLogs = guestLogs.filter(
+              (item: SerializedCalorieLog) => item.id !== id,
+            )
+            await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
+
+            const stateLogs = updatedLogs
+              .map((item: SerializedCalorieLog) => ({
+                ...item,
+                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+              }))
+              .sort(
+                (a: CalorieLog, b: CalorieLog) =>
+                  b.date.toMillis() - a.date.toMillis(),
+              )
+
+            setCalorieLogs(stateLogs)
+          }
+        } catch (e) {
+          console.error('Failed to delete guest calorie log', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const migrateGuestCalorieLogs = useCallback(
+    async (user: FirebaseUser): Promise<CalorieLog[]> => {
+      try {
+        const key = 'guestCalorieLogs'
+        const savedRaw = await AsyncStorage.getItem(key)
+        if (!savedRaw) return []
+
+        const parsed = JSON.parse(savedRaw)
+        if (!Array.isArray(parsed)) return []
+
+        const guestLogs: CalorieLog[] = parsed
+          .filter(
+            (item) =>
+              item && item.date && typeof item.date.seconds === 'number',
+          )
+          .map((item: SerializedCalorieLog) => ({
+            ...item,
+            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+          }))
+
+        if (guestLogs.length === 0) return []
+
+        const batch = writeBatch(db)
+        const collRef = collection(db, 'users', user.uid, 'calorieLogs')
+        const migrated: CalorieLog[] = []
+
+        guestLogs.forEach((entry) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, ...dataToUpload } = entry
+          const docRef = doc(collRef) // Create a new doc with a new ID
+          batch.set(docRef, dataToUpload)
+          migrated.push({ ...entry, id: docRef.id })
+        })
+
+        await batch.commit()
+        await AsyncStorage.removeItem(key)
+        console.log('Guest calorie logs migrated successfully.')
+        return migrated
+      } catch (e) {
+        console.error('Failed to migrate guest calorie logs', e)
+        return []
+      }
+    },
+    [],
+  )
+
   return {
     settings,
     workouts,
     todaysCompletions,
     offlineQueue,
     weightLogs,
+    calorieLogs,
     loadSettings,
     saveSettings,
     loadWorkouts,
@@ -1228,6 +1504,11 @@ export const useData = (): DataHook => {
     addWeightLog,
     updateWeightLog,
     deleteWeightLog,
+    fetchCalorieLogs,
+    addCalorieLog,
+    updateCalorieLog,
+    deleteCalorieLog,
+    migrateGuestCalorieLogs,
     setWorkouts,
     setSettings,
     setOfflineQueue,

@@ -48,7 +48,6 @@ import { useAnalytics } from './hooks/useAnalytics'
 // Components
 import SettingsModal from './components/SettingsModal'
 import WorkoutManagementModal from './components/WorkoutManagementModal'
-import UserProfile from './components/layout/UserProfile'
 import WorkoutSelector from './components/layout/WorkoutSelector'
 import MainDisplay from './components/layout/MainDisplay'
 import Controls from './components/layout/Controls'
@@ -57,6 +56,7 @@ import AddSetDetailsModal from './components/AddSetDetailsModal'
 import Toast from 'react-native-toast-message'
 import HistoryScreen from './components/HistoryScreen'
 import ProgressScreen from './components/ProgressScreen'
+import SplashScreen from './components/SplashScreen'
 
 const StyledSafeAreaView = styled(SafeAreaView)
 const StyledView = styled(View)
@@ -107,6 +107,7 @@ const App: React.FC = () => {
     fetchAllTodaysCompletions,
     syncOfflineQueue,
     fetchWeightLogs,
+    fetchCalorieLogs,
   } = dataHook
 
   const analyticsHook = useAnalytics(dataHook)
@@ -118,13 +119,21 @@ const App: React.FC = () => {
         const localWorkouts = await loadWorkouts()
         await syncUserData(firebaseUser, localSettings, localWorkouts)
         await fetchWeightLogs(firebaseUser)
+        await fetchCalorieLogs(firebaseUser)
       } else {
         await loadSettings()
         await loadWorkouts()
         await fetchWeightLogs(null)
+        await fetchCalorieLogs(null)
       }
     },
-    [loadSettings, loadWorkouts, syncUserData, fetchWeightLogs],
+    [
+      loadSettings,
+      loadWorkouts,
+      syncUserData,
+      fetchWeightLogs,
+      fetchCalorieLogs,
+    ],
   )
 
   const {
@@ -148,9 +157,10 @@ const App: React.FC = () => {
     continueToNextPhase()
   }
 
-  const nextExerciseItem = currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1
-    ? currentWorkout.exercises[currentExerciseIndex + 1]
-    : undefined
+  const nextExerciseItem =
+    currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1
+      ? currentWorkout.exercises[currentExerciseIndex + 1]
+      : undefined
 
   const {
     currentRep,
@@ -325,13 +335,7 @@ const App: React.FC = () => {
   }
 
   if (initializing) {
-    return (
-      <StyledSafeAreaView className="flex-1 bg-zinc-950 justify-center items-center">
-        <StyledText className="text-zinc-400 text-xl font-medium">
-          Loading...
-        </StyledText>
-      </StyledSafeAreaView>
-    )
+    return <SplashScreen />
   }
 
   return (

@@ -18,6 +18,12 @@ export interface WeightLog {
   date: Timestamp
 }
 
+export interface CalorieLog {
+  id: string
+  calories: number
+  date: Timestamp
+}
+
 // Analytics Types
 export interface PRRecord {
   exerciseId: string
