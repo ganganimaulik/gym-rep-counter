@@ -38,6 +38,7 @@ interface UIState {
   isRunning: boolean
   isPaused: boolean
   phase: string
+  isRestComplete: boolean
 }
 
 interface WorkoutState {
@@ -57,6 +58,7 @@ export interface WorkoutTimerHook {
   isRunning: boolean
   isPaused: boolean
   isResting: boolean
+  isRestComplete: boolean
   phase: string
   statusText: SharedValue<string>
   isExerciseComplete: boolean
@@ -105,6 +107,7 @@ export function useWorkoutTimer(
     isRunning: false,
     isPaused: false,
     phase: '',
+    isRestComplete: false,
   })
   const updateUI = useCallback(
     (patch: Partial<UIState>) => setUI((prev) => ({ ...prev, ...patch })),
@@ -209,6 +212,7 @@ export function useWorkoutTimer(
         whole !== wState.current.lastSpokenSecond
       ) {
         wState.current.lastSpokenSecond = whole
+        updateUI({ isRestComplete: true })
         queueSpeak(`Rest target reached.`, {
           priority: true,
         })
@@ -218,7 +222,7 @@ export function useWorkoutTimer(
       schedule(1000 - (Date.now() % 1000), tick, false)
     }
     tick()
-  }, [settings, queueSpeak, schedule, statusText])
+  }, [settings, queueSpeak, schedule, statusText, updateUI])
 
   const fullReset = useCallback(() => {
     clearTimer()
@@ -238,6 +242,7 @@ export function useWorkoutTimer(
       isRunning: false,
       isPaused: false,
       phase: '',
+      isRestComplete: false,
     })
     statusText.value = 'Press Start'
   }, [clearTimer, displayRep, displaySet, updateUI, statusText])
@@ -262,6 +267,7 @@ export function useWorkoutTimer(
         isRunning: false,
         isPaused: false,
         phase: PHASE_DISPLAY[PHASES.REST],
+        isRestComplete: false,
       })
       queueSpeak(`Set complete. Rest now.`, {
         priority: true,
@@ -290,6 +296,7 @@ export function useWorkoutTimer(
       isRunning: false,
       isPaused: false,
       phase: '',
+      isRestComplete: false,
     })
     statusText.value = `Press Start for Set ${wState.current.set}`
   }, [clearTimer, displayRep, updateUI, statusText])
@@ -690,7 +697,9 @@ export function useWorkoutTimer(
       return
     }
 
-    const restStartTimestamp = isResting ? wState.current.phaseStart : Date.now()
+    const restStartTimestamp = isResting
+      ? wState.current.phaseStart
+      : Date.now()
     const restSeconds = settings.restSeconds
 
     const statePayload = {
@@ -739,6 +748,7 @@ export function useWorkoutTimer(
       isRunning: ui.isRunning,
       isPaused: ui.isPaused,
       isResting: ui.phase === PHASE_DISPLAY[PHASES.REST],
+      isRestComplete: ui.isRestComplete,
       phase: ui.phase,
       statusText,
       isExerciseComplete: ui.isExerciseComplete,

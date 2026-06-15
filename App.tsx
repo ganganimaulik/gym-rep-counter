@@ -72,7 +72,6 @@ interface CompletedSetData {
 }
 
 const App: React.FC = () => {
-
   // UI State
   const [currentTab, setCurrentTab] = useState<
     'workout' | 'routines' | 'history' | 'analytics' | 'settings'
@@ -107,8 +106,6 @@ const App: React.FC = () => {
     fetchWeightLogs,
     fetchCalorieLogs,
   } = dataHook
-
-
 
   const onAuthSuccess = useCallback(
     async (firebaseUser: FirebaseUser | null) => {
@@ -168,6 +165,7 @@ const App: React.FC = () => {
     isRunning,
     isPaused,
     isResting,
+    isRestComplete,
     phase,
     statusText,
     startWorkout,
@@ -269,17 +267,20 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, setDataSettings])
 
-  const selectWorkout = useCallback((workoutId: string | null) => {
-    stopWorkout()
-    if (workoutId === null) {
-      setCurrentWorkout(null)
+  const selectWorkout = useCallback(
+    (workoutId: string | null) => {
+      stopWorkout()
+      if (workoutId === null) {
+        setCurrentWorkout(null)
+        setCurrentExerciseIndex(0)
+        return
+      }
+      const workout = workouts.find((w: Workout) => w.id === workoutId)
+      setCurrentWorkout(workout || null)
       setCurrentExerciseIndex(0)
-      return
-    }
-    const workout = workouts.find((w: Workout) => w.id === workoutId)
-    setCurrentWorkout(workout || null)
-    setCurrentExerciseIndex(0)
-  }, [stopWorkout, workouts])
+    },
+    [stopWorkout, workouts],
+  )
 
   const nextExercise = useCallback(() => {
     if (
@@ -298,44 +299,53 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, stopWorkout])
 
-  const handleSaveSettings = useCallback((newSettings: Settings) => {
-    saveSettings(newSettings, user)
-  }, [saveSettings, user])
+  const handleSaveSettings = useCallback(
+    (newSettings: Settings) => {
+      saveSettings(newSettings, user)
+    },
+    [saveSettings, user],
+  )
 
-  const handleSaveWorkouts = useCallback((newWorkouts: Workout[]) => {
-    saveWorkouts(newWorkouts, user)
-  }, [saveWorkouts, user])
+  const handleSaveWorkouts = useCallback(
+    (newWorkouts: Workout[]) => {
+      saveWorkouts(newWorkouts, user)
+    },
+    [saveWorkouts, user],
+  )
 
-  const handleAddSetDetails = useCallback(async (reps: number, weight: number) => {
-    if (completedSetData && currentWorkout) {
-      // Find the exercise that was just completed, instead of relying on activeExercise
-      // which might have advanced to the next one already.
-      const completedExercise = currentWorkout.exercises.find(
-        (e) => e.id === completedSetData.exerciseId,
-      )
-
-      if (completedExercise) {
-        await addHistoryEntry(
-          {
-            workoutId: currentWorkout.id,
-            exerciseId: completedExercise.id,
-            exerciseName: completedExercise.name,
-            reps,
-            weight,
-          },
-          completedSetData.set,
-          completedSetData.startTime,
-          completedSetData.endTime, // Use endTime for date field (when rest started)
-          user,
+  const handleAddSetDetails = useCallback(
+    async (reps: number, weight: number) => {
+      if (completedSetData && currentWorkout) {
+        // Find the exercise that was just completed, instead of relying on activeExercise
+        // which might have advanced to the next one already.
+        const completedExercise = currentWorkout.exercises.find(
+          (e) => e.id === completedSetData.exerciseId,
         )
+
+        if (completedExercise) {
+          await addHistoryEntry(
+            {
+              workoutId: currentWorkout.id,
+              exerciseId: completedExercise.id,
+              exerciseName: completedExercise.name,
+              reps,
+              weight,
+            },
+            completedSetData.set,
+            completedSetData.startTime,
+            completedSetData.endTime, // Use endTime for date field (when rest started)
+            user,
+          )
+        }
       }
-    }
-    // This part should run whether the user is logged in or not,
-    // and even if the data saving fails, to not block the UI flow.
-    setAddSetModalVisible(false)
-    setCompletedSetData(null)
-    // Rest timer already started in handleSetComplete, no need to call continueToNextPhase here
-  }, [completedSetData, currentWorkout, addHistoryEntry, user])
+      // This part should run whether the user is logged in or not,
+      // and even if the data saving fails, to not block the UI flow.
+      setAddSetModalVisible(false)
+      setCompletedSetData(null)
+      // Rest timer already started in handleSetComplete, no need to call continueToNextPhase here
+    },
+    [completedSetData, currentWorkout, addHistoryEntry, user],
+  )
 
   const handleOpenRoutines = useCallback((visible: boolean) => {
     if (visible) setCurrentTab('routines')
@@ -353,15 +363,15 @@ const App: React.FC = () => {
     }
   }, [isRunning, isResting])
 
-  const handleResetSetsFrom = useCallback((exerciseId: string, setNumber: number) => {
-    resetSetsFrom(exerciseId, setNumber, user)
-  }, [resetSetsFrom, user])
+  const handleResetSetsFrom = useCallback(
+    (exerciseId: string, setNumber: number) => {
+      resetSetsFrom(exerciseId, setNumber, user)
+    },
+    [resetSetsFrom, user],
+  )
 
   const wrappedStartWorkout = useCallback(() => {
-    if (
-      activeExercise &&
-      isSetCompleted(activeExercise.id, startingSet)
-    ) {
+    if (activeExercise && isSetCompleted(activeExercise.id, startingSet)) {
       Toast.show({
         type: 'info',
         text1: 'Set Already Completed',
@@ -373,10 +383,7 @@ const App: React.FC = () => {
   }, [activeExercise, isSetCompleted, startingSet, startWorkout])
 
   const wrappedRunNextSet = useCallback(() => {
-    if (
-      activeExercise &&
-      isSetCompleted(activeExercise.id, currentSet.value)
-    ) {
+    if (activeExercise && isSetCompleted(activeExercise.id, currentSet.value)) {
       Toast.show({
         type: 'info',
         text1: 'Set Already Completed',
@@ -433,6 +440,7 @@ const App: React.FC = () => {
               <Controls
                 isRunning={isRunning}
                 isResting={isResting}
+                isRestComplete={isRestComplete}
                 isPaused={isPaused}
                 startWorkout={wrappedStartWorkout}
                 runNextSet={wrappedRunNextSet}
@@ -460,7 +468,11 @@ const App: React.FC = () => {
         )}
 
         {/* Keep HistoryScreen mounted but hidden to preserve scroll position */}
-        <StyledView style={{ flex: 1, display: currentTab === 'history' ? 'flex' : 'none' }}>
+        <StyledView
+          style={{
+            flex: 1,
+            display: currentTab === 'history' ? 'flex' : 'none',
+          }}>
           <HistoryScreen
             visible={currentTab === 'history'}
             onClose={() => setCurrentTab('workout')}
@@ -470,7 +482,11 @@ const App: React.FC = () => {
         </StyledView>
 
         {/* Keep ProgressScreen mounted but hidden to preserve state */}
-        <StyledView style={{ flex: 1, display: currentTab === 'analytics' ? 'flex' : 'none' }}>
+        <StyledView
+          style={{
+            flex: 1,
+            display: currentTab === 'analytics' ? 'flex' : 'none',
+          }}>
           <ProgressScreen
             visible={currentTab === 'analytics'}
             onClose={() => setCurrentTab('workout')}

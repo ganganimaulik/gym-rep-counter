@@ -16,6 +16,7 @@ const StyledTouchableOpacity = styled(TouchableOpacity)
 interface ControlsProps {
   isRunning: boolean
   isResting: boolean
+  isRestComplete: boolean
   isPaused: boolean
   runNextSet: () => void
   startWorkout: () => void
@@ -27,6 +28,7 @@ interface ControlsProps {
 const Controls: React.FC<ControlsProps> = ({
   isRunning,
   isResting,
+  isRestComplete,
   isPaused,
   runNextSet,
   startWorkout,
@@ -44,15 +46,28 @@ const Controls: React.FC<ControlsProps> = ({
               onPress={isResting ? runNextSet : startWorkout}
               activeOpacity={0.8}
               className={`flex-row items-center justify-center py-4 px-6 rounded-2xl flex-1 ${
-                isResting ? 'bg-amber-500' : 'bg-emerald-600'
+                isResting
+                  ? isRestComplete
+                    ? 'bg-emerald-600'
+                    : 'bg-amber-500'
+                  : 'bg-emerald-600'
               } shadow-lg shadow-emerald-600/20`}>
               {isResting ? (
-                <>
-                  <SkipForward color="white" size={20} />
-                  <StyledText className="text-white text-base font-bold ml-2 tracking-wide uppercase">
-                    Skip Rest
-                  </StyledText>
-                </>
+                isRestComplete ? (
+                  <>
+                    <Play color="white" size={20} fill="white" />
+                    <StyledText className="text-white text-base font-bold ml-2 tracking-wide uppercase">
+                      Start Next Set
+                    </StyledText>
+                  </>
+                ) : (
+                  <>
+                    <SkipForward color="white" size={20} />
+                    <StyledText className="text-white text-base font-bold ml-2 tracking-wide uppercase">
+                      Skip Rest
+                    </StyledText>
+                  </>
+                )
               ) : (
                 <>
                   <Play color="white" size={20} fill="white" />
