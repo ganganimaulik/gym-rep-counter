@@ -42,4 +42,4 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ user }) => {
   )
 }
 
-export default SyncStatus
+export default React.memo(SyncStatus)

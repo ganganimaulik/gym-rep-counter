@@ -124,6 +124,9 @@ export function useWorkoutTimer(
 
   const timeoutRef = useRef<number | null>(null)
   const audioTimeoutRef = useRef<number | null>(null)
+  // Refs to break circular dependency between startConcentric and startEccentric
+  const startConcentricRef = useRef<() => void>(() => {})
+  const startEccentricRef = useRef<() => void>(() => {})
   // Track previous exercise ID. Initialize to a sentinel value to ensure
   // initial mount triggers the reset (undefined !== activeExercise?.id on first render if exercise exists)
   const prevExerciseIdRef = useRef<string | undefined | null>(null)
@@ -347,7 +350,7 @@ export function useWorkoutTimer(
       duration,
       () => {
         updateUI({ phase: PHASE_DISPLAY[PHASES.ECCENTRIC] })
-        startEccentric()
+        startEccentricRef.current()
       },
       stopSpeechOnClear,
     )
@@ -376,7 +379,7 @@ export function useWorkoutTimer(
           queueSpeak(String(wState.current.rep))
         }, 150)
         updateUI({ phase: PHASE_DISPLAY[PHASES.CONCENTRIC] })
-        startConcentric()
+        startConcentricRef.current()
       }
     }
 
@@ -411,8 +414,11 @@ export function useWorkoutTimer(
     updateUI,
     displayRep,
     endSet,
-    startConcentric,
   ])
+
+  // Keep refs in sync with the latest versions
+  startConcentricRef.current = startConcentric
+  startEccentricRef.current = startEccentric
 
   const startCountdown = useCallback(() => {
     const duration =
@@ -572,7 +578,8 @@ export function useWorkoutTimer(
       queueSpeak('Paused', { priority: true })
     }
   }, [
-    ui,
+    ui.isRunning,
+    ui.isPaused,
     settings,
     updateUI,
     queueSpeak,

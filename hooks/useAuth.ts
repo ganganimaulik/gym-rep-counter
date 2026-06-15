@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import {
   onAuthStateChanged,
@@ -24,6 +24,11 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   const [initializing, setInitializing] = useState<boolean>(true)
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
 
+  // Use refs to avoid re-subscribing to onAuthStateChanged
+  const initializingRef = useRef(true)
+  const onAuthSuccessRef = useRef(onAuthSuccess)
+  onAuthSuccessRef.current = onAuthSuccess
+
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
@@ -31,18 +36,19 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
     })
 
     const subscriber = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (initializing) {
+      if (initializingRef.current) {
+        initializingRef.current = false
         setInitializing(false)
       }
 
       setUser(firebaseUser)
-      await onAuthSuccess(firebaseUser)
+      await onAuthSuccessRef.current(firebaseUser)
     })
 
     return subscriber // unsubscribe on unmount
-  }, [initializing, onAuthSuccess])
+  }, [])
 
-  const onGoogleButtonPress = async () => {
+  const onGoogleButtonPress = useCallback(async () => {
     setIsSigningIn(true)
     try {
       await GoogleSignin.hasPlayServices({
@@ -68,22 +74,25 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
     } finally {
       setIsSigningIn(false)
     }
-  }
+  }, [])
 
-  const disconnectAccount = async () => {
+  const disconnectAccount = useCallback(async () => {
     try {
       await GoogleSignin.signOut()
       await auth.signOut()
     } catch (error) {
       console.error('Error disconnecting account:', error)
     }
-  }
+  }, [])
 
-  return {
-    user,
-    initializing,
-    isSigningIn,
-    onGoogleButtonPress,
-    disconnectAccount,
-  }
+  return useMemo(
+    () => ({
+      user,
+      initializing,
+      isSigningIn,
+      onGoogleButtonPress,
+      disconnectAccount,
+    }),
+    [user, initializing, isSigningIn, onGoogleButtonPress, disconnectAccount],
+  )
 }

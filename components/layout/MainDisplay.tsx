@@ -171,4 +171,4 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   )
 }
 
-export default MainDisplay
+export default React.memo(MainDisplay)

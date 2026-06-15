@@ -48,4 +48,4 @@ const UserProfile: React.FC<UserProfileProps> = ({
   )
 }
 
-export default UserProfile
+export default React.memo(UserProfile)

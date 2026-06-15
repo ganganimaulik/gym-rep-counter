@@ -36,6 +36,148 @@ interface EditExerciseState {
   exercise: Exercise | null
 }
 
+interface WorkoutItemProps {
+  workout: Workout
+  addExercise: (
+    workoutId: string,
+    exerciseName: string,
+    sets: number,
+    reps: number,
+  ) => void
+  deleteExercise: (workoutId: string, exerciseId: string) => void
+  updateExerciseOrder: (
+    workoutId: string,
+    reorderedExercises: Exercise[],
+  ) => void
+  openEditModal: (workoutId: string, exercise: Exercise) => void
+  deleteWorkout: (id: string) => void
+}
+
+const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
+  ({
+    workout,
+    addExercise,
+    deleteExercise,
+    updateExerciseOrder,
+    openEditModal,
+    deleteWorkout,
+  }) => {
+    const [exerciseName, setExerciseName] = useState('')
+    const [sets, setSets] = useState('3')
+    const [reps, setReps] = useState('12')
+
+    const handleAddExercise = () => {
+      addExercise(
+        workout.id,
+        exerciseName,
+        parseInt(sets, 10) || 3,
+        parseInt(reps, 10) || 12,
+      )
+      setExerciseName('')
+    }
+
+    const renderExercise = ({
+      item: ex,
+      drag,
+      isActive,
+      getIndex,
+    }: RenderItemParams<Exercise>) => (
+      <StyledTouchableOpacity
+        onPress={() => openEditModal(workout.id, ex)}
+        onLongPress={drag}
+        disabled={isActive}
+        activeOpacity={0.7}
+        className={`flex-row items-center justify-between bg-zinc-800/80 border border-zinc-800/40 p-3 rounded-xl mb-2 ${
+          isActive ? 'bg-zinc-700/80 border-indigo-500' : ''
+        }`}>
+        <StyledView className="flex-row items-center flex-1">
+          <StyledView className="mr-2.5">
+            <GripVertical color="#71717a" size={16} />
+          </StyledView>
+          <StyledText className="text-sm font-semibold text-white flex-1">
+            {getIndex()! + 1}. {ex.name}
+          </StyledText>
+        </StyledView>
+        <StyledText className="text-xs text-zinc-500 font-bold mx-3 uppercase tracking-wider">
+          {ex.sets} sets × {ex.reps} reps
+        </StyledText>
+        <Pressable
+          onPress={() => deleteExercise(workout.id, ex.id)}
+          style={{ padding: 4 }}>
+          <X color="#f87171" size={16} />
+        </Pressable>
+      </StyledTouchableOpacity>
+    )
+
+    return (
+      <StyledView className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 mb-4 shadow-xl">
+        <StyledView className="flex-row justify-between items-center mb-3">
+          <StyledText className="text-lg font-black text-white">
+            {workout.name}
+          </StyledText>
+          <StyledTouchableOpacity
+            onPress={() => deleteWorkout(workout.id)}
+            activeOpacity={0.7}
+            className="p-1 bg-red-950/20 border border-red-900/30 rounded-lg">
+            <Trash2 color="#ef4444" size={18} />
+          </StyledTouchableOpacity>
+        </StyledView>
+
+        {workout.exercises.length > 0 ? (
+          <DraggableFlatList
+            data={workout.exercises}
+            renderItem={renderExercise}
+            keyExtractor={(item) => item.id}
+            onDragEnd={({ data }) => updateExerciseOrder(workout.id, data)}
+            scrollEnabled={false}
+          />
+        ) : (
+          <StyledText className="text-zinc-500 text-xs italic mb-2">
+            No exercises added yet.
+          </StyledText>
+        )}
+
+        <StyledView className="pt-3 mt-3 border-t border-zinc-800/60">
+          <StyledView className="flex-row gap-2">
+            <StyledTextInput
+              placeholder="Exercise name"
+              placeholderTextColor="#52525b"
+              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-medium"
+              value={exerciseName}
+              onChangeText={setExerciseName}
+            />
+            <StyledTextInput
+              placeholder="Sets"
+              placeholderTextColor="#52525b"
+              className="w-14 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white text-center font-bold"
+              keyboardType="number-pad"
+              value={sets}
+              onChangeText={setSets}
+            />
+            <StyledTextInput
+              placeholder="Reps"
+              placeholderTextColor="#52525b"
+              className="w-14 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white text-center font-bold"
+              keyboardType="number-pad"
+              value={reps}
+              onChangeText={setReps}
+            />
+          </StyledView>
+          <StyledTouchableOpacity
+            onPress={handleAddExercise}
+            activeOpacity={0.7}
+            className="mt-3 bg-emerald-600 rounded-xl py-2.5 flex-row items-center justify-center space-x-1 shadow-md shadow-emerald-600/10">
+            <Plus color="white" size={16} />
+            <StyledText className="text-xs font-black text-white uppercase tracking-wider">
+              Add Exercise
+            </StyledText>
+          </StyledTouchableOpacity>
+        </StyledView>
+      </StyledView>
+    )
+  },
+)
+
 const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   visible,
   workouts,
@@ -163,122 +305,6 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
     setWorkouts(updatedWorkouts)
   }
 
-  const WorkoutItem = ({ workout }: { workout: Workout }) => {
-    const [exerciseName, setExerciseName] = useState('')
-    const [sets, setSets] = useState('3')
-    const [reps, setReps] = useState('12')
-
-    const handleAddExercise = () => {
-      addExercise(
-        workout.id,
-        exerciseName,
-        parseInt(sets, 10) || 3,
-        parseInt(reps, 10) || 12,
-      )
-      setExerciseName('')
-    }
-
-    const renderExercise = ({
-      item: ex,
-      drag,
-      isActive,
-      getIndex,
-    }: RenderItemParams<Exercise>) => (
-      <StyledTouchableOpacity
-        onPress={() => openEditModal(workout.id, ex)}
-        onLongPress={drag}
-        disabled={isActive}
-        activeOpacity={0.7}
-        className={`flex-row items-center justify-between bg-zinc-800/80 border border-zinc-800/40 p-3 rounded-xl mb-2 ${
-          isActive ? 'bg-zinc-700/80 border-indigo-500' : ''
-        }`}>
-        <StyledView className="flex-row items-center flex-1">
-          <StyledView className="mr-2.5">
-            <GripVertical color="#71717a" size={16} />
-          </StyledView>
-          <StyledText className="text-sm font-semibold text-white flex-1">
-            {getIndex()! + 1}. {ex.name}
-          </StyledText>
-        </StyledView>
-        <StyledText className="text-xs text-zinc-500 font-bold mx-3 uppercase tracking-wider">
-          {ex.sets} sets × {ex.reps} reps
-        </StyledText>
-        <Pressable
-          onPress={() => deleteExercise(workout.id, ex.id)}
-          style={{ padding: 4 }}>
-          <X color="#f87171" size={16} />
-        </Pressable>
-      </StyledTouchableOpacity>
-    )
-
-    return (
-      <StyledView className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 mb-4 shadow-xl">
-        <StyledView className="flex-row justify-between items-center mb-3">
-          <StyledText className="text-lg font-black text-white">
-            {workout.name}
-          </StyledText>
-          <StyledTouchableOpacity
-            onPress={() => deleteWorkout(workout.id)}
-            activeOpacity={0.7}
-            className="p-1 bg-red-950/20 border border-red-900/30 rounded-lg">
-            <Trash2 color="#ef4444" size={18} />
-          </StyledTouchableOpacity>
-        </StyledView>
-
-        {workout.exercises.length > 0 ? (
-          <DraggableFlatList
-            data={workout.exercises}
-            renderItem={renderExercise}
-            keyExtractor={(item) => item.id}
-            onDragEnd={({ data }) => updateExerciseOrder(workout.id, data)}
-            scrollEnabled={false}
-          />
-        ) : (
-          <StyledText className="text-zinc-500 text-xs italic mb-2">
-            No exercises added yet.
-          </StyledText>
-        )}
-
-        <StyledView className="pt-3 mt-3 border-t border-zinc-800/60">
-          <StyledView className="flex-row gap-2">
-            <StyledTextInput
-              placeholder="Exercise name"
-              placeholderTextColor="#52525b"
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white font-medium"
-              value={exerciseName}
-              onChangeText={setExerciseName}
-            />
-            <StyledTextInput
-              placeholder="Sets"
-              placeholderTextColor="#52525b"
-              className="w-14 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white text-center font-bold"
-              keyboardType="number-pad"
-              value={sets}
-              onChangeText={setSets}
-            />
-            <StyledTextInput
-              placeholder="Reps"
-              placeholderTextColor="#52525b"
-              className="w-14 bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-sm text-white text-center font-bold"
-              keyboardType="number-pad"
-              value={reps}
-              onChangeText={setReps}
-            />
-          </StyledView>
-          <StyledTouchableOpacity
-            onPress={handleAddExercise}
-            activeOpacity={0.7}
-            className="mt-3 bg-emerald-600 rounded-xl py-2.5 flex-row items-center justify-center space-x-1 shadow-md shadow-emerald-600/10">
-            <Plus color="white" size={16} />
-            <StyledText className="text-xs font-black text-white uppercase tracking-wider">
-              Add Exercise
-            </StyledText>
-          </StyledTouchableOpacity>
-        </StyledView>
-      </StyledView>
-    )
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StyledView className="flex-1 bg-zinc-950 p-4">
@@ -317,7 +343,16 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
         {/* Routines List */}
         <FlatList
           data={workouts}
-          renderItem={({ item }) => <WorkoutItem workout={item} />}
+          renderItem={({ item }) => (
+            <WorkoutItem
+              workout={item}
+              addExercise={addExercise}
+              deleteExercise={deleteExercise}
+              updateExerciseOrder={updateExerciseOrder}
+              openEditModal={openEditModal}
+              deleteWorkout={deleteWorkout}
+            />
+          )}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}

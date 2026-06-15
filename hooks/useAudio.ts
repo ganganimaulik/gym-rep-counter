@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   Audio,
   InterruptionModeIOS,
@@ -188,9 +188,12 @@ export const useAudio = (settings: Settings): AudioHandler => {
     [queueSpeak, femaleVoice],
   )
 
-  return {
-    speak,
-    speakEccentric,
-    queueSpeak,
-  }
+  return useMemo(
+    () => ({
+      speak,
+      speakEccentric,
+      queueSpeak,
+    }),
+    [speak, speakEccentric, queueSpeak],
+  )
 }

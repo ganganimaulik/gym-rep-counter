@@ -203,4 +203,4 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   )
 }
 
-export default WorkoutSelector
+export default React.memo(WorkoutSelector)

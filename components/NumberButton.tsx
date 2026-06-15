@@ -40,4 +40,4 @@ const NumberButton: React.FC<NumberButtonProps> = ({
   )
 }
 
-export default NumberButton
+export default React.memo(NumberButton)

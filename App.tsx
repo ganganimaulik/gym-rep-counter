@@ -10,7 +10,7 @@ configureReanimatedLogger({
   strict: false, // Reanimated runs in strict mode by default
 })
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   SafeAreaView,
   View,
@@ -150,12 +150,14 @@ const App: React.FC = () => {
     ? getNextUncompletedSet(activeExercise.id)
     : 1
 
-  const handleSetComplete = (details: CompletedSetData) => {
+  const continueToNextPhaseRef = useRef<() => void>(() => {})
+
+  const handleSetComplete = useCallback((details: CompletedSetData) => {
     setCompletedSetData(details)
     setAddSetModalVisible(true)
     // Start rest timer immediately - don't wait for user to enter weight/reps
-    continueToNextPhase()
-  }
+    continueToNextPhaseRef.current()
+  }, [])
 
   const nextExerciseItem =
     currentWorkout && currentExerciseIndex < currentWorkout.exercises.length - 1
@@ -190,6 +192,9 @@ const App: React.FC = () => {
     startingSet,
     nextExerciseItem?.name ?? '',
   )
+
+  // Keep ref in sync
+  continueToNextPhaseRef.current = continueToNextPhase
 
   const appState = useRef<AppStateStatus>(AppState.currentState)
 
@@ -266,7 +271,7 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, setDataSettings])
 
-  const selectWorkout = (workoutId: string | null) => {
+  const selectWorkout = useCallback((workoutId: string | null) => {
     stopWorkout()
     if (workoutId === null) {
       setCurrentWorkout(null)
@@ -276,9 +281,9 @@ const App: React.FC = () => {
     const workout = workouts.find((w: Workout) => w.id === workoutId)
     setCurrentWorkout(workout || null)
     setCurrentExerciseIndex(0)
-  }
+  }, [stopWorkout, workouts])
 
-  const nextExercise = () => {
+  const nextExercise = useCallback(() => {
     if (
       currentWorkout &&
       currentExerciseIndex < currentWorkout.exercises.length - 1
@@ -286,24 +291,24 @@ const App: React.FC = () => {
       stopWorkout()
       setCurrentExerciseIndex((prev) => prev + 1)
     }
-  }
+  }, [currentWorkout, currentExerciseIndex, stopWorkout])
 
-  const prevExercise = () => {
+  const prevExercise = useCallback(() => {
     if (currentWorkout && currentExerciseIndex > 0) {
       stopWorkout()
       setCurrentExerciseIndex((prev) => prev - 1)
     }
-  }
+  }, [currentWorkout, currentExerciseIndex, stopWorkout])
 
-  const handleSaveSettings = (newSettings: Settings) => {
+  const handleSaveSettings = useCallback((newSettings: Settings) => {
     saveSettings(newSettings, user)
-  }
+  }, [saveSettings, user])
 
-  const handleSaveWorkouts = (newWorkouts: Workout[]) => {
+  const handleSaveWorkouts = useCallback((newWorkouts: Workout[]) => {
     saveWorkouts(newWorkouts, user)
-  }
+  }, [saveWorkouts, user])
 
-  const handleAddSetDetails = async (reps: number, weight: number) => {
+  const handleAddSetDetails = useCallback(async (reps: number, weight: number) => {
     if (completedSetData && currentWorkout) {
       // Find the exercise that was just completed, instead of relying on activeExercise
       // which might have advanced to the next one already.
@@ -332,7 +337,49 @@ const App: React.FC = () => {
     setAddSetModalVisible(false)
     setCompletedSetData(null)
     // Rest timer already started in handleSetComplete, no need to call continueToNextPhase here
-  }
+  }, [completedSetData, currentWorkout, addHistoryEntry, user])
+
+  const handleOpenRoutines = useCallback((visible: boolean) => {
+    if (visible) setCurrentTab('routines')
+  }, [])
+
+  const handleResetSetsFrom = useCallback((exerciseId: string, setNumber: number) => {
+    resetSetsFrom(exerciseId, setNumber, user)
+  }, [resetSetsFrom, user])
+
+  const wrappedStartWorkout = useCallback(() => {
+    if (
+      activeExercise &&
+      isSetCompleted(activeExercise.id, startingSet)
+    ) {
+      Toast.show({
+        type: 'info',
+        text1: 'Set Already Completed',
+        text2: `You have already completed set ${startingSet} for this exercise.`,
+      })
+      return
+    }
+    startWorkout()
+  }, [activeExercise, isSetCompleted, startingSet, startWorkout])
+
+  const wrappedRunNextSet = useCallback(() => {
+    if (
+      activeExercise &&
+      isSetCompleted(activeExercise.id, currentSet.value)
+    ) {
+      Toast.show({
+        type: 'info',
+        text1: 'Set Already Completed',
+        text2: `You have already completed set ${currentSet.value} for this exercise.`,
+      })
+      return
+    }
+    runNextSet()
+  }, [activeExercise, isSetCompleted, currentSet, runNextSet])
+
+  const handleCloseAddSetModal = useCallback(() => {
+    setAddSetModalVisible(false)
+  }, [])
 
   if (initializing) {
     return <SplashScreen />
@@ -355,17 +402,13 @@ const App: React.FC = () => {
                 currentExerciseIndex={currentExerciseIndex}
                 settings={settings}
                 selectWorkout={selectWorkout}
-                setModalVisible={(visible) => {
-                  if (visible) setCurrentTab('routines')
-                }}
+                setModalVisible={handleOpenRoutines}
                 prevExercise={prevExercise}
                 nextExercise={nextExercise}
                 isSetCompleted={isSetCompleted}
                 activeExerciseId={activeExercise?.id}
                 jumpToSet={jumpToSet}
-                resetSetsFrom={(exerciseId, setNumber) =>
-                  resetSetsFrom(exerciseId, setNumber, user)
-                }
+                resetSetsFrom={handleResetSetsFrom}
                 arePreviousSetsCompleted={arePreviousSetsCompleted}
               />
 
@@ -381,34 +424,8 @@ const App: React.FC = () => {
                 isRunning={isRunning}
                 isResting={isResting}
                 isPaused={isPaused}
-                startWorkout={() => {
-                  if (
-                    activeExercise &&
-                    isSetCompleted(activeExercise.id, startingSet)
-                  ) {
-                    Toast.show({
-                      type: 'info',
-                      text1: 'Set Already Completed',
-                      text2: `You have already completed set ${startingSet} for this exercise.`,
-                    })
-                    return
-                  }
-                  startWorkout()
-                }}
-                runNextSet={() => {
-                  if (
-                    activeExercise &&
-                    isSetCompleted(activeExercise.id, currentSet.value)
-                  ) {
-                    Toast.show({
-                      type: 'info',
-                      text1: 'Set Already Completed',
-                      text2: `You have already completed set ${currentSet.value} for this exercise.`,
-                    })
-                    return
-                  }
-                  runNextSet()
-                }}
+                startWorkout={wrappedStartWorkout}
+                runNextSet={wrappedRunNextSet}
                 stopWorkout={stopWorkout}
                 pauseWorkout={pauseWorkout}
                 endSet={endSet}
@@ -531,9 +548,7 @@ const App: React.FC = () => {
 
       <AddSetDetailsModal
         visible={addSetModalVisible}
-        onClose={() => {
-          setAddSetModalVisible(false)
-        }}
+        onClose={handleCloseAddSetModal}
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
       />

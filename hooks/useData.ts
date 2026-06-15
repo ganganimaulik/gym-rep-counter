@@ -4,6 +4,7 @@ import {
   SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
@@ -370,12 +371,14 @@ export const useData = (): DataHook => {
             id: `${Date.now()}-${entry.exerciseId}-${set}`,
           }
           setTodaysCompletions((prev) => [...prev, offlineEntry])
-          const updatedQueue = [...offlineQueue, offlineEntry]
-          setOfflineQueue(updatedQueue)
-          await AsyncStorage.setItem(
-            'offlineQueue',
-            JSON.stringify(updatedQueue),
-          )
+          setOfflineQueue((prev) => {
+            const updatedQueue = [...prev, offlineEntry]
+            AsyncStorage.setItem(
+              'offlineQueue',
+              JSON.stringify(updatedQueue),
+            )
+            return updatedQueue
+          })
         }
       } else {
         // Guest user
@@ -412,7 +415,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [todaysCompletions, offlineQueue],
+    [],
   )
 
   const updateHistoryEntry = useCallback(
@@ -862,6 +865,52 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const migrateGuestCalorieLogs = useCallback(
+    async (user: FirebaseUser): Promise<CalorieLog[]> => {
+      try {
+        const key = 'guestCalorieLogs'
+        const savedRaw = await AsyncStorage.getItem(key)
+        if (!savedRaw) return []
+
+        const parsed = JSON.parse(savedRaw)
+        if (!Array.isArray(parsed)) return []
+
+        const guestLogs: CalorieLog[] = parsed
+          .filter(
+            (item) =>
+              item && item.date && typeof item.date.seconds === 'number',
+          )
+          .map((item: SerializedCalorieLog) => ({
+            ...item,
+            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+          }))
+
+        if (guestLogs.length === 0) return []
+
+        const batch = writeBatch(db)
+        const collRef = collection(db, 'users', user.uid, 'calorieLogs')
+        const migrated: CalorieLog[] = []
+
+        guestLogs.forEach((entry) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, ...dataToUpload } = entry
+          const docRef = doc(collRef) // Create a new doc with a new ID
+          batch.set(docRef, dataToUpload)
+          migrated.push({ ...entry, id: docRef.id })
+        })
+
+        await batch.commit()
+        await AsyncStorage.removeItem(key)
+        console.log('Guest calorie logs migrated successfully.')
+        return migrated
+      } catch (e) {
+        console.error('Failed to migrate guest calorie logs', e)
+        return []
+      }
+    },
+    [],
+  )
+
   const syncOfflineQueue = useCallback(
     async (user: FirebaseUser) => {
       if (offlineQueue.length === 0) return
@@ -954,6 +1003,7 @@ export const useData = (): DataHook => {
     [
       migrateGuestHistory,
       migrateGuestWeightLogs,
+      migrateGuestCalorieLogs,
       syncOfflineQueue,
       fetchAllTodaysCompletions,
     ],
@@ -1428,89 +1478,85 @@ export const useData = (): DataHook => {
     [],
   )
 
-  const migrateGuestCalorieLogs = useCallback(
-    async (user: FirebaseUser): Promise<CalorieLog[]> => {
-      try {
-        const key = 'guestCalorieLogs'
-        const savedRaw = await AsyncStorage.getItem(key)
-        if (!savedRaw) return []
 
-        const parsed = JSON.parse(savedRaw)
-        if (!Array.isArray(parsed)) return []
-
-        const guestLogs: CalorieLog[] = parsed
-          .filter(
-            (item) =>
-              item && item.date && typeof item.date.seconds === 'number',
-          )
-          .map((item: SerializedCalorieLog) => ({
-            ...item,
-            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
-          }))
-
-        if (guestLogs.length === 0) return []
-
-        const batch = writeBatch(db)
-        const collRef = collection(db, 'users', user.uid, 'calorieLogs')
-        const migrated: CalorieLog[] = []
-
-        guestLogs.forEach((entry) => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { id, ...dataToUpload } = entry
-          const docRef = doc(collRef) // Create a new doc with a new ID
-          batch.set(docRef, dataToUpload)
-          migrated.push({ ...entry, id: docRef.id })
-        })
-
-        await batch.commit()
-        await AsyncStorage.removeItem(key)
-        console.log('Guest calorie logs migrated successfully.')
-        return migrated
-      } catch (e) {
-        console.error('Failed to migrate guest calorie logs', e)
-        return []
-      }
-    },
-    [],
+  return useMemo(
+    () => ({
+      settings,
+      workouts,
+      todaysCompletions,
+      offlineQueue,
+      weightLogs,
+      calorieLogs,
+      loadSettings,
+      saveSettings,
+      loadWorkouts,
+      saveWorkouts,
+      addHistoryEntry,
+      updateHistoryEntry,
+      deleteHistoryEntry,
+      fetchHistory,
+      fetchTodaysCompletions,
+      fetchAllTodaysCompletions,
+      isSetCompleted,
+      getNextUncompletedSet,
+      resetSetsFrom,
+      arePreviousSetsCompleted,
+      syncUserData,
+      migrateGuestHistory,
+      migrateGuestWeightLogs,
+      syncOfflineQueue,
+      fetchFullHistory,
+      fetchWeightLogs,
+      addWeightLog,
+      updateWeightLog,
+      deleteWeightLog,
+      fetchCalorieLogs,
+      addCalorieLog,
+      updateCalorieLog,
+      deleteCalorieLog,
+      migrateGuestCalorieLogs,
+      setWorkouts,
+      setSettings,
+      setOfflineQueue,
+    }),
+    [
+      settings,
+      workouts,
+      todaysCompletions,
+      offlineQueue,
+      weightLogs,
+      calorieLogs,
+      loadSettings,
+      saveSettings,
+      loadWorkouts,
+      saveWorkouts,
+      addHistoryEntry,
+      updateHistoryEntry,
+      deleteHistoryEntry,
+      fetchHistory,
+      fetchTodaysCompletions,
+      fetchAllTodaysCompletions,
+      isSetCompleted,
+      getNextUncompletedSet,
+      resetSetsFrom,
+      arePreviousSetsCompleted,
+      syncUserData,
+      migrateGuestHistory,
+      migrateGuestWeightLogs,
+      syncOfflineQueue,
+      fetchFullHistory,
+      fetchWeightLogs,
+      addWeightLog,
+      updateWeightLog,
+      deleteWeightLog,
+      fetchCalorieLogs,
+      addCalorieLog,
+      updateCalorieLog,
+      deleteCalorieLog,
+      migrateGuestCalorieLogs,
+      setWorkouts,
+      setSettings,
+      setOfflineQueue,
+    ],
   )
-
-  return {
-    settings,
-    workouts,
-    todaysCompletions,
-    offlineQueue,
-    weightLogs,
-    calorieLogs,
-    loadSettings,
-    saveSettings,
-    loadWorkouts,
-    saveWorkouts,
-    addHistoryEntry,
-    updateHistoryEntry,
-    deleteHistoryEntry,
-    fetchHistory,
-    fetchTodaysCompletions,
-    fetchAllTodaysCompletions,
-    isSetCompleted,
-    getNextUncompletedSet,
-    resetSetsFrom,
-    arePreviousSetsCompleted,
-    syncUserData,
-    migrateGuestHistory,
-    migrateGuestWeightLogs,
-    syncOfflineQueue,
-    fetchFullHistory,
-    fetchWeightLogs,
-    addWeightLog,
-    updateWeightLog,
-    deleteWeightLog,
-    fetchCalorieLogs,
-    addCalorieLog,
-    updateCalorieLog,
-    deleteCalorieLog,
-    migrateGuestCalorieLogs,
-    setWorkouts,
-    setSettings,
-    setOfflineQueue,
-  }
 }

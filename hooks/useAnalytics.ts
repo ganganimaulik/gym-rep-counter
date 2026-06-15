@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import type { User as FirebaseUser } from 'firebase/auth'
 import type {
   WorkoutSet,
@@ -80,15 +80,28 @@ export const useAnalytics = (dataHook: DataHook): AnalyticsHook => {
     [history],
   )
 
-  return {
-    isLoading,
-    error,
-    prs,
-    streak,
-    weeklyVolume,
-    monthlyVolume,
-    exercises,
-    getExerciseTrends,
-    refreshAnalytics,
-  }
+  return useMemo(
+    () => ({
+      isLoading,
+      error,
+      prs,
+      streak,
+      weeklyVolume,
+      monthlyVolume,
+      exercises,
+      getExerciseTrends,
+      refreshAnalytics,
+    }),
+    [
+      isLoading,
+      error,
+      prs,
+      streak,
+      weeklyVolume,
+      monthlyVolume,
+      exercises,
+      getExerciseTrends,
+      refreshAnalytics,
+    ],
+  )
 }

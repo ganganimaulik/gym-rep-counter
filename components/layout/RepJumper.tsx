@@ -45,4 +45,4 @@ const RepJumper: React.FC<RepJumperProps> = ({
   )
 }
 
-export default RepJumper
+export default React.memo(RepJumper)
