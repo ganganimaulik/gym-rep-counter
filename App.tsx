@@ -10,7 +10,7 @@ configureReanimatedLogger({
   strict: false, // Reanimated runs in strict mode by default
 })
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   SafeAreaView,
   View,
@@ -22,7 +22,7 @@ import {
   AppStateStatus,
 } from 'react-native'
 import { styled } from 'nativewind'
-import { useKeepAwake } from 'expo-keep-awake'
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import {
   Settings as SettingsIcon,
   History,
@@ -43,7 +43,6 @@ import { useAuth } from './hooks/useAuth'
 import { useData, Settings, Workout } from './hooks/useData'
 import { useAudio } from './hooks/useAudio'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
-import { useAnalytics } from './hooks/useAnalytics'
 
 // Components
 import SettingsModal from './components/SettingsModal'
@@ -73,7 +72,6 @@ interface CompletedSetData {
 }
 
 const App: React.FC = () => {
-  useKeepAwake()
 
   // UI State
   const [currentTab, setCurrentTab] = useState<
@@ -110,7 +108,7 @@ const App: React.FC = () => {
     fetchCalorieLogs,
   } = dataHook
 
-  const analyticsHook = useAnalytics(dataHook)
+
 
   const onAuthSuccess = useCallback(
     async (firebaseUser: FirebaseUser | null) => {
@@ -343,6 +341,18 @@ const App: React.FC = () => {
     if (visible) setCurrentTab('routines')
   }, [])
 
+  // Conditional keep-awake: only keep screen on during active workout or rest phase
+  useEffect(() => {
+    if (isRunning || isResting) {
+      activateKeepAwakeAsync('workout')
+    } else {
+      deactivateKeepAwake('workout')
+    }
+    return () => {
+      deactivateKeepAwake('workout')
+    }
+  }, [isRunning, isResting])
+
   const handleResetSetsFrom = useCallback((exerciseId: string, setNumber: number) => {
     resetSetsFrom(exerciseId, setNumber, user)
   }, [resetSetsFrom, user])
@@ -449,24 +459,25 @@ const App: React.FC = () => {
           />
         )}
 
-        {currentTab === 'history' && (
+        {/* Keep HistoryScreen mounted but hidden to preserve scroll position */}
+        <StyledView style={{ flex: 1, display: currentTab === 'history' ? 'flex' : 'none' }}>
           <HistoryScreen
-            visible={true}
+            visible={currentTab === 'history'}
             onClose={() => setCurrentTab('workout')}
             user={user}
             dataHook={dataHook}
           />
-        )}
+        </StyledView>
 
-        {currentTab === 'analytics' && (
+        {/* Keep ProgressScreen mounted but hidden to preserve state */}
+        <StyledView style={{ flex: 1, display: currentTab === 'analytics' ? 'flex' : 'none' }}>
           <ProgressScreen
-            visible={true}
+            visible={currentTab === 'analytics'}
             onClose={() => setCurrentTab('workout')}
             user={user}
-            analyticsHook={analyticsHook}
             dataHook={dataHook}
           />
-        )}
+        </StyledView>
 
         {currentTab === 'settings' && (
           <SettingsModal

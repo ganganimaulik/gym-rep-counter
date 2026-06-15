@@ -206,6 +206,8 @@ export function calculateStreak(
 
 /**
  * Calculate workout volume aggregated by week or month
+ * Optimized: builds a date-indexed volume map in a single pass over history,
+ * then sums relevant date buckets per period (O(n + m*d) vs O(n*m))
  */
 export function calculateVolume(
   history: WorkoutSet[],
@@ -214,6 +216,18 @@ export function calculateVolume(
 ): VolumeData[] {
   if (history.length === 0) {
     return []
+  }
+
+  // Single pass: build a map of date string -> total volume for that day
+  const dailyVolume = new Map<string, number>()
+  for (const set of history) {
+    const d = set.date.toDate()
+    const year = d.getFullYear()
+    const month = (d.getMonth() + 1).toString().padStart(2, '0')
+    const day = d.getDate().toString().padStart(2, '0')
+    const dateKey = `${year}-${month}-${day}`
+    const volume = set.weight * set.reps
+    dailyVolume.set(dateKey, (dailyVolume.get(dateKey) || 0) + volume)
   }
 
   const now = new Date()
@@ -228,12 +242,16 @@ export function calculateVolume(
       weekEndDate.setDate(weekEndDate.getDate() + 6)
       weekEndDate.setHours(23, 59, 59, 999)
 
+      // Sum volume for each day in this week from the pre-built map
       let totalVolume = 0
-      for (const set of history) {
-        const setDate = set.date.toDate()
-        if (setDate >= weekStart && setDate <= weekEndDate) {
-          totalVolume += set.weight * set.reps
-        }
+      const cursor = new Date(weekStart)
+      for (let d = 0; d < 7; d++) {
+        const year = cursor.getFullYear()
+        const month = (cursor.getMonth() + 1).toString().padStart(2, '0')
+        const day = cursor.getDate().toString().padStart(2, '0')
+        const dateKey = `${year}-${month}-${day}`
+        totalVolume += dailyVolume.get(dateKey) || 0
+        cursor.setDate(cursor.getDate() + 1)
       }
 
       volumeData.unshift({
@@ -262,12 +280,15 @@ export function calculateVolume(
         999,
       )
 
+      // Sum volume for each day in this month from the pre-built map
       let totalVolume = 0
-      for (const set of history) {
-        const setDate = set.date.toDate()
-        if (setDate >= monthStart && setDate <= monthEnd) {
-          totalVolume += set.weight * set.reps
-        }
+      const daysInMonth = monthEnd.getDate()
+      for (let d = 1; d <= daysInMonth; d++) {
+        const year = monthStart.getFullYear()
+        const month = (monthStart.getMonth() + 1).toString().padStart(2, '0')
+        const day = d.toString().padStart(2, '0')
+        const dateKey = `${year}-${month}-${day}`
+        totalVolume += dailyVolume.get(dateKey) || 0
       }
 
       const monthNames = [

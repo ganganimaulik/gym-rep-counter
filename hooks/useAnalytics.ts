@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useReducer, useCallback, useMemo } from 'react'
 import type { User as FirebaseUser } from 'firebase/auth'
 import type {
   WorkoutSet,
@@ -35,39 +35,95 @@ const defaultStreak: StreakInfo = {
   currentWeekWorkouts: 0,
 }
 
+interface AnalyticsState {
+  isLoading: boolean
+  error: string | null
+  history: WorkoutSet[]
+  prs: PRRecord[]
+  streak: StreakInfo
+  weeklyVolume: VolumeData[]
+  monthlyVolume: VolumeData[]
+  exercises: { id: string; name: string }[]
+}
+
+type AnalyticsAction =
+  | { type: 'REFRESH_START' }
+  | {
+      type: 'REFRESH_SUCCESS'
+      payload: {
+        history: WorkoutSet[]
+        prs: PRRecord[]
+        streak: StreakInfo
+        weeklyVolume: VolumeData[]
+        monthlyVolume: VolumeData[]
+        exercises: { id: string; name: string }[]
+      }
+    }
+  | { type: 'REFRESH_ERROR'; error: string }
+
+const initialState: AnalyticsState = {
+  isLoading: false,
+  error: null,
+  history: [],
+  prs: [],
+  streak: defaultStreak,
+  weeklyVolume: [],
+  monthlyVolume: [],
+  exercises: [],
+}
+
+function analyticsReducer(
+  state: AnalyticsState,
+  action: AnalyticsAction,
+): AnalyticsState {
+  switch (action.type) {
+    case 'REFRESH_START':
+      return { ...state, isLoading: true, error: null }
+    case 'REFRESH_SUCCESS':
+      return {
+        ...state,
+        isLoading: false,
+        error: null,
+        ...action.payload,
+      }
+    case 'REFRESH_ERROR':
+      return { ...state, isLoading: false, error: action.error }
+    default:
+      return state
+  }
+}
+
 export const useAnalytics = (dataHook: DataHook): AnalyticsHook => {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [history, setHistory] = useState<WorkoutSet[]>([])
-  const [prs, setPRs] = useState<PRRecord[]>([])
-  const [streak, setStreak] = useState<StreakInfo>(defaultStreak)
-  const [weeklyVolume, setWeeklyVolume] = useState<VolumeData[]>([])
-  const [monthlyVolume, setMonthlyVolume] = useState<VolumeData[]>([])
-  const [exercises, setExercises] = useState<{ id: string; name: string }[]>([])
+  const [state, dispatch] = useReducer(analyticsReducer, initialState)
 
   const { fetchFullHistory } = dataHook
 
   const refreshAnalytics = useCallback(
     async (user: FirebaseUser | null) => {
-      setIsLoading(true)
-      setError(null)
+      dispatch({ type: 'REFRESH_START' })
 
       try {
         // Fetch all history for last 90 days
         const fullHistory = await fetchFullHistory(user, 90)
-        setHistory(fullHistory)
 
-        // Calculate all analytics
-        setPRs(calculatePRs(fullHistory))
-        setStreak(calculateStreak(fullHistory, 5))
-        setWeeklyVolume(calculateVolume(fullHistory, 'week', 8))
-        setMonthlyVolume(calculateVolume(fullHistory, 'month', 6))
-        setExercises(getUniqueExercises(fullHistory))
+        // Calculate all analytics and dispatch a single update
+        dispatch({
+          type: 'REFRESH_SUCCESS',
+          payload: {
+            history: fullHistory,
+            prs: calculatePRs(fullHistory),
+            streak: calculateStreak(fullHistory, 5),
+            weeklyVolume: calculateVolume(fullHistory, 'week', 8),
+            monthlyVolume: calculateVolume(fullHistory, 'month', 6),
+            exercises: getUniqueExercises(fullHistory),
+          },
+        })
       } catch (e) {
         console.error('Failed to refresh analytics', e)
-        setError('Failed to load analytics data')
-      } finally {
-        setIsLoading(false)
+        dispatch({
+          type: 'REFRESH_ERROR',
+          error: 'Failed to load analytics data',
+        })
       }
     },
     [fetchFullHistory],
@@ -75,33 +131,23 @@ export const useAnalytics = (dataHook: DataHook): AnalyticsHook => {
 
   const getExerciseTrends = useCallback(
     (exerciseId: string): TrendData[] => {
-      return calculateTrends(history, exerciseId)
+      return calculateTrends(state.history, exerciseId)
     },
-    [history],
+    [state.history],
   )
 
   return useMemo(
     () => ({
-      isLoading,
-      error,
-      prs,
-      streak,
-      weeklyVolume,
-      monthlyVolume,
-      exercises,
+      isLoading: state.isLoading,
+      error: state.error,
+      prs: state.prs,
+      streak: state.streak,
+      weeklyVolume: state.weeklyVolume,
+      monthlyVolume: state.monthlyVolume,
+      exercises: state.exercises,
       getExerciseTrends,
       refreshAnalytics,
     }),
-    [
-      isLoading,
-      error,
-      prs,
-      streak,
-      weeklyVolume,
-      monthlyVolume,
-      exercises,
-      getExerciseTrends,
-      refreshAnalytics,
-    ],
+    [state, getExerciseTrends, refreshAnalytics],
   )
 }

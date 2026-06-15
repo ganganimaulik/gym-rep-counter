@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { TrendData, WeightLog, CalorieLog } from '../declarations'
-import { AnalyticsHook } from '../hooks/useAnalytics'
+import { useAnalytics } from '../hooks/useAnalytics'
 import { DataHook } from '../hooks/useData'
 
 const StyledView = styled(View)
@@ -43,7 +43,6 @@ interface ProgressScreenProps {
   visible: boolean
   onClose: () => void
   user: FirebaseUser | null
-  analyticsHook: AnalyticsHook
   dataHook: DataHook
 }
 
@@ -68,9 +67,10 @@ const chartConfig = {
 const ProgressScreen: React.FC<ProgressScreenProps> = ({
   visible,
   user,
-  analyticsHook,
   dataHook,
 }) => {
+  // Analytics hook is initialized here so computations only run when this tab is active
+  const analyticsHook = useAnalytics(dataHook)
   const {
     isLoading,
     error,
@@ -249,9 +249,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     })
   }
 
-  if (!visible) return null
-
-  const volumeChartData = {
+  const volumeChartData = useMemo(() => ({
     labels: weeklyVolume.map((v) => v.label),
     datasets: [
       {
@@ -261,9 +259,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             : [0],
       },
     ],
-  }
+  }), [weeklyVolume])
 
-  const trendsChartData = {
+  const trendsChartData = useMemo(() => ({
     labels: exerciseTrends.slice(-10).map((t) => formatDate(t.date)),
     datasets: [
       {
@@ -275,7 +273,33 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
         strokeWidth: 2.5,
       },
     ],
-  }
+  }), [exerciseTrends])
+
+  const weightChartData = useMemo(() => {
+    const reversed = [...weightLogs].reverse().slice(-7)
+    return {
+      labels: reversed.map((log) => formatChartDate(log.date.toDate())),
+      datasets: [
+        {
+          data: reversed.map((log) => log.weight),
+        },
+      ],
+    }
+  }, [weightLogs])
+
+  const calorieChartData = useMemo(() => {
+    const reversed = [...calorieLogs].reverse().slice(-7)
+    return {
+      labels: reversed.map((log) => formatChartDate(log.date.toDate())),
+      datasets: [
+        {
+          data: reversed.map((log) => log.calories),
+        },
+      ],
+    }
+  }, [calorieLogs])
+
+  if (!visible) return null
 
   return (
     <StyledView className="flex-1 bg-zinc-950 p-4">
@@ -515,20 +539,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             </StyledText>
             {weightLogs.length > 1 ? (
               <LineChart
-                data={{
-                  labels: [...weightLogs]
-                    .reverse()
-                    .slice(-7)
-                    .map((log) => formatChartDate(log.date.toDate())),
-                  datasets: [
-                    {
-                      data: [...weightLogs]
-                        .reverse()
-                        .slice(-7)
-                        .map((log) => log.weight),
-                    },
-                  ],
-                }}
+                data={weightChartData}
                 width={screenWidth}
                 height={170}
                 chartConfig={{
@@ -566,20 +577,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             </StyledText>
             {calorieLogs.length > 1 ? (
               <LineChart
-                data={{
-                  labels: [...calorieLogs]
-                    .reverse()
-                    .slice(-7)
-                    .map((log) => formatChartDate(log.date.toDate())),
-                  datasets: [
-                    {
-                      data: [...calorieLogs]
-                        .reverse()
-                        .slice(-7)
-                        .map((log) => log.calories),
-                    },
-                  ],
-                }}
+                data={calorieChartData}
                 width={screenWidth}
                 height={170}
                 chartConfig={{

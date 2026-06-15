@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Modal,
   View,
@@ -222,31 +222,33 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     )
   }
 
-  const groupedHistory = history
-    .filter((item) => item.date && typeof item.date.toDate === 'function')
-    .reduce(
-      (acc, item) => {
-        const d = item.date.toDate()
-        const year = d.getFullYear()
-        const month = (d.getMonth() + 1).toString().padStart(2, '0')
-        const day = d.getDate().toString().padStart(2, '0')
-        const dateKey = `${year}-${month}-${day}`
+  const sections = useMemo(() => {
+    const grouped = history
+      .filter((item) => item.date && typeof item.date.toDate === 'function')
+      .reduce(
+        (acc, item) => {
+          const d = item.date.toDate()
+          const year = d.getFullYear()
+          const month = (d.getMonth() + 1).toString().padStart(2, '0')
+          const day = d.getDate().toString().padStart(2, '0')
+          const dateKey = `${year}-${month}-${day}`
 
-        if (!acc[dateKey]) {
-          acc[dateKey] = []
-        }
-        acc[dateKey].push(item)
-        return acc
-      },
-      {} as Record<string, WorkoutSet[]>,
-    )
+          if (!acc[dateKey]) {
+            acc[dateKey] = []
+          }
+          acc[dateKey].push(item)
+          return acc
+        },
+        {} as Record<string, WorkoutSet[]>,
+      )
 
-  const sections = Object.keys(groupedHistory)
-    .sort((a, b) => b.localeCompare(a)) // Sorts YYYY-MM-DD strings descending
-    .map((date) => ({
-      title: date,
-      data: groupedHistory[date],
-    }))
+    return Object.keys(grouped)
+      .sort((a, b) => b.localeCompare(a)) // Sorts YYYY-MM-DD strings descending
+      .map((date) => ({
+        title: date,
+        data: grouped[date],
+      }))
+  }, [history])
 
   if (!visible) return null
 
