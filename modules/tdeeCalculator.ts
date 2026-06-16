@@ -452,6 +452,13 @@ export function calculateTDEEPipeline(
   // Track first week to prevent skewed initial deltas if startingWeight config is inaccurate
   let isFirstWeekWithWeight = true
 
+  // Pre-calculate raw weight anchors for retroactive linear interpolation of missing weeks
+  const rawAnchors: (number | null)[] = weekInputs.map((input) => {
+    const validWeights = input.dailyWeights.filter((w) => w !== null) as number[]
+    if (validWeights.length === 0) return null
+    return validWeights.reduce((a, b) => a + b, 0) / validWeights.length
+  })
+
   for (let i = 0; i < weekInputs.length; i++) {
     const input = weekInputs[i]
     const weekEnd = new Date(input.weekStart)
@@ -470,9 +477,28 @@ export function calculateTDEEPipeline(
     const gapFilledCalories = gapFillWeek(input.dailyCalories, prevAvgCalories)
 
     // Weekly averages
-    const avgWeight = gapFilledWeights
-      ? calculateWeeklyAverage(gapFilledWeights)
-      : null
+    let avgWeight: number | null = null
+
+    if (gapFilledWeights !== null) {
+      avgWeight = calculateWeeklyAverage(gapFilledWeights)
+    } else {
+      // Retroactive Linear Interpolation for missing weeks
+      let nextAnchor: number | null = null
+      let missingCount = 0
+
+      for (let j = i + 1; j < rawAnchors.length; j++) {
+        if (rawAnchors[j] !== null) {
+          nextAnchor = rawAnchors[j]
+          missingCount = j - i
+          break
+        }
+      }
+
+      if (nextAnchor !== null && prevAvgWeight !== null) {
+        const stepSize = (nextAnchor - prevAvgWeight) / (missingCount + 1)
+        avgWeight = prevAvgWeight + stepSize
+      }
+    }
     const avgCalories = gapFilledCalories
       ? calculateWeeklyAverage(gapFilledCalories)
       : null
