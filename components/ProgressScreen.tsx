@@ -33,6 +33,7 @@ import type { TrendData, WeightLog, CalorieLog } from '../declarations'
 import { useAnalytics } from '../hooks/useAnalytics'
 import { DataHook } from '../hooks/useData'
 import TDEEScreen from './TDEEScreen'
+import { globalStyles } from '../utils/globalStyles'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -52,6 +53,8 @@ const screenWidth = Dimensions.get('window').width - 32
 const chartConfig = {
   backgroundGradientFrom: '#18181b',
   backgroundGradientTo: '#18181b',
+  backgroundGradientFromOpacity: 0,
+  backgroundGradientToOpacity: 0,
   decimalPlaces: 0,
   color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
   labelColor: (opacity = 1) => `rgba(161, 161, 170, ${opacity})`,
@@ -490,7 +493,8 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   <Picker
                     selectedValue={selectedExercise}
                     onValueChange={setSelectedExercise}
-                    style={styles.picker}
+                    style={globalStyles.picker}
+                    itemStyle={globalStyles.pickerItem}
                     dropdownIconColor="white">
                     {exercises.map((ex) => (
                       <Picker.Item key={ex.id} label={ex.name} value={ex.id} />
@@ -803,13 +807,4 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
       </Modal>
     </StyledView>
   )
-}
-
-const styles = StyleSheet.create({
-  // eslint-disable-next-line react-native/no-color-literals
-  picker: {
-    color: 'white',
-  },
-})
-
 export default ProgressScreen

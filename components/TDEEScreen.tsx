@@ -26,9 +26,10 @@ import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { TDEEConfig, WeightLog, CalorieLog } from '../declarations'
+import type { TDEEConfig } from '../declarations'
 import { useTDEE } from '../hooks/useTDEE'
 import { DataHook } from '../hooks/useData'
+import { globalStyles } from '../utils/globalStyles'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -46,6 +47,8 @@ const screenWidth = Dimensions.get('window').width - 32
 const tdeeChartConfig = {
   backgroundGradientFrom: '#18181b',
   backgroundGradientTo: '#18181b',
+  backgroundGradientFromOpacity: 0,
+  backgroundGradientToOpacity: 0,
   decimalPlaces: 0,
   color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
   labelColor: (opacity = 1) => `rgba(161, 161, 170, ${opacity})`,
@@ -99,6 +102,8 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
     if (tdeeConfig) {
       setGoalWeightInput(tdeeConfig.goalWeight?.toString() ?? '')
       setGoalRateInput(tdeeConfig.goalWeeklyRate?.toString() ?? '')
+      setSetupWeightUnit(tdeeConfig.weightUnit ?? 'kg')
+      setSetupEnergyUnit(tdeeConfig.energyUnit ?? 'cal')
     }
   }, [tdeeConfig])
 
@@ -117,39 +122,39 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
     await saveTDEEConfig(config, user)
   }, [setupWeightUnit, setupEnergyUnit, saveTDEEConfig, user])
 
-  const handleResetConfig = useCallback(() => {
-    Alert.alert(
-      'Reset TDEE Tracker',
-      'Are you sure? This will reset your TDEE settings but will keep all your weight and calorie history.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
-          style: 'destructive',
-          onPress: () => {
-            deleteTDEEConfig(user);
-            Alert.alert('Reset Successful', 'Your TDEE configuration has been cleared.');
-          }
-        }
-      ]
-    )
-  }, [deleteTDEEConfig, user])
-
   const handleSaveGoals = useCallback(async () => {
     if (!tdeeConfig) return
 
-    const goalWeight = parseFloat(goalWeightInput)
-    const goalRate = parseFloat(goalRateInput)
+    let gw: number | undefined
+    let rate: number | undefined
+
+    if (goalWeightInput.trim()) {
+      gw = parseFloat(goalWeightInput)
+      if (isNaN(gw) || gw <= 0) {
+        Alert.alert('Invalid Goal Weight', 'Please enter a valid goal weight.')
+        return
+      }
+    }
+
+    if (goalRateInput.trim()) {
+      rate = parseFloat(goalRateInput)
+      if (isNaN(rate) || rate <= 0) {
+        Alert.alert('Invalid Rate', 'Please enter a valid weekly rate.')
+        return
+      }
+    }
 
     const updatedConfig: TDEEConfig = {
       ...tdeeConfig,
-      goalWeight: !isNaN(goalWeight) && goalWeight > 0 ? goalWeight : undefined,
-      goalWeeklyRate: !isNaN(goalRate) && goalRate > 0 ? goalRate : undefined,
+      weightUnit: setupWeightUnit,
+      energyUnit: setupEnergyUnit,
+      goalWeight: gw,
+      goalWeeklyRate: rate,
     }
 
     await saveTDEEConfig(updatedConfig, user)
-    Alert.alert('Saved', 'Goal settings updated.')
-  }, [tdeeConfig, goalWeightInput, goalRateInput, saveTDEEConfig, user])
+    Alert.alert('Saved', 'Settings updated successfully.')
+  }, [tdeeConfig, goalWeightInput, goalRateInput, setupWeightUnit, setupEnergyUnit, saveTDEEConfig, user])
 
   const handleQuickLog = useCallback(async () => {
     const weightNum = parseFloat(logWeight)
@@ -245,8 +250,8 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
             <Picker
               selectedValue={setupWeightUnit}
               onValueChange={setSetupWeightUnit}
-              style={styles.picker}
-              itemStyle={{ color: 'white' }}
+              style={globalStyles.picker}
+              itemStyle={globalStyles.pickerItem}
               dropdownIconColor="white"
             >
               <Picker.Item label="Kilograms (kg)" value="kg" />
@@ -261,14 +266,16 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
             <Picker
               selectedValue={setupEnergyUnit}
               onValueChange={setSetupEnergyUnit}
-              style={styles.picker}
-              itemStyle={{ color: 'white' }}
+              style={globalStyles.picker}
+              itemStyle={globalStyles.pickerItem}
               dropdownIconColor="white"
             >
               <Picker.Item label="Calories (cal)" value="cal" />
               <Picker.Item label="Kilojoules (kJ)" value="kj" />
             </Picker>
           </StyledView>
+
+          <StyledView className="mb-4" />
 
           <StyledTouchableOpacity
             onPress={handleStartTracking}
@@ -372,16 +379,16 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
           </StyledText>
           <LineChart
             data={tdeeChartData}
-            width={screenWidth + 16}
+            width={screenWidth}
             height={170}
             chartConfig={tdeeChartConfig}
             bezier
-            style={{ borderRadius: 12, marginLeft: -24, paddingRight: 40 }}
+            style={{ borderRadius: 12, marginLeft: -12 }}
           />
         </StyledView>
       )}
 
-      {/* ─── Goal Settings Card (Collapsible) ─── */}
+      {/* ─── Settings Card (Collapsible) ─── */}
       {isConfigured && (
         <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl mb-4 shadow-xl overflow-hidden">
           <StyledTouchableOpacity
@@ -390,9 +397,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
             className="flex-row items-center justify-between p-4"
           >
             <StyledView className="flex-row items-center">
-              <Target color="#f59e0b" size={18} />
+              <Settings2 color="#f59e0b" size={18} />
               <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
-                Goal Settings
+                Settings
               </StyledText>
             </StyledView>
             {goalExpanded ? (
@@ -486,23 +493,45 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
                 </StyledView>
               )}
 
+              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                Weight Unit
+              </StyledText>
+              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
+                <Picker
+                  selectedValue={setupWeightUnit}
+                  onValueChange={setSetupWeightUnit}
+                  style={globalStyles.picker}
+                  itemStyle={globalStyles.pickerItem}
+                  dropdownIconColor="white"
+                >
+                  <Picker.Item label="Kilograms (kg)" value="kg" />
+                  <Picker.Item label="Pounds (lb)" value="lb" />
+                </Picker>
+              </StyledView>
+
+              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                Energy Unit
+              </StyledText>
+              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-6 overflow-hidden">
+                <Picker
+                  selectedValue={setupEnergyUnit}
+                  onValueChange={setSetupEnergyUnit}
+                  style={globalStyles.picker}
+                  itemStyle={globalStyles.pickerItem}
+                  dropdownIconColor="white"
+                >
+                  <Picker.Item label="Calories (cal)" value="cal" />
+                  <Picker.Item label="Kilojoules (kj)" value="kj" />
+                </Picker>
+              </StyledView>
+
               <StyledTouchableOpacity
                 onPress={handleSaveGoals}
                 activeOpacity={0.85}
-                className="bg-emerald-600 py-3 rounded-xl items-center shadow-lg mb-3"
+                className="bg-emerald-600 py-3 rounded-xl items-center shadow-lg"
               >
                 <StyledText className="text-white text-sm font-black uppercase tracking-wider">
-                  Save Goals
-                </StyledText>
-              </StyledTouchableOpacity>
-
-              <StyledTouchableOpacity
-                onPress={handleResetConfig}
-                activeOpacity={0.85}
-                className="border border-red-500/50 bg-red-500/10 py-3 rounded-xl items-center"
-              >
-                <StyledText className="text-red-400 text-sm font-black uppercase tracking-wider">
-                  Reset Tracker
+                  Save Settings
                 </StyledText>
               </StyledTouchableOpacity>
             </StyledView>
@@ -585,7 +614,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
           <StyledView className="flex-row items-center mb-3">
             <Scale color="#6366f1" size={18} />
             <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
-              Log Today's Stats
+              Log Today&apos;s Stats
             </StyledText>
           </StyledView>
 
@@ -637,12 +666,5 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({ user, dataHook }) => {
     </StyledScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  // eslint-disable-next-line react-native/no-color-literals
-  picker: {
-    color: 'white',
-  },
-})
 
 export default TDEEScreen
