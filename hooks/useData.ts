@@ -28,7 +28,12 @@ import {
 import { db } from '../utils/firebase'
 import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { WorkoutSet, WeightLog, CalorieLog, TDEEConfig } from '../declarations'
+import type {
+  WorkoutSet,
+  WeightLog,
+  CalorieLog,
+  TDEEConfig,
+} from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
 // Interface for a WorkoutSet object that has been serialized to JSON
@@ -381,10 +386,7 @@ export const useData = (): DataHook => {
           setTodaysCompletions((prev) => [...prev, offlineEntry])
           setOfflineQueue((prev) => {
             const updatedQueue = [...prev, offlineEntry]
-            AsyncStorage.setItem(
-              'offlineQueue',
-              JSON.stringify(updatedQueue),
-            )
+            AsyncStorage.setItem('offlineQueue', JSON.stringify(updatedQueue))
             return updatedQueue
           })
         }
@@ -1525,23 +1527,25 @@ export const useData = (): DataHook => {
     [],
   )
 
-  const deleteTDEEConfig = useCallback(async (user: FirebaseUser | null): Promise<void> => {
-    try {
-      setTdeeConfig(null)
-      await AsyncStorage.removeItem('tdeeConfig')
-      if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid)
-          await updateDoc(docRef, { tdeeConfig: deleteField() })
-        } catch (e) {
-          console.error('Failed to delete TDEE config from Firestore', e)
+  const deleteTDEEConfig = useCallback(
+    async (user: FirebaseUser | null): Promise<void> => {
+      try {
+        setTdeeConfig(null)
+        await AsyncStorage.removeItem('tdeeConfig')
+        if (user) {
+          try {
+            const docRef = doc(db, 'users', user.uid)
+            await updateDoc(docRef, { tdeeConfig: deleteField() })
+          } catch (e) {
+            console.error('Failed to delete TDEE config from Firestore', e)
+          }
         }
+      } catch (e) {
+        console.error('Failed to delete TDEE config', e)
       }
-    } catch (e) {
-      console.error('Failed to delete TDEE config', e)
-    }
-  }, [])
-
+    },
+    [],
+  )
 
   return useMemo(
     () => ({

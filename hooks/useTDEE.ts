@@ -135,11 +135,7 @@ export function useTDEE(
 
     if (!tdeeConfig) {
       const fallbackSeed = startingWeight
-        ? calculateSeedTDEE(
-            startingWeight,
-            'kg',
-            'cal',
-          )
+        ? calculateSeedTDEE(startingWeight, 'kg', 'cal')
         : 0
       return {
         weeks: [],
@@ -162,8 +158,12 @@ export function useTDEE(
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
     const oneYearAgoMillis = oneYearAgo.getTime()
 
-    const recentWeightLogs = weightLogs.filter((l) => l.date.toMillis() >= oneYearAgoMillis)
-    const recentCalorieLogs = calorieLogs.filter((l) => l.date.toMillis() >= oneYearAgoMillis)
+    const recentWeightLogs = weightLogs.filter(
+      (l) => l.date.toMillis() >= oneYearAgoMillis,
+    )
+    const recentCalorieLogs = calorieLogs.filter(
+      (l) => l.date.toMillis() >= oneYearAgoMillis,
+    )
 
     // Group logs into weekly buckets
     const weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)

@@ -70,8 +70,10 @@ export function getSeedMultiplier(
   weightUnit: WeightUnit,
   energyUnit: EnergyUnit,
 ): number {
-  if (weightUnit === 'lb' && energyUnit === 'cal') return SEED_MULTIPLIER_KCAL_LB
-  if (weightUnit === 'kg' && energyUnit === 'cal') return SEED_MULTIPLIER_KCAL_KG
+  if (weightUnit === 'lb' && energyUnit === 'cal')
+    return SEED_MULTIPLIER_KCAL_LB
+  if (weightUnit === 'kg' && energyUnit === 'cal')
+    return SEED_MULTIPLIER_KCAL_KG
   if (weightUnit === 'lb' && energyUnit === 'kj') return SEED_MULTIPLIER_KJ_LB
   return SEED_MULTIPLIER_KJ_KG // kg + kj
 }
@@ -195,7 +197,7 @@ export function calculateRawTDEE(
   calorieDayCount: number,
 ): number {
   if (calorieDayCount === 0) return avgCalories
-  return avgCalories + ((-weightDelta * energyPerUnit) / calorieDayCount)
+  return avgCalories + (-weightDelta * energyPerUnit) / calorieDayCount
 }
 
 // ---------------------------------------------------------------------------
@@ -256,8 +258,7 @@ export function calculateBodyFatPercent(
   hip?: number,
 ): number | null {
   // Convert cm to inches if needed (spreadsheet divides by 2.54 inline)
-  const toInch = (v: number) =>
-    measurementUnit === 'cm' ? v / 2.54 : v
+  const toInch = (v: number) => (measurementUnit === 'cm' ? v / 2.54 : v)
 
   const w = toInch(waist)
   const n = toInch(neck)
@@ -273,8 +274,7 @@ export function calculateBodyFatPercent(
     const hp = toInch(hip)
     const sum = w + hp - n
     if (sum <= 0) return null
-    const raw =
-      163.205 * Math.log10(sum) - 97.684 * Math.log10(h) - 78.387
+    const raw = 163.205 * Math.log10(sum) - 97.684 * Math.log10(h) - 78.387
     return Math.round(raw) / 100
   }
 }
@@ -437,7 +437,10 @@ export function calculateTDEEPipeline(
   } = config
 
   const energyPerUnit = getEnergyPerUnit(weightUnit, energyUnit)
-  const seedTDEE = startingWeight !== null ? calculateSeedTDEE(startingWeight, weightUnit, energyUnit) : 0
+  const seedTDEE =
+    startingWeight !== null
+      ? calculateSeedTDEE(startingWeight, weightUnit, energyUnit)
+      : 0
 
   const weeks: WeekResult[] = []
   const smoothedTDEEHistory: number[] = []
@@ -448,13 +451,15 @@ export function calculateTDEEPipeline(
   let prevAvgCalories: number = seedTDEE
   // Track the latest known weight (AI column)
   let latestKnownWeight: number | null = startingWeight
-  
+
   // Track first week to prevent skewed initial deltas if startingWeight config is inaccurate
   let isFirstWeekWithWeight = true
 
   // Pre-calculate raw weight anchors for retroactive linear interpolation of missing weeks
   const rawAnchors: (number | null)[] = weekInputs.map((input) => {
-    const validWeights = input.dailyWeights.filter((w) => w !== null) as number[]
+    const validWeights = input.dailyWeights.filter(
+      (w) => w !== null,
+    ) as number[]
     if (validWeights.length === 0) return null
     return validWeights.reduce((a, b) => a + b, 0) / validWeights.length
   })
@@ -510,8 +515,7 @@ export function calculateTDEEPipeline(
     }
 
     // Weight delta (AT column: this week - previous week)
-    const weightDelta =
-      avgWeight !== null ? avgWeight - prevAvgWeight : null
+    const weightDelta = avgWeight !== null ? avgWeight - prevAvgWeight : null
 
     // Update latest known weight (AI column)
     if (avgWeight !== null) {
@@ -617,9 +621,12 @@ export function calculateTDEEPipeline(
     .find((w) => w.displayTDEE !== null)
   const currentTDEE = lastWeekWithTDEE?.smoothedTDEE ?? null
   const currentDisplayTDEE = lastWeekWithTDEE?.displayTDEE ?? null
-  const currentWeight = latestKnownWeight !== null ? roundWeight(latestKnownWeight) : null
+  const currentWeight =
+    latestKnownWeight !== null ? roundWeight(latestKnownWeight) : null
   const totalWeightChange =
-    currentWeight !== null && startingWeight !== null ? currentWeight - startingWeight : null
+    currentWeight !== null && startingWeight !== null
+      ? currentWeight - startingWeight
+      : null
 
   // Goal projection
   let goalCalories: number | null = null
@@ -643,16 +650,21 @@ export function calculateTDEEPipeline(
       goalWeight,
       dailyDeficit,
     )
-    weeksToGoal = calculateWeeksToGoal(currentWeight, goalWeight, goalWeeklyRate)
+    weeksToGoal = calculateWeeksToGoal(
+      currentWeight,
+      goalWeight,
+      goalWeeklyRate,
+    )
     goalDate = calculateGoalDate(weeksToGoal)
   }
 
   return {
     weeks,
     currentTDEE,
-    displayTDEE: currentDisplayTDEE !== null
-      ? roundDisplayTDEE(currentDisplayTDEE)
-      : roundDisplayTDEE(seedTDEE),
+    displayTDEE:
+      currentDisplayTDEE !== null
+        ? roundDisplayTDEE(currentDisplayTDEE)
+        : roundDisplayTDEE(seedTDEE),
     seedTDEE,
     currentWeight,
     totalWeightChange,

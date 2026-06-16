@@ -132,34 +132,22 @@ describe('tdeeCalculator', () => {
     })
 
     it('carries forward from previous avg when first day is empty', () => {
-      const result = gapFillWeek(
-        [null, null, 179, null, null, null, null],
-        180,
-      )
+      const result = gapFillWeek([null, null, 179, null, null, null, null], 180)
       expect(result).toEqual([180, 180, 179, 179, 179, 179, 179])
     })
 
     it('carries forward from previous day', () => {
-      const result = gapFillWeek(
-        [181, null, null, 179, null, null, 178],
-        180,
-      )
+      const result = gapFillWeek([181, null, null, 179, null, null, 178], 180)
       expect(result).toEqual([181, 181, 181, 179, 179, 179, 178])
     })
 
     it('uses all values when all days filled', () => {
-      const result = gapFillWeek(
-        [180, 181, 180, 179, 180, 181, 180],
-        175,
-      )
+      const result = gapFillWeek([180, 181, 180, 179, 180, 181, 180], 175)
       expect(result).toEqual([180, 181, 180, 179, 180, 181, 180])
     })
 
     it('fills from previousAvg when only first day has data', () => {
-      const result = gapFillWeek(
-        [182, null, null, null, null, null, null],
-        180,
-      )
+      const result = gapFillWeek([182, null, null, null, null, null, null], 180)
       expect(result).toEqual([182, 182, 182, 182, 182, 182, 182])
     })
   })
