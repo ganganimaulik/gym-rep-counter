@@ -23,11 +23,12 @@ import {
   startAfter,
   Timestamp,
   writeBatch,
+  deleteField,
 } from 'firebase/firestore'
 import { db } from '../utils/firebase'
 import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { WorkoutSet, WeightLog, CalorieLog } from '../declarations'
+import type { WorkoutSet, WeightLog, CalorieLog, TDEEConfig } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
 // Interface for a WorkoutSet object that has been serialized to JSON
@@ -172,6 +173,13 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   deleteCalorieLog: (id: string, user: FirebaseUser | null) => Promise<void>
+  tdeeConfig: TDEEConfig | null
+  loadTDEEConfig: () => Promise<TDEEConfig | null>
+  saveTDEEConfig: (
+    config: TDEEConfig,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  deleteTDEEConfig: (user: FirebaseUser | null) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
   setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
@@ -1478,6 +1486,62 @@ export const useData = (): DataHook => {
     [],
   )
 
+  // TDEE Config persistence
+  const [tdeeConfig, setTdeeConfig] = useState<TDEEConfig | null>(null)
+
+  const loadTDEEConfig = useCallback(async (): Promise<TDEEConfig | null> => {
+    try {
+      const saved = await AsyncStorage.getItem('tdeeConfig')
+      if (saved) {
+        const parsed = JSON.parse(saved) as TDEEConfig
+        setTdeeConfig(parsed)
+        return parsed
+      }
+      return null
+    } catch (e) {
+      console.error('Failed to load TDEE config', e)
+      return null
+    }
+  }, [])
+
+  const saveTDEEConfig = useCallback(
+    async (config: TDEEConfig, user: FirebaseUser | null): Promise<void> => {
+      try {
+        setTdeeConfig(config)
+        await AsyncStorage.setItem('tdeeConfig', JSON.stringify(config))
+
+        if (user) {
+          try {
+            const docRef = doc(db, 'users', user.uid)
+            await updateDoc(docRef, { tdeeConfig: config })
+          } catch (e) {
+            console.error('Failed to sync TDEE config to Firestore', e)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to save TDEE config', e)
+      }
+    },
+    [],
+  )
+
+  const deleteTDEEConfig = useCallback(async (user: FirebaseUser | null): Promise<void> => {
+    try {
+      setTdeeConfig(null)
+      await AsyncStorage.removeItem('tdeeConfig')
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid)
+          await updateDoc(docRef, { tdeeConfig: deleteField() })
+        } catch (e) {
+          console.error('Failed to delete TDEE config from Firestore', e)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to delete TDEE config', e)
+    }
+  }, [])
+
 
   return useMemo(
     () => ({
@@ -1515,6 +1579,10 @@ export const useData = (): DataHook => {
       updateCalorieLog,
       deleteCalorieLog,
       migrateGuestCalorieLogs,
+      tdeeConfig,
+      loadTDEEConfig,
+      saveTDEEConfig,
+      deleteTDEEConfig,
       setWorkouts,
       setSettings,
       setOfflineQueue,
@@ -1554,6 +1622,10 @@ export const useData = (): DataHook => {
       updateCalorieLog,
       deleteCalorieLog,
       migrateGuestCalorieLogs,
+      tdeeConfig,
+      loadTDEEConfig,
+      saveTDEEConfig,
+      deleteTDEEConfig,
       setWorkouts,
       setSettings,
       setOfflineQueue,

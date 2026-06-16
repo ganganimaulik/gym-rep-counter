@@ -53,3 +53,33 @@ export interface TrendData {
   avgReps: number
   setCount: number
 }
+
+// TDEE Calculator Types (matching "TDEE variant with bf 3.06" spreadsheet)
+
+export interface TDEEWeekData {
+  weekStart: Date
+  weekEnd: Date
+  dailyWeights: (number | null)[]
+  dailyCalories: (number | null)[]
+  avgWeight: number | null
+  avgCalories: number | null
+  weightDelta: number | null
+  rawTDEE: number | null
+  smoothedTDEE: number | null
+  displayTDEE: number | null
+  bodyFatPct: number | null
+  weightDayCount: number
+  calorieDayCount: number
+}
+
+export interface TDEEConfig {
+  weightUnit: 'lb' | 'kg'
+  energyUnit: 'cal' | 'kj'
+  smoothingWindowWeeks: number // default 12
+  goalWeight?: number
+  goalWeeklyRate?: number // lb or kg per week
+  // Body fat inputs (optional)
+  gender?: 'male' | 'female'
+  heightValue?: number
+  measurementUnit?: 'inch' | 'cm'
+}

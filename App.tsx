@@ -105,6 +105,7 @@ const App: React.FC = () => {
     syncOfflineQueue,
     fetchWeightLogs,
     fetchCalorieLogs,
+    loadTDEEConfig,
   } = dataHook
 
   const onAuthSuccess = useCallback(
@@ -115,11 +116,13 @@ const App: React.FC = () => {
         await syncUserData(firebaseUser, localSettings, localWorkouts)
         await fetchWeightLogs(firebaseUser)
         await fetchCalorieLogs(firebaseUser)
+        await loadTDEEConfig()
       } else {
         await loadSettings()
         await loadWorkouts()
         await fetchWeightLogs(null)
         await fetchCalorieLogs(null)
+        await loadTDEEConfig()
       }
     },
     [
@@ -128,6 +131,7 @@ const App: React.FC = () => {
       syncUserData,
       fetchWeightLogs,
       fetchCalorieLogs,
+      loadTDEEConfig,
     ],
   )
 

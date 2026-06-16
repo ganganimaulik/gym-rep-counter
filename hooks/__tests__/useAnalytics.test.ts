@@ -83,6 +83,10 @@ describe('useAnalytics Hook', () => {
     updateCalorieLog: jest.fn(),
     deleteCalorieLog: jest.fn(),
     migrateGuestCalorieLogs: jest.fn(),
+    tdeeConfig: null,
+    loadTDEEConfig: jest.fn(),
+    saveTDEEConfig: jest.fn(),
+    deleteTDEEConfig: jest.fn(),
     ...overrides,
   })
 

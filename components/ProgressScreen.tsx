@@ -32,6 +32,7 @@ import type { User as FirebaseUser } from 'firebase/auth'
 import type { TrendData, WeightLog, CalorieLog } from '../declarations'
 import { useAnalytics } from '../hooks/useAnalytics'
 import { DataHook } from '../hooks/useData'
+import TDEEScreen from './TDEEScreen'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -85,7 +86,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const { weightLogs, addWeightLog, updateWeightLog, deleteWeightLog, calorieLogs, addCalorieLog, updateCalorieLog, deleteCalorieLog } =
     dataHook
 
-  const [activeSubTab, setActiveSubTab] = useState<'workouts' | 'health'>(
+  const [activeSubTab, setActiveSubTab] = useState<'workouts' | 'health' | 'tdee'>(
     'workouts',
   )
 
@@ -338,6 +339,19 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             Health Stats
           </StyledText>
         </StyledTouchableOpacity>
+        <StyledTouchableOpacity
+          onPress={() => setActiveSubTab('tdee')}
+          activeOpacity={0.8}
+          className={`flex-1 py-2 rounded-lg items-center ${
+            activeSubTab === 'tdee' ? 'bg-emerald-600 shadow-sm' : ''
+          }`}>
+          <StyledText
+            className={`text-xs font-black uppercase tracking-wider ${
+              activeSubTab === 'tdee' ? 'text-white' : 'text-zinc-400'
+            }`}>
+            TDEE
+          </StyledText>
+        </StyledTouchableOpacity>
       </StyledView>
 
       {activeSubTab === 'workouts' ? (
@@ -510,7 +524,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             )}
           </StyledScrollView>
         )
-      ) : (
+      ) : activeSubTab === 'health' ? (
         <StyledScrollView
           className="flex-1"
           showsVerticalScrollIndicator={false}
@@ -653,6 +667,8 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             )}
           </StyledView>
         </StyledScrollView>
+      ) : (
+        <TDEEScreen user={user} dataHook={dataHook} />
       )}
 
       {/* Log/Edit Modal */}
