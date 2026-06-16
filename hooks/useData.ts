@@ -1085,7 +1085,13 @@ export const useData = (): DataHook => {
       if (user) {
         try {
           const collRef = collection(db, 'users', user.uid, 'weightLogs')
-          const q = query(collRef, orderBy('date', 'desc'))
+          const sixMonthsAgo = new Date()
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+          const q = query(
+            collRef,
+            where('date', '>=', Timestamp.fromDate(sixMonthsAgo)),
+            orderBy('date', 'desc')
+          )
           const querySnapshot = await getDocs(q)
           const logs = querySnapshot.docs.map((doc) => ({
             id: doc.id,
@@ -1113,6 +1119,11 @@ export const useData = (): DataHook => {
               ...item,
               date: new Timestamp(item.date.seconds, item.date.nanoseconds),
             }))
+            .filter((item: WeightLog) => {
+              const sixMonthsAgo = new Date()
+              sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+              return item.date.toMillis() >= sixMonthsAgo.getTime()
+            })
             .sort(
               (a: WeightLog, b: WeightLog) =>
                 b.date.toMillis() - a.date.toMillis(),
@@ -1288,7 +1299,13 @@ export const useData = (): DataHook => {
       if (user) {
         try {
           const collRef = collection(db, 'users', user.uid, 'calorieLogs')
-          const q = query(collRef, orderBy('date', 'desc'))
+          const sixMonthsAgo = new Date()
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+          const q = query(
+            collRef,
+            where('date', '>=', Timestamp.fromDate(sixMonthsAgo)),
+            orderBy('date', 'desc')
+          )
           const querySnapshot = await getDocs(q)
           const logs = querySnapshot.docs.map((doc) => ({
             id: doc.id,
@@ -1316,6 +1333,11 @@ export const useData = (): DataHook => {
               ...item,
               date: new Timestamp(item.date.seconds, item.date.nanoseconds),
             }))
+            .filter((item: CalorieLog) => {
+              const sixMonthsAgo = new Date()
+              sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+              return item.date.toMillis() >= sixMonthsAgo.getTime()
+            })
             .sort(
               (a: CalorieLog, b: CalorieLog) =>
                 b.date.toMillis() - a.date.toMillis(),
