@@ -157,8 +157,16 @@ export function useTDEE(
       }
     }
 
+    // Cap TDEE processing to 1 year of data for performance while preserving full history elsewhere
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+    const oneYearAgoMillis = oneYearAgo.getTime()
+
+    const recentWeightLogs = weightLogs.filter((l) => l.date.toMillis() >= oneYearAgoMillis)
+    const recentCalorieLogs = calorieLogs.filter((l) => l.date.toMillis() >= oneYearAgoMillis)
+
     // Group logs into weekly buckets
-    const weekInputs = groupLogsByWeek(weightLogs, calorieLogs)
+    const weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)
 
     // Build pipeline config
     const pipelineConfig: TDEEPipelineConfig = {
