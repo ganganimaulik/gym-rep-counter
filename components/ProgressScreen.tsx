@@ -807,4 +807,5 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
       </Modal>
     </StyledView>
   )
+}
 export default ProgressScreen
