@@ -71,7 +71,7 @@
     "prettier": "^3.6.2",
     "react-test-renderer": "19.1.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.45.0"
+    "typescript-eslint": "^8.61.1"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
