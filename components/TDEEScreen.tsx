@@ -119,7 +119,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     'tdee' | 'weight' | 'calories'
   >('tdee')
   const [activeHistoryTab, setActiveHistoryTab] = useState<'weekly' | 'daily'>(
-    'weekly',
+    'daily',
   )
 
   // ── Date Formatting Helpers ──
@@ -781,19 +781,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
           {/* History Tab Selector */}
           <StyledView className="flex-row bg-zinc-950 border border-zinc-800/80 p-1 rounded-xl mb-4">
             <StyledTouchableOpacity
-              onPress={() => setActiveHistoryTab('weekly')}
-              activeOpacity={0.8}
-              className={`flex-1 py-2 rounded-lg items-center ${
-                activeHistoryTab === 'weekly' ? 'bg-zinc-800 shadow-sm' : ''
-              }`}>
-              <StyledText
-                className={`text-[10px] font-black uppercase tracking-wider ${
-                  activeHistoryTab === 'weekly' ? 'text-white' : 'text-zinc-500'
-                }`}>
-                Weekly Average
-              </StyledText>
-            </StyledTouchableOpacity>
-            <StyledTouchableOpacity
               onPress={() => setActiveHistoryTab('daily')}
               activeOpacity={0.8}
               className={`flex-1 py-2 rounded-lg items-center ${
@@ -804,6 +791,19 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                   activeHistoryTab === 'daily' ? 'text-white' : 'text-zinc-500'
                 }`}>
                 Daily Logs
+              </StyledText>
+            </StyledTouchableOpacity>
+            <StyledTouchableOpacity
+              onPress={() => setActiveHistoryTab('weekly')}
+              activeOpacity={0.8}
+              className={`flex-1 py-2 rounded-lg items-center ${
+                activeHistoryTab === 'weekly' ? 'bg-zinc-800 shadow-sm' : ''
+              }`}>
+              <StyledText
+                className={`text-[10px] font-black uppercase tracking-wider ${
+                  activeHistoryTab === 'weekly' ? 'text-white' : 'text-zinc-500'
+                }`}>
+                Weekly Average
               </StyledText>
             </StyledTouchableOpacity>
           </StyledView>

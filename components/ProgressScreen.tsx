@@ -98,7 +98,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   } = dataHook
 
   const [activeSubTab, setActiveSubTab] = useState<'workouts' | 'health'>(
-    'workouts',
+    'health',
   )
 
   const [healthLogsByDate, setHealthLogsByDate] = useState<HealthLogGroup[]>([])
@@ -364,19 +364,6 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
       {/* Tab Switcher */}
       <StyledView className="flex-row bg-zinc-900/60 border border-zinc-800/80 p-1 rounded-xl mb-4">
         <StyledTouchableOpacity
-          onPress={() => setActiveSubTab('workouts')}
-          activeOpacity={0.8}
-          className={`flex-1 py-2 rounded-lg items-center ${
-            activeSubTab === 'workouts' ? 'bg-indigo-600 shadow-sm' : ''
-          }`}>
-          <StyledText
-            className={`text-xs font-black uppercase tracking-wider ${
-              activeSubTab === 'workouts' ? 'text-white' : 'text-zinc-400'
-            }`}>
-            Workout Trends
-          </StyledText>
-        </StyledTouchableOpacity>
-        <StyledTouchableOpacity
           onPress={() => setActiveSubTab('health')}
           activeOpacity={0.8}
           className={`flex-1 py-2 rounded-lg items-center ${
@@ -387,6 +374,19 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
               activeSubTab === 'health' ? 'text-white' : 'text-zinc-400'
             }`}>
             Health & TDEE
+          </StyledText>
+        </StyledTouchableOpacity>
+        <StyledTouchableOpacity
+          onPress={() => setActiveSubTab('workouts')}
+          activeOpacity={0.8}
+          className={`flex-1 py-2 rounded-lg items-center ${
+            activeSubTab === 'workouts' ? 'bg-indigo-600 shadow-sm' : ''
+          }`}>
+          <StyledText
+            className={`text-xs font-black uppercase tracking-wider ${
+              activeSubTab === 'workouts' ? 'text-white' : 'text-zinc-400'
+            }`}>
+            Workout Trends
           </StyledText>
         </StyledTouchableOpacity>
       </StyledView>
