@@ -1,9 +1,10 @@
 import { initializeApp, FirebaseApp } from 'firebase/app'
-import { initializeAuth, Auth } from 'firebase/auth'
+import { initializeAuth, Auth, getAuth } from 'firebase/auth'
 // @ts-expect-error - Valid import but types might be missing in some node_modules resolution
 import { getReactNativePersistence } from 'firebase/auth'
 import { getFirestore, Firestore } from 'firebase/firestore'
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage'
+import { Platform } from 'react-native'
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_API_KEY,
@@ -16,9 +17,15 @@ const firebaseConfig = {
 }
 
 const app: FirebaseApp = initializeApp(firebaseConfig)
-const auth: Auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-})
+
+let auth: Auth
+if (Platform.OS === 'web') {
+  auth = getAuth(app)
+} else {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+  })
+}
 
 const db: Firestore = getFirestore(app, 'default')
 

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Keyboard,
+  Platform,
 } from 'react-native'
 import { styled } from 'nativewind'
 import Slider from '@react-native-community/slider'
@@ -85,13 +86,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <StyledText className="text-sm font-black text-zinc-400 tracking-wider uppercase mb-3 text-center">
                 Sync Account
               </StyledText>
-              <GoogleSigninButton
-                style={{ width: 220, height: 52 }}
-                size={GoogleSigninButton.Size.Wide}
-                color={GoogleSigninButton.Color.Dark}
-                onPress={onGoogleButtonPress}
-                disabled={isSigningIn}
-              />
+              {Platform.OS === 'web' ? (
+                <StyledTouchableOpacity
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-6 py-3 flex-row items-center justify-center w-[220px]"
+                  onPress={onGoogleButtonPress}
+                  disabled={isSigningIn}>
+                  <StyledText className="text-white font-bold text-sm">
+                    {isSigningIn ? 'Signing in...' : 'Sign in with Google'}
+                  </StyledText>
+                </StyledTouchableOpacity>
+              ) : (
+                <GoogleSigninButton
+                  style={{ width: 220, height: 52 }}
+                  size={GoogleSigninButton.Size.Wide}
+                  color={GoogleSigninButton.Color.Dark}
+                  onPress={onGoogleButtonPress}
+                  disabled={isSigningIn}
+                />
+              )}
             </StyledView>
           )}
 

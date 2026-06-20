@@ -145,7 +145,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
           </StyledView>
 
           {/* Bottom Badge: Set number */}
-          {phase && phase !== 'Rest' && (
+          {!!phase && phase !== 'Rest' && (
             <StyledView className="absolute bottom-8 flex-row items-center justify-center space-x-1">
               <StyledText className="text-zinc-500 text-xs font-bold tracking-wider">
                 SET

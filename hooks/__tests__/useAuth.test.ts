@@ -17,6 +17,7 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
 jest.mock('firebase/auth', () => ({
   getReactNativePersistence: jest.fn(),
   initializeAuth: jest.fn(),
+  getAuth: jest.fn(),
   onAuthStateChanged: jest.fn(),
   GoogleAuthProvider: {
     credential: jest.fn(),

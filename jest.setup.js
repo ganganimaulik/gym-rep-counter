@@ -8,6 +8,7 @@ jest.mock('firebase/auth', () => {
   return {
     getReactNativePersistence: jest.fn(),
     initializeAuth: jest.fn(),
+    getAuth: jest.fn(),
   }
 })
 

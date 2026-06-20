@@ -1,4 +1,7 @@
 import { registerRootComponent } from 'expo'
+import { importGlobalCSS } from './utils/cssImport'
+
+importGlobalCSS()
 
 import App from './App'
 

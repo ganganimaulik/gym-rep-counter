@@ -5,7 +5,9 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
   User as FirebaseUser,
+  signInWithPopup,
 } from 'firebase/auth'
+import { Platform } from 'react-native'
 import { auth } from '../utils/firebase' // Assuming firebase is configured and exported from this path
 
 // Interfaces
@@ -30,10 +32,12 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   onAuthSuccessRef.current = onAuthSuccess
 
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
-      iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
-    })
+    if (Platform.OS !== 'web') {
+      GoogleSignin.configure({
+        webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
+        iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
+      })
+    }
 
     const subscriber = onAuthStateChanged(auth, async (firebaseUser) => {
       if (initializingRef.current) {
@@ -51,18 +55,23 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   const onGoogleButtonPress = useCallback(async () => {
     setIsSigningIn(true)
     try {
-      await GoogleSignin.hasPlayServices({
-        showPlayServicesUpdateDialog: true,
-      })
-      const signInResponse = await GoogleSignin.signIn()
-      const idToken = signInResponse.data?.idToken
+      if (Platform.OS === 'web') {
+        const provider = new GoogleAuthProvider()
+        await signInWithPopup(auth, provider)
+      } else {
+        await GoogleSignin.hasPlayServices({
+          showPlayServicesUpdateDialog: true,
+        })
+        const signInResponse = await GoogleSignin.signIn()
+        const idToken = signInResponse.data?.idToken
 
-      if (!idToken) {
-        throw new Error('Google Sign-In failed: No ID token received.')
+        if (!idToken) {
+          throw new Error('Google Sign-In failed: No ID token received.')
+        }
+
+        const googleCredential = GoogleAuthProvider.credential(idToken)
+        await signInWithCredential(auth, googleCredential)
       }
-
-      const googleCredential = GoogleAuthProvider.credential(idToken)
-      await signInWithCredential(auth, googleCredential)
     } catch (error) {
       // Known error codes for user cancellation
       const gError = error as { code?: string }
@@ -78,7 +87,9 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
 
   const disconnectAccount = useCallback(async () => {
     try {
-      await GoogleSignin.signOut()
+      if (Platform.OS !== 'web') {
+        await GoogleSignin.signOut()
+      }
       await auth.signOut()
     } catch (error) {
       console.error('Error disconnecting account:', error)

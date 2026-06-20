@@ -4,7 +4,7 @@ import {
   bgSetTimeout,
   bgClearTimeout,
   enableBackgroundExecution,
-} from 'expo-background-timer'
+} from '../utils/backgroundTimer'
 import { useSharedValue, runOnJS, SharedValue } from 'react-native-reanimated'
 import { Settings, Exercise } from './useData'
 import { AudioHandler } from './useAudio'

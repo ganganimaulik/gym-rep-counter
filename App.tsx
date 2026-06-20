@@ -33,7 +33,7 @@ import {
 import {
   enableBackgroundExecution,
   disableBackgroundExecution,
-} from 'expo-background-timer'
+} from './utils/backgroundTimer'
 import type { User as FirebaseUser } from 'firebase/auth'
 
 import { useNetInfo } from '@react-native-community/netinfo'
