@@ -1589,7 +1589,7 @@ export const useData = (): DataHook => {
         if (user) {
           try {
             const docRef = doc(db, 'users', user.uid)
-            await updateDoc(docRef, { tdeeConfig: config })
+            await setDoc(docRef, { tdeeConfig: config }, { merge: true })
           } catch (e) {
             console.error('Failed to sync TDEE config to Firestore', e)
           }
