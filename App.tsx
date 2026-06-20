@@ -589,7 +589,8 @@ const App: React.FC = () => {
             size={22}
           />
           <StyledText
-            className={`text-[10px] mt-1 font-semibold ${currentTab === 'journal' ? 'text-sky-500' : 'text-zinc-500'}`}>
+            style={{ color: currentTab === 'journal' ? '#0ea5e9' : '#71717a' }}
+            className="text-[10px] mt-1 font-semibold">
             Journal
           </StyledText>
         </StyledTouchableOpacity>
