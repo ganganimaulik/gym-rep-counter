@@ -214,9 +214,35 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       weightUnit: setupWeightUnit,
       energyUnit: setupEnergyUnit,
       smoothingWindowWeeks: 12,
+      gender: setupGender,
+      measurementUnit: setupMeasurementUnit,
     }
+
+    const h = setupHeight.trim() ? parseFloat(setupHeight) : undefined
+    if (h !== undefined) config.heightValue = h
+
+    const w = setupWaist.trim() ? parseFloat(setupWaist) : undefined
+    if (w !== undefined) config.waistValue = w
+
+    const n = setupNeck.trim() ? parseFloat(setupNeck) : undefined
+    if (n !== undefined) config.neckValue = n
+
+    const hp = setupGender === 'female' && setupHip.trim() ? parseFloat(setupHip) : undefined
+    if (hp !== undefined) config.hipValue = hp
+
     await saveTDEEConfig(config, user)
-  }, [setupWeightUnit, setupEnergyUnit, saveTDEEConfig, user])
+  }, [
+    setupWeightUnit,
+    setupEnergyUnit,
+    setupGender,
+    setupMeasurementUnit,
+    setupHeight,
+    setupWaist,
+    setupNeck,
+    setupHip,
+    saveTDEEConfig,
+    user,
+  ])
 
   const handleSaveGoals = useCallback(async () => {
     if (!tdeeConfig) return
@@ -411,7 +437,106 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
             </Picker>
           </StyledView>
 
-          <StyledView className="mb-4" />
+          <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide border-t border-zinc-800 pt-4 mt-2">
+            Measurement Unit
+          </StyledText>
+          <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
+            <Picker
+              selectedValue={setupMeasurementUnit}
+              onValueChange={setSetupMeasurementUnit}
+              style={globalStyles.picker}
+              itemStyle={globalStyles.pickerItem}
+              dropdownIconColor="white">
+              <Picker.Item label="Inches (in)" value="inch" />
+              <Picker.Item label="Centimeters (cm)" value="cm" />
+            </Picker>
+          </StyledView>
+
+          <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+            Gender
+          </StyledText>
+          <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
+            <Picker
+              selectedValue={setupGender}
+              onValueChange={setSetupGender}
+              style={globalStyles.picker}
+              itemStyle={globalStyles.pickerItem}
+              dropdownIconColor="white">
+              <Picker.Item label="Male" value="male" />
+              <Picker.Item label="Female" value="female" />
+            </Picker>
+          </StyledView>
+
+          <StyledView className="flex-row gap-3 mb-4">
+            <StyledView className="flex-1">
+              <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                Height ({setupMeasurementUnit})
+              </StyledText>
+              <StyledTextInput
+                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                keyboardType="numeric"
+                value={setupHeight}
+                onChangeText={setSetupHeight}
+                placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '70' : '178'}`}
+                placeholderTextColor="#52525b"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+              />
+            </StyledView>
+            <StyledView className="flex-1">
+              <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                Waist ({setupMeasurementUnit})
+              </StyledText>
+              <StyledTextInput
+                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                keyboardType="numeric"
+                value={setupWaist}
+                onChangeText={setSetupWaist}
+                placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '32' : '81'}`}
+                placeholderTextColor="#52525b"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+              />
+            </StyledView>
+          </StyledView>
+
+          <StyledView className="flex-row gap-3 mb-6">
+            <StyledView className="flex-1">
+              <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                Neck ({setupMeasurementUnit})
+              </StyledText>
+              <StyledTextInput
+                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                keyboardType="numeric"
+                value={setupNeck}
+                onChangeText={setSetupNeck}
+                placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '15' : '38'}`}
+                placeholderTextColor="#52525b"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+              />
+            </StyledView>
+            {setupGender === 'female' && (
+              <StyledView className="flex-1">
+                <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                  Hips ({setupMeasurementUnit})
+                </StyledText>
+                <StyledTextInput
+                  className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                  keyboardType="numeric"
+                  value={setupHip}
+                  onChangeText={setSetupHip}
+                  placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '38' : '96'}`}
+                  placeholderTextColor="#52525b"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+              </StyledView>
+            )}
+            {setupGender !== 'female' && (
+              <StyledView className="flex-1" />
+            )}
+          </StyledView>
 
           <StyledTouchableOpacity
             onPress={handleStartTracking}
