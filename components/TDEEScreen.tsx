@@ -262,6 +262,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     goalRateInput,
     setupWeightUnit,
     setupEnergyUnit,
+    setupGender,
+    setupMeasurementUnit,
+    setupHeight,
+    setupWaist,
+    setupNeck,
+    setupHip,
     saveTDEEConfig,
     user,
   ])
