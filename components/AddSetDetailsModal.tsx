@@ -61,6 +61,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
             onChangeText={setReps}
             returnKeyType="done"
             onSubmitEditing={Keyboard.dismiss}
+            testID="reps-input"
           />
           <StyledText className="text-gray-300 mb-2">Weight (kg)</StyledText>
           <StyledTextInput
@@ -71,6 +72,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
             autoFocus={true}
+            testID="weight-input"
           />
           <Button title="Save" onPress={handleSubmit} color="#4F46E5" />
         </StyledView>
