@@ -244,15 +244,31 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       ...tdeeConfig,
       weightUnit: setupWeightUnit,
       energyUnit: setupEnergyUnit,
-      goalWeight: gw,
-      goalWeeklyRate: rate,
       gender: setupGender,
       measurementUnit: setupMeasurementUnit,
-      heightValue: setupHeight.trim() ? parseFloat(setupHeight) : undefined,
-      waistValue: setupWaist.trim() ? parseFloat(setupWaist) : undefined,
-      neckValue: setupNeck.trim() ? parseFloat(setupNeck) : undefined,
-      hipValue: setupGender === 'female' && setupHip.trim() ? parseFloat(setupHip) : undefined,
     }
+
+    if (gw !== undefined) updatedConfig.goalWeight = gw
+    else delete updatedConfig.goalWeight
+
+    if (rate !== undefined) updatedConfig.goalWeeklyRate = rate
+    else delete updatedConfig.goalWeeklyRate
+
+    const h = setupHeight.trim() ? parseFloat(setupHeight) : undefined
+    if (h !== undefined) updatedConfig.heightValue = h
+    else delete updatedConfig.heightValue
+
+    const w = setupWaist.trim() ? parseFloat(setupWaist) : undefined
+    if (w !== undefined) updatedConfig.waistValue = w
+    else delete updatedConfig.waistValue
+
+    const n = setupNeck.trim() ? parseFloat(setupNeck) : undefined
+    if (n !== undefined) updatedConfig.neckValue = n
+    else delete updatedConfig.neckValue
+
+    const hp = setupGender === 'female' && setupHip.trim() ? parseFloat(setupHip) : undefined
+    if (hp !== undefined) updatedConfig.hipValue = hp
+    else delete updatedConfig.hipValue
 
     await saveTDEEConfig(updatedConfig, user)
     Alert.alert('Saved', 'Settings updated successfully.')
