@@ -63,6 +63,12 @@ describe('tdeeCalculator', () => {
     it('returns ~28.66 for kg + cal', () => {
       expect(getSeedMultiplier('kg', 'cal')).toBeCloseTo(28.66, 1)
     })
+    it('returns ~54.39 for lb + kj', () => {
+      expect(getSeedMultiplier('lb', 'kj')).toBeCloseTo(54.39, 1)
+    })
+    it('returns ~119.92 for kg + kj', () => {
+      expect(getSeedMultiplier('kg', 'kj')).toBeCloseTo(119.92, 1)
+    })
   })
 
   // ---------------------------------------------------------------
@@ -266,6 +272,12 @@ describe('tdeeCalculator', () => {
     it('returns null for invalid measurements (waist <= neck)', () => {
       const bf = calculateBodyFatPercent('male', 15, 15, 70, 'inch')
       expect(bf).toBeNull()
+    })
+
+    it('returns null for negative or zero values', () => {
+      expect(calculateBodyFatPercent('male', -34, 15, 70, 'inch')).toBeNull()
+      expect(calculateBodyFatPercent('female', 30, 0, 65, 'inch', 38)).toBeNull()
+      expect(calculateBodyFatPercent('male', 34, 15, -70, 'inch')).toBeNull()
     })
   })
 
@@ -483,6 +495,49 @@ describe('tdeeCalculator', () => {
       expect(result.seedTDEE).toBe(2295) // 80 × 28.66 → mround(2292.8, 5) = 2295
       expect(result.currentWeight).toBe(79.5)
       expect(result.weeks[1].displayTDEE).not.toBeNull()
+    })
+
+    it('works with energyUnit kj', () => {
+      const weeks: WeekInput[] = [
+        {
+          weekStart: new Date('2024-01-01'),
+          dailyWeights: [180, 180, 180, 180, 180, 180, 180],
+          dailyCalories: [8368, 8368, 8368, 8368, 8368, 8368, 8368], // ~2000 cal in kj
+        },
+      ]
+
+      const result = calculateTDEEPipeline(weeks, {
+        startingWeight: 180,
+        weightUnit: 'lb',
+        energyUnit: 'kj',
+      })
+
+      expect(result.seedTDEE).toBeGreaterThan(9000)
+      expect(result.weeks[0].displayTDEE).not.toBeNull()
+    })
+
+    it('populates bodyFatPct when body fat inputs are provided', () => {
+      const weeks: WeekInput[] = [
+        {
+          weekStart: new Date('2024-01-01'),
+          dailyWeights: [180, 180, 180, 180, 180, 180, 180],
+          dailyCalories: [2000, 2000, 2000, 2000, 2000, 2000, 2000],
+          waist: 34,
+          neck: 15,
+        },
+      ]
+
+      const result = calculateTDEEPipeline(weeks, {
+        startingWeight: 180,
+        weightUnit: 'lb',
+        energyUnit: 'cal',
+        gender: 'male',
+        height: 70,
+        measurementUnit: 'inch',
+      })
+
+      expect(result.weeks[0].bodyFatPct).not.toBeNull()
+      expect(result.weeks[0].bodyFatPct).toBeCloseTo(0.18, 2)
     })
   })
 })

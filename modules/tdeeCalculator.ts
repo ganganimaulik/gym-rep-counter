@@ -264,6 +264,8 @@ export function calculateBodyFatPercent(
   const n = toInch(neck)
   const h = toInch(height)
 
+  if (w <= 0 || n <= 0 || h <= 0) return null
+
   if (gender === 'male') {
     const diff = w - n
     if (diff <= 0) return null
@@ -272,6 +274,7 @@ export function calculateBodyFatPercent(
   } else {
     if (hip === undefined || hip === null) return null
     const hp = toInch(hip)
+    if (hp <= 0) return null
     const sum = w + hp - n
     if (sum <= 0) return null
     const raw = 163.205 * Math.log10(sum) - 97.684 * Math.log10(h) - 78.387

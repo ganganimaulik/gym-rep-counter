@@ -266,6 +266,114 @@ describe('useWorkoutTimer', () => {
         expect(result.current.statusText.value).toBe('Exercise Complete!')
       })
     })
+
+    it('Countdown announces remaining time only when countdown <= countdownAnnouncementThreshold', async () => {
+      const longCountdownSettings = {
+        ...defaultSettings,
+        countdownSeconds: 20,
+        countdownAnnouncementThreshold: 15,
+      }
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          longCountdownSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      
+      // Initially, at 20s, it says 'Get ready.'
+      expect(mockQueueSpeak).toHaveBeenCalledWith('Get ready.', { priority: true })
+      mockQueueSpeak.mockClear()
+
+      // Advance by 1 second to 19s
+      act(() => jest.advanceTimersByTime(1000))
+      // Not below threshold, shouldn't speak 19
+      expect(mockQueueSpeak).not.toHaveBeenCalledWith('19')
+      
+      // Advance by 6 ticks to cross 14
+      for(let i = 0; i < 6; i++) {
+        act(() => jest.advanceTimersByTime(1000))
+      }
+      expect(mockQueueSpeak).toHaveBeenCalledWith('15')
+      expect(mockQueueSpeak).toHaveBeenCalledWith('14')
+    })
+
+    it('skips eccentric countdown speech when eccentricCountdownEnabled is false', async () => {
+      const settingsWithoutEccentricSpeech = {
+        ...defaultSettings,
+        eccentricCountdownEnabled: false,
+        countdownSeconds: 1,
+        concentricSeconds: 1,
+        eccentricSeconds: 3,
+      }
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          settingsWithoutEccentricSpeech,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      // Get past countdown
+      act(() => jest.advanceTimersByTime(1000))
+      
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Concentric')
+      })
+      
+      // Get past concentric
+      act(() => jest.advanceTimersByTime(1000))
+      
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Eccentric')
+      })
+      
+      // Advance by 1 second to trigger eccentric tick if it were enabled
+      act(() => jest.advanceTimersByTime(1000))
+      
+      expect(mockSpeakEccentric).not.toHaveBeenCalled()
+    })
+
+    it('should end the set and call onSetComplete when endSet is called during concentric phase', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      // Enter concentric phase
+      for(let i = 0; i < defaultSettings.countdownSeconds; i++) {
+        act(() => jest.advanceTimersByTime(1000))
+      }
+      
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Concentric')
+      })
+      
+      act(() => result.current.endSet())
+      
+      await waitFor(() => {
+        expect(mockOnSetComplete).toHaveBeenCalledWith({
+          exerciseId: activeExercise.id,
+          reps: 1,
+          set: 1,
+          startTime: expect.any(Number),
+          endTime: expect.any(Number),
+        })
+      })
+    })
   })
 
   describe('Advanced Controls', () => {
@@ -313,6 +421,28 @@ describe('useWorkoutTimer', () => {
         expect(result.current.phase).toBe('Get Ready')
       })
       expect(mockQueueSpeak).toHaveBeenCalledWith('Set 2.', { priority: true })
+    })
+
+    it('should handle jumpToRep 0 correctly', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.jumpToRep(0)
+      })
+
+      await waitFor(() => {
+        expect(result.current.isRunning).toBe(true)
+        expect(result.current.currentRep.value).toBe(0)
+        expect(result.current.phase).toBe('Concentric')
+      })
     })
   })
 
@@ -478,6 +608,48 @@ describe('useWorkoutTimer', () => {
           expect(result.current.isExerciseComplete).toBe(true)
         }
       })
+    })
+
+    it('should handle settings changes during active workout', async () => {
+      const { result, rerender } = renderHook(
+        ({ settings, exercise }: { settings: Settings; exercise: Exercise }) =>
+          useWorkoutTimer(
+            settings,
+            mockAudioHandler,
+            exercise,
+            mockOnSetComplete,
+            1,
+          ),
+        { initialProps: { settings: defaultSettings, exercise: activeExercise } },
+      )
+
+      act(() => result.current.startWorkout())
+      expect(result.current.isRunning).toBe(true)
+
+      const newSettings = { ...defaultSettings, countdownSeconds: 10 }
+      rerender({ settings: newSettings, exercise: activeExercise })
+
+      expect(result.current.isRunning).toBe(true)
+    })
+
+    it('should not throw and should full reset when startWorkout is called with no active exercise', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          undefined as any, // no active exercise
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      act(() => jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000))
+      act(() => result.current.endSet())
+      
+      expect(result.current.isRunning).toBe(false)
+      // Since no active exercise, it does fullReset when endSet is called instead of calling onSetComplete
+      expect(mockOnSetComplete).not.toHaveBeenCalled()
     })
   })
 })

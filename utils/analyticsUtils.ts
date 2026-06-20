@@ -123,11 +123,11 @@ export function calculateStreak(
     const weekKey = sortedWeeks[i]
     const weekDays = weekWorkouts.get(weekKey)!.size
 
-    // For current week, we check if we're on track (don't require 5 yet if week isn't over)
+    // For current week, we check if we're on track (don't require minDaysPerWeek yet if week isn't over)
     const isCurrentWeek = weekKey === currentWeekKey
     const qualifies = isCurrentWeek
       ? weekDays > 0 // Current week counts if any workout done
-      : weekDays >= minDaysPerWeek // Past weeks need 5+ days
+      : weekDays >= minDaysPerWeek // Past weeks need minDaysPerWeek+ days
 
     if (qualifies) {
       // Check if this is consecutive with previous week
@@ -166,33 +166,40 @@ export function calculateStreak(
     longestStreak = tempStreak
   }
 
-  // Current streak is the most recent consecutive streak if it includes recent week
-  currentStreak =
-    sortedWeeks.length > 0 && sortedWeeks[0] === currentWeekKey ? tempStreak : 0
-
-  // If the most recent week is last week (not current), still count it as current streak
-  if (currentStreak === 0 && sortedWeeks.length > 0) {
-    const lastWeekKey = sortedWeeks[0]
-    const lastWeekDate = new Date(lastWeekKey)
-    const lastWeekNum = Math.floor(
-      lastWeekDate.getTime() / (7 * 24 * 60 * 60 * 1000),
+  currentStreak = 0
+  if (sortedWeeks.length > 0) {
+    const firstWeekKey = sortedWeeks[0]
+    const firstWeekDate = new Date(firstWeekKey)
+    const currentWeekDate = getWeekStart(now)
+    
+    // Check if the most recent week is current week or last week
+    const diffFromCurrent = Math.round(
+      (currentWeekDate.getTime() - firstWeekDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
     )
-    const currentWeekNum = Math.floor(
-      getWeekStart(now).getTime() / (7 * 24 * 60 * 60 * 1000),
-    )
-
-    if (currentWeekNum - lastWeekNum <= 1) {
-      // Last week is the previous week, recompute temp streak
-      let streak = 0
-      for (const weekKey of sortedWeeks) {
-        const weekDays = weekWorkouts.get(weekKey)!.size
-        if (weekDays >= minDaysPerWeek) {
-          streak++
+    
+    if (diffFromCurrent <= 1) {
+      let continuous = 0
+      for (let i = 0; i < sortedWeeks.length; i++) {
+        const wKey = sortedWeeks[i]
+        const wDays = weekWorkouts.get(wKey)!.size
+        const wDate = new Date(wKey)
+        
+        const expectedDiff = diffFromCurrent + i
+        const actualDiff = Math.round(
+          (currentWeekDate.getTime() - wDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+        )
+        
+        if (actualDiff !== expectedDiff) break
+        
+        if (actualDiff === 0) {
+           if (wDays > 0) continuous++
+           else break
         } else {
-          break
+           if (wDays >= minDaysPerWeek) continuous++
+           else break
         }
       }
-      currentStreak = streak
+      currentStreak = continuous
     }
   }
 
