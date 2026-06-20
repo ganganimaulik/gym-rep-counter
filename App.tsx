@@ -29,6 +29,7 @@ import {
   BarChart3,
   Dumbbell,
   ClipboardList,
+  Book,
 } from 'lucide-react-native'
 import {
   enableBackgroundExecution,
@@ -56,6 +57,7 @@ import Toast from 'react-native-toast-message'
 import HistoryScreen from './components/HistoryScreen'
 import ProgressScreen from './components/ProgressScreen'
 import SplashScreen from './components/SplashScreen'
+import JournalScreen from './components/JournalScreen'
 
 const StyledSafeAreaView = styled(SafeAreaView)
 const StyledView = styled(View)
@@ -74,7 +76,7 @@ interface CompletedSetData {
 const App: React.FC = () => {
   // UI State
   const [currentTab, setCurrentTab] = useState<
-    'workout' | 'routines' | 'history' | 'analytics' | 'settings'
+    'workout' | 'routines' | 'history' | 'analytics' | 'settings' | 'journal'
   >('workout')
   const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
   const [completedSetData, setCompletedSetData] =
@@ -106,6 +108,7 @@ const App: React.FC = () => {
     fetchWeightLogs,
     fetchCalorieLogs,
     loadTDEEConfig,
+    fetchJournalEntries,
   } = dataHook
 
   const onAuthSuccess = useCallback(
@@ -117,12 +120,14 @@ const App: React.FC = () => {
         await fetchWeightLogs(firebaseUser)
         await fetchCalorieLogs(firebaseUser)
         await loadTDEEConfig()
+        await fetchJournalEntries(firebaseUser)
       } else {
         await loadSettings()
         await loadWorkouts()
         await fetchWeightLogs(null)
         await fetchCalorieLogs(null)
         await loadTDEEConfig()
+        await fetchJournalEntries(null)
       }
     },
     [
@@ -132,6 +137,7 @@ const App: React.FC = () => {
       fetchWeightLogs,
       fetchCalorieLogs,
       loadTDEEConfig,
+      fetchJournalEntries,
     ],
   )
 
@@ -499,6 +505,18 @@ const App: React.FC = () => {
           />
         </StyledView>
 
+        <StyledView
+          style={{
+            flex: 1,
+            display: currentTab === 'journal' ? 'flex' : 'none',
+          }}>
+          <JournalScreen
+            visible={currentTab === 'journal'}
+            user={user}
+            dataHook={dataHook}
+          />
+        </StyledView>
+
         {currentTab === 'settings' && (
           <SettingsModal
             visible={true}
@@ -561,6 +579,18 @@ const App: React.FC = () => {
           <StyledText
             className={`text-[10px] mt-1 font-semibold ${currentTab === 'analytics' ? 'text-green-500' : 'text-zinc-500'}`}>
             Analytics
+          </StyledText>
+        </StyledTouchableOpacity>
+        <StyledTouchableOpacity
+          onPress={() => setCurrentTab('journal')}
+          className="items-center py-1 flex-1">
+          <Book
+            color={currentTab === 'journal' ? '#0ea5e9' : '#71717a'}
+            size={22}
+          />
+          <StyledText
+            className={`text-[10px] mt-1 font-semibold ${currentTab === 'journal' ? 'text-sky-500' : 'text-zinc-500'}`}>
+            Journal
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity

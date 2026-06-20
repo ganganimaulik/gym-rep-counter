@@ -33,12 +33,22 @@ import type {
   WeightLog,
   CalorieLog,
   TDEEConfig,
+  JournalEntry,
 } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
 // Interface for a WorkoutSet object that has been serialized to JSON
 // where the Firestore Timestamp is just a plain object.
 interface SerializedWorkoutSetData extends Omit<WorkoutSet, 'date'> {
+  date: {
+    seconds: number
+    nanoseconds: number
+  }
+}
+
+interface SerializedJournalEntry {
+  id: string
+  note: string
   date: {
     seconds: number
     nanoseconds: number
@@ -96,6 +106,7 @@ export interface DataHook {
   offlineQueue: WorkoutSet[]
   weightLogs: WeightLog[]
   calorieLogs: CalorieLog[]
+  journalEntries: JournalEntry[]
   loadSettings: () => Promise<Settings>
   saveSettings: (
     newSettings: Settings,
@@ -147,6 +158,7 @@ export interface DataHook {
   migrateGuestHistory: (user: FirebaseUser) => Promise<WorkoutSet[]>
   migrateGuestWeightLogs: (user: FirebaseUser) => Promise<WeightLog[]>
   migrateGuestCalorieLogs: (user: FirebaseUser) => Promise<CalorieLog[]>
+  migrateGuestJournalEntries: (user: FirebaseUser) => Promise<JournalEntry[]>
   syncOfflineQueue: (user: FirebaseUser) => Promise<void>
   fetchFullHistory: (
     user: FirebaseUser | null,
@@ -185,6 +197,19 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   deleteTDEEConfig: (user: FirebaseUser | null) => Promise<void>
+  fetchJournalEntries: (user: FirebaseUser | null) => Promise<JournalEntry[]>
+  addJournalEntry: (
+    note: string,
+    date: Date,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  updateJournalEntry: (
+    id: string,
+    note: string,
+    date: Date,
+    user: FirebaseUser | null,
+  ) => Promise<void>
+  deleteJournalEntry: (id: string, user: FirebaseUser | null) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
   setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
@@ -921,6 +946,52 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const migrateGuestJournalEntries = useCallback(
+    async (user: FirebaseUser): Promise<JournalEntry[]> => {
+      try {
+        const key = 'guestJournalEntries'
+        const savedRaw = await AsyncStorage.getItem(key)
+        if (!savedRaw) return []
+
+        const parsed = JSON.parse(savedRaw)
+        if (!Array.isArray(parsed)) return []
+
+        const guestEntries: JournalEntry[] = parsed
+          .filter(
+            (item) =>
+              item && item.date && typeof item.date.seconds === 'number',
+          )
+          .map((item: SerializedJournalEntry) => ({
+            ...item,
+            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+          }))
+
+        if (guestEntries.length === 0) return []
+
+        const batch = writeBatch(db)
+        const collRef = collection(db, 'users', user.uid, 'journalEntries')
+        const migrated: JournalEntry[] = []
+
+        guestEntries.forEach((entry) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, ...dataToUpload } = entry
+          const docRef = doc(collRef) // Create a new doc with a new ID
+          batch.set(docRef, dataToUpload)
+          migrated.push({ ...entry, id: docRef.id })
+        })
+
+        await batch.commit()
+        await AsyncStorage.removeItem(key)
+        console.log('Guest journal entries migrated successfully.')
+        return migrated
+      } catch (e) {
+        console.error('Failed to migrate guest journal entries', e)
+        return []
+      }
+    },
+    [],
+  )
+
   const syncOfflineQueue = useCallback(
     async (user: FirebaseUser) => {
       if (offlineQueue.length === 0) return
@@ -959,6 +1030,7 @@ export const useData = (): DataHook => {
         await migrateGuestHistory(firebaseUser)
         await migrateGuestWeightLogs(firebaseUser)
         await migrateGuestCalorieLogs(firebaseUser)
+        await migrateGuestJournalEntries(firebaseUser)
         await syncOfflineQueue(firebaseUser)
 
         const userDocRef = doc(db, 'users', firebaseUser.uid)
@@ -1014,6 +1086,7 @@ export const useData = (): DataHook => {
       migrateGuestHistory,
       migrateGuestWeightLogs,
       migrateGuestCalorieLogs,
+      migrateGuestJournalEntries,
       syncOfflineQueue,
       fetchAllTodaysCompletions,
     ],
@@ -1081,6 +1154,7 @@ export const useData = (): DataHook => {
 
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [calorieLogs, setCalorieLogs] = useState<CalorieLog[]>([])
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
 
   const fetchWeightLogs = useCallback(
     async (user: FirebaseUser | null): Promise<WeightLog[]> => {
@@ -1547,6 +1621,209 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const fetchJournalEntries = useCallback(
+    async (user: FirebaseUser | null): Promise<JournalEntry[]> => {
+      if (user) {
+        try {
+          const collRef = collection(db, 'users', user.uid, 'journalEntries')
+          const q = query(collRef, orderBy('date', 'desc'))
+          const querySnapshot = await getDocs(q)
+          const entries = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as JournalEntry[]
+          setJournalEntries(entries)
+          return entries
+        } catch (e) {
+          console.error('Failed to fetch journal entries', e)
+          return []
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestJournalEntries'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (!savedRaw) {
+            setJournalEntries([])
+            return []
+          }
+
+          const parsed = JSON.parse(savedRaw)
+          const guestEntries = parsed
+            .map((item: SerializedJournalEntry) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .sort(
+              (a: JournalEntry, b: JournalEntry) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
+
+          setJournalEntries(guestEntries)
+          return guestEntries
+        } catch (e) {
+          console.error('Failed to fetch guest journal entries', e)
+          return []
+        }
+      }
+    },
+    [],
+  )
+
+  const addJournalEntry = useCallback(
+    async (note: string, date: Date, user: FirebaseUser | null) => {
+      const newEntryBase = {
+        note,
+        date: Timestamp.fromDate(date),
+      }
+
+      if (user) {
+        try {
+          const collRef = collection(db, 'users', user.uid, 'journalEntries')
+          const docRef = await addDoc(collRef, newEntryBase)
+          const newEntry = {
+            id: docRef.id,
+            ...newEntryBase,
+          }
+          setJournalEntries((prev) =>
+            [newEntry, ...prev].sort(
+              (a, b) => b.date.toMillis() - a.date.toMillis(),
+            ),
+          )
+        } catch (e) {
+          console.error('Failed to add journal entry', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestJournalEntries'
+          const savedRaw = await AsyncStorage.getItem(key)
+          const guestEntries = savedRaw ? JSON.parse(savedRaw) : []
+          const newEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            ...newEntryBase,
+          }
+          const updatedEntries = [newEntry, ...guestEntries]
+          await AsyncStorage.setItem(key, JSON.stringify(updatedEntries))
+
+          // Reconstruct Timestamp for local state
+          const stateEntries = updatedEntries
+            .map((item: SerializedJournalEntry) => ({
+              ...item,
+              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+            }))
+            .sort(
+              (a: JournalEntry, b: JournalEntry) =>
+                b.date.toMillis() - a.date.toMillis(),
+            )
+
+          setJournalEntries(stateEntries)
+        } catch (e) {
+          console.error('Failed to add guest journal entry', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const updateJournalEntry = useCallback(
+    async (
+      id: string,
+      note: string,
+      date: Date,
+      user: FirebaseUser | null,
+    ) => {
+      const updates = {
+        note,
+        date: Timestamp.fromDate(date),
+      }
+
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'journalEntries', id)
+          await updateDoc(docRef, updates)
+          setJournalEntries((prev) =>
+            prev
+              .map((item) => (item.id === id ? { ...item, ...updates } : item))
+              .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+          )
+        } catch (e) {
+          console.error('Failed to update journal entry', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestJournalEntries'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (savedRaw) {
+            const guestEntries = JSON.parse(savedRaw)
+            const updatedEntries = guestEntries.map((item: SerializedJournalEntry) =>
+              item.id === id ? { ...item, ...updates } : item,
+            )
+            await AsyncStorage.setItem(key, JSON.stringify(updatedEntries))
+
+            const stateEntries = updatedEntries
+              .map((item: SerializedJournalEntry) => ({
+                ...item,
+                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+              }))
+              .sort(
+                (a: JournalEntry, b: JournalEntry) =>
+                  b.date.toMillis() - a.date.toMillis(),
+              )
+
+            setJournalEntries(stateEntries)
+          }
+        } catch (e) {
+          console.error('Failed to update guest journal entry', e)
+        }
+      }
+    },
+    [],
+  )
+
+  const deleteJournalEntry = useCallback(
+    async (id: string, user: FirebaseUser | null) => {
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'journalEntries', id)
+          await deleteDoc(docRef)
+          setJournalEntries((prev) => prev.filter((item) => item.id !== id))
+        } catch (e) {
+          console.error('Failed to delete journal entry', e)
+        }
+      } else {
+        // Guest user
+        try {
+          const key = 'guestJournalEntries'
+          const savedRaw = await AsyncStorage.getItem(key)
+          if (savedRaw) {
+            const guestEntries = JSON.parse(savedRaw)
+            const updatedEntries = guestEntries.filter(
+              (item: SerializedJournalEntry) => item.id !== id,
+            )
+            await AsyncStorage.setItem(key, JSON.stringify(updatedEntries))
+
+            const stateEntries = updatedEntries
+              .map((item: SerializedJournalEntry) => ({
+                ...item,
+                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+              }))
+              .sort(
+                (a: JournalEntry, b: JournalEntry) =>
+                  b.date.toMillis() - a.date.toMillis(),
+              )
+
+            setJournalEntries(stateEntries)
+          }
+        } catch (e) {
+          console.error('Failed to delete guest journal entry', e)
+        }
+      }
+    },
+    [],
+  )
+
   return useMemo(
     () => ({
       settings,
@@ -1555,6 +1832,7 @@ export const useData = (): DataHook => {
       offlineQueue,
       weightLogs,
       calorieLogs,
+      journalEntries,
       loadSettings,
       saveSettings,
       loadWorkouts,
@@ -1587,6 +1865,11 @@ export const useData = (): DataHook => {
       loadTDEEConfig,
       saveTDEEConfig,
       deleteTDEEConfig,
+      migrateGuestJournalEntries,
+      fetchJournalEntries,
+      addJournalEntry,
+      updateJournalEntry,
+      deleteJournalEntry,
       setWorkouts,
       setSettings,
       setOfflineQueue,
@@ -1598,6 +1881,7 @@ export const useData = (): DataHook => {
       offlineQueue,
       weightLogs,
       calorieLogs,
+      journalEntries,
       loadSettings,
       saveSettings,
       loadWorkouts,
@@ -1630,6 +1914,11 @@ export const useData = (): DataHook => {
       loadTDEEConfig,
       saveTDEEConfig,
       deleteTDEEConfig,
+      migrateGuestJournalEntries,
+      fetchJournalEntries,
+      addJournalEntry,
+      updateJournalEntry,
+      deleteJournalEntry,
       setWorkouts,
       setSettings,
       setOfflineQueue,

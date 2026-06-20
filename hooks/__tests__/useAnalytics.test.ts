@@ -52,6 +52,7 @@ describe('useAnalytics Hook', () => {
     offlineQueue: [],
     weightLogs: [],
     calorieLogs: [],
+    journalEntries: [],
     loadSettings: jest.fn(),
     saveSettings: jest.fn(),
     loadWorkouts: jest.fn(),
@@ -87,6 +88,11 @@ describe('useAnalytics Hook', () => {
     loadTDEEConfig: jest.fn(),
     saveTDEEConfig: jest.fn(),
     deleteTDEEConfig: jest.fn(),
+    migrateGuestJournalEntries: jest.fn(),
+    fetchJournalEntries: jest.fn(),
+    addJournalEntry: jest.fn(),
+    updateJournalEntry: jest.fn(),
+    deleteJournalEntry: jest.fn(),
     ...overrides,
   })
 
