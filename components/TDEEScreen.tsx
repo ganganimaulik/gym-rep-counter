@@ -114,6 +114,14 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const [goalWeightInput, setGoalWeightInput] = useState('')
   const [goalRateInput, setGoalRateInput] = useState('')
 
+  // ── Body Fat settings state ──
+  const [setupGender, setSetupGender] = useState<'male' | 'female'>('male')
+  const [setupMeasurementUnit, setSetupMeasurementUnit] = useState<'inch' | 'cm'>('inch')
+  const [setupHeight, setSetupHeight] = useState('')
+  const [setupWaist, setSetupWaist] = useState('')
+  const [setupNeck, setSetupNeck] = useState('')
+  const [setupHip, setSetupHip] = useState('')
+
   // ── Tab state for interactive components ──
   const [activeChartTab, setActiveChartTab] = useState<
     'tdee' | 'weight' | 'calories'
@@ -185,6 +193,13 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       setGoalRateInput(tdeeConfig.goalWeeklyRate?.toString() ?? '')
       setSetupWeightUnit(tdeeConfig.weightUnit ?? 'kg')
       setSetupEnergyUnit(tdeeConfig.energyUnit ?? 'cal')
+      
+      if (tdeeConfig.gender) setSetupGender(tdeeConfig.gender)
+      if (tdeeConfig.measurementUnit) setSetupMeasurementUnit(tdeeConfig.measurementUnit)
+      setSetupHeight(tdeeConfig.heightValue?.toString() ?? '')
+      setSetupWaist(tdeeConfig.waistValue?.toString() ?? '')
+      setSetupNeck(tdeeConfig.neckValue?.toString() ?? '')
+      setSetupHip(tdeeConfig.hipValue?.toString() ?? '')
     }
   }, [tdeeConfig])
 
@@ -231,6 +246,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       energyUnit: setupEnergyUnit,
       goalWeight: gw,
       goalWeeklyRate: rate,
+      gender: setupGender,
+      measurementUnit: setupMeasurementUnit,
+      heightValue: setupHeight.trim() ? parseFloat(setupHeight) : undefined,
+      waistValue: setupWaist.trim() ? parseFloat(setupWaist) : undefined,
+      neckValue: setupNeck.trim() ? parseFloat(setupNeck) : undefined,
+      hipValue: setupGender === 'female' && setupHip.trim() ? parseFloat(setupHip) : undefined,
     }
 
     await saveTDEEConfig(updatedConfig, user)
@@ -940,7 +961,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
         </StyledView>
       )}
 
-      {/* ─── Unit Preferences Card (Collapsible) ─── */}
+      {/* ─── Preferences & Body Fat Card (Collapsible) ─── */}
       {isConfigured && (
         <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl mb-4 shadow-xl overflow-hidden">
           <StyledTouchableOpacity
@@ -950,7 +971,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
             <StyledView className="flex-row items-center">
               <Settings2 color="#a1a1aa" size={18} />
               <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
-                Unit Preferences
+                Preferences & Body Fat
               </StyledText>
             </StyledView>
             {unitExpanded ? (
@@ -980,7 +1001,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
                 Energy Unit
               </StyledText>
-              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-6 overflow-hidden">
+              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
                 <Picker
                   selectedValue={setupEnergyUnit}
                   onValueChange={setSetupEnergyUnit}
@@ -992,12 +1013,113 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 </Picker>
               </StyledView>
 
+              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide border-t border-zinc-800 pt-4 mt-2">
+                Measurement Unit
+              </StyledText>
+              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
+                <Picker
+                  selectedValue={setupMeasurementUnit}
+                  onValueChange={setSetupMeasurementUnit}
+                  style={globalStyles.picker}
+                  itemStyle={globalStyles.pickerItem}
+                  dropdownIconColor="white">
+                  <Picker.Item label="Inches (in)" value="inch" />
+                  <Picker.Item label="Centimeters (cm)" value="cm" />
+                </Picker>
+              </StyledView>
+
+              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                Gender
+              </StyledText>
+              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
+                <Picker
+                  selectedValue={setupGender}
+                  onValueChange={setSetupGender}
+                  style={globalStyles.picker}
+                  itemStyle={globalStyles.pickerItem}
+                  dropdownIconColor="white">
+                  <Picker.Item label="Male" value="male" />
+                  <Picker.Item label="Female" value="female" />
+                </Picker>
+              </StyledView>
+
+              <StyledView className="flex-row gap-3 mb-4">
+                <StyledView className="flex-1">
+                  <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                    Height ({setupMeasurementUnit})
+                  </StyledText>
+                  <StyledTextInput
+                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                    keyboardType="numeric"
+                    value={setupHeight}
+                    onChangeText={setSetupHeight}
+                    placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '70' : '178'}`}
+                    placeholderTextColor="#52525b"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                </StyledView>
+                <StyledView className="flex-1">
+                  <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                    Waist ({setupMeasurementUnit})
+                  </StyledText>
+                  <StyledTextInput
+                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                    keyboardType="numeric"
+                    value={setupWaist}
+                    onChangeText={setSetupWaist}
+                    placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '32' : '81'}`}
+                    placeholderTextColor="#52525b"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                </StyledView>
+              </StyledView>
+
+              <StyledView className="flex-row gap-3 mb-6">
+                <StyledView className="flex-1">
+                  <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                    Neck ({setupMeasurementUnit})
+                  </StyledText>
+                  <StyledTextInput
+                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                    keyboardType="numeric"
+                    value={setupNeck}
+                    onChangeText={setSetupNeck}
+                    placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '15' : '38'}`}
+                    placeholderTextColor="#52525b"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                </StyledView>
+                {setupGender === 'female' && (
+                  <StyledView className="flex-1">
+                    <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                      Hips ({setupMeasurementUnit})
+                    </StyledText>
+                    <StyledTextInput
+                      className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                      keyboardType="numeric"
+                      value={setupHip}
+                      onChangeText={setSetupHip}
+                      placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '38' : '96'}`}
+                      placeholderTextColor="#52525b"
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
+                    />
+                  </StyledView>
+                )}
+                {setupGender !== 'female' && (
+                  <StyledView className="flex-1" />
+                )}
+              </StyledView>
+
               <StyledTouchableOpacity
                 onPress={handleSaveGoals}
                 activeOpacity={0.85}
                 className="bg-zinc-800 border border-zinc-700 py-3 rounded-xl items-center shadow-lg">
                 <StyledText className="text-white text-sm font-black uppercase tracking-wider">
-                  Save Units
+                  Save Preferences
                 </StyledText>
               </StyledTouchableOpacity>
             </StyledView>

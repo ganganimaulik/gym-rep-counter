@@ -88,4 +88,7 @@ export interface TDEEConfig {
   gender?: 'male' | 'female'
   heightValue?: number
   measurementUnit?: 'inch' | 'cm'
+  waistValue?: number
+  neckValue?: number
+  hipValue?: number
 }

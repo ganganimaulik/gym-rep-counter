@@ -166,7 +166,17 @@ export function useTDEE(
     )
 
     // Group logs into weekly buckets
-    const weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)
+    let weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)
+    
+    // Attach body fat measurements to each week input so calculateTDEEPipeline can use them
+    if (tdeeConfig) {
+      weekInputs = weekInputs.map(week => ({
+        ...week,
+        waist: tdeeConfig.waistValue,
+        neck: tdeeConfig.neckValue,
+        hip: tdeeConfig.hipValue,
+      }))
+    }
 
     // Build pipeline config
     const pipelineConfig: TDEEPipelineConfig = {
