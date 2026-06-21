@@ -380,6 +380,16 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const energyLabel = energyUnit === 'cal' ? 'Cal' : 'kJ'
   const isConfigured = tdeeConfig !== null
 
+  const isDeficit =
+    tdeeConfig?.goalWeight !== undefined &&
+    tdeeData.currentWeight !== null &&
+    tdeeConfig.goalWeight < tdeeData.currentWeight
+
+  const isSurplus =
+    tdeeConfig?.goalWeight !== undefined &&
+    tdeeData.currentWeight !== null &&
+    tdeeConfig.goalWeight > tdeeData.currentWeight
+
   // ── Render ──
 
   return (
@@ -716,13 +726,16 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                   </StyledText>
                   <StyledText
                     className={`font-black text-sm ${
-                      tdeeData.dailyDeficit !== null &&
-                      tdeeData.dailyDeficit < 0
-                        ? 'text-emerald-400'
-                        : 'text-red-400'
+                      tdeeData.dailyDeficit !== null
+                        ? isDeficit
+                          ? 'text-emerald-400'
+                          : isSurplus
+                          ? 'text-red-400'
+                          : 'text-white'
+                        : 'text-zinc-400'
                     }`}>
                     {tdeeData.dailyDeficit !== null
-                      ? `${tdeeData.dailyDeficit > 0 ? '+' : ''}${Math.round(tdeeData.dailyDeficit).toLocaleString()} ${energyLabel}`
+                      ? `${isDeficit ? '-' : isSurplus ? '+' : ''}${Math.round(tdeeData.dailyDeficit).toLocaleString()} ${energyLabel}`
                       : '—'}
                   </StyledText>
                 </StyledView>
