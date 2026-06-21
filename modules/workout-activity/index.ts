@@ -1,8 +1,12 @@
 import { requireNativeModule } from 'expo-modules-core'
 
+import { Platform } from 'react-native'
+
 let WorkoutActivityModule: any = null
 try {
-  WorkoutActivityModule = requireNativeModule('WorkoutActivityModule')
+  if (Platform.OS !== 'web') {
+    WorkoutActivityModule = requireNativeModule('WorkoutActivityModule')
+  }
 } catch (error) {
   console.warn(
     'WorkoutActivityModule is not available in this environment:',

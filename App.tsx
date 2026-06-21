@@ -363,14 +363,21 @@ const App: React.FC = () => {
 
   // Conditional keep-awake: only keep screen on during active workout or rest phase
   useEffect(() => {
+    const safeDeactivate = () => {
+      try {
+        const res = deactivateKeepAwake('workout') as any
+        if (res && typeof res.catch === 'function') {
+          res.catch(() => {})
+        }
+      } catch (e) {}
+    }
+
     if (isRunning || isResting) {
-      activateKeepAwakeAsync('workout')
+      activateKeepAwakeAsync('workout').catch(() => {})
     } else {
-      deactivateKeepAwake('workout')
+      safeDeactivate()
     }
-    return () => {
-      deactivateKeepAwake('workout')
-    }
+    return safeDeactivate
   }, [isRunning, isResting])
 
   const handleResetSetsFrom = useCallback(
