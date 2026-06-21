@@ -726,13 +726,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                   </StyledText>
                   <StyledText
                     className={`font-black text-sm ${
-                      tdeeData.dailyDeficit !== null
-                        ? isDeficit
-                          ? 'text-emerald-400'
-                          : isSurplus
-                          ? 'text-red-400'
-                          : 'text-white'
-                        : 'text-zinc-400'
+                      tdeeData.dailyDeficit !== null &&
+                      tdeeData.dailyDeficit < 0
+                        ? 'text-emerald-400'
+                        : 'text-red-400'
                     }`}>
                     {tdeeData.dailyDeficit !== null
                       ? `${isDeficit ? '-' : isSurplus ? '+' : ''}${Math.round(tdeeData.dailyDeficit).toLocaleString()} ${energyLabel}`
