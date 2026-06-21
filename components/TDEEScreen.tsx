@@ -102,8 +102,8 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
 
   // Load config on mount
   useEffect(() => {
-    loadTDEEConfig()
-  }, [loadTDEEConfig])
+    loadTDEEConfig(user)
+  }, [loadTDEEConfig, user])
 
   // ── Setup state ──
   const [setupWeightUnit, setSetupWeightUnit] = useState<'kg' | 'lb'>('kg')

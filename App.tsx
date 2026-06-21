@@ -119,14 +119,14 @@ const App: React.FC = () => {
         await syncUserData(firebaseUser, localSettings, localWorkouts)
         await fetchWeightLogs(firebaseUser)
         await fetchCalorieLogs(firebaseUser)
-        await loadTDEEConfig()
+        await loadTDEEConfig(firebaseUser)
         await fetchJournalEntries(firebaseUser)
       } else {
         await loadSettings()
         await loadWorkouts()
         await fetchWeightLogs(null)
         await fetchCalorieLogs(null)
-        await loadTDEEConfig()
+        await loadTDEEConfig(null)
         await fetchJournalEntries(null)
       }
     },

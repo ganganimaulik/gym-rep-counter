@@ -191,7 +191,7 @@ export interface DataHook {
   ) => Promise<void>
   deleteCalorieLog: (id: string, user: FirebaseUser | null) => Promise<void>
   tdeeConfig: TDEEConfig | null
-  loadTDEEConfig: () => Promise<TDEEConfig | null>
+  loadTDEEConfig: (user?: FirebaseUser | null) => Promise<TDEEConfig | null>
   saveTDEEConfig: (
     config: TDEEConfig,
     user: FirebaseUser | null,
@@ -992,6 +992,24 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const migrateGuestTDEEConfig = useCallback(
+    async (user: FirebaseUser): Promise<void> => {
+      try {
+        const key = 'tdeeConfig'
+        const saved = await AsyncStorage.getItem(key)
+        if (saved) {
+          const parsed = JSON.parse(saved) as TDEEConfig
+          const docRef = doc(db, 'users', user.uid)
+          await setDoc(docRef, { tdeeConfig: parsed }, { merge: true })
+          console.log('Guest TDEE config migrated successfully.')
+        }
+      } catch (e) {
+        console.error('Failed to migrate guest TDEE config', e)
+      }
+    },
+    [],
+  )
+
   const syncOfflineQueue = useCallback(
     async (user: FirebaseUser) => {
       if (offlineQueue.length === 0) return
@@ -1031,6 +1049,7 @@ export const useData = (): DataHook => {
         await migrateGuestWeightLogs(firebaseUser)
         await migrateGuestCalorieLogs(firebaseUser)
         await migrateGuestJournalEntries(firebaseUser)
+        await migrateGuestTDEEConfig(firebaseUser)
         await syncOfflineQueue(firebaseUser)
 
         const userDocRef = doc(db, 'users', firebaseUser.uid)
@@ -1074,6 +1093,14 @@ export const useData = (): DataHook => {
               JSON.stringify(userData.workouts),
             )
           }
+          // Sync TDEE Config
+          if (userData.tdeeConfig) {
+            setTdeeConfig(userData.tdeeConfig)
+            await AsyncStorage.setItem(
+              'tdeeConfig',
+              JSON.stringify(userData.tdeeConfig),
+            )
+          }
         }
 
         // Step 4: Fetch a fresh copy of today's completions
@@ -1087,6 +1114,7 @@ export const useData = (): DataHook => {
       migrateGuestWeightLogs,
       migrateGuestCalorieLogs,
       migrateGuestJournalEntries,
+      migrateGuestTDEEConfig,
       syncOfflineQueue,
       fetchAllTodaysCompletions,
     ],
@@ -1565,20 +1593,39 @@ export const useData = (): DataHook => {
   // TDEE Config persistence
   const [tdeeConfig, setTdeeConfig] = useState<TDEEConfig | null>(null)
 
-  const loadTDEEConfig = useCallback(async (): Promise<TDEEConfig | null> => {
-    try {
-      const saved = await AsyncStorage.getItem('tdeeConfig')
-      if (saved) {
-        const parsed = JSON.parse(saved) as TDEEConfig
-        setTdeeConfig(parsed)
-        return parsed
+  const loadTDEEConfig = useCallback(
+    async (user?: FirebaseUser | null): Promise<TDEEConfig | null> => {
+      try {
+        const saved = await AsyncStorage.getItem('tdeeConfig')
+        if (saved) {
+          const parsed = JSON.parse(saved) as TDEEConfig
+          setTdeeConfig(parsed)
+          return parsed
+        }
+
+        if (user) {
+          const userDocRef = doc(db, 'users', user.uid)
+          const userDoc = await getDoc(userDocRef)
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            if (userData && userData.tdeeConfig) {
+              setTdeeConfig(userData.tdeeConfig)
+              await AsyncStorage.setItem(
+                'tdeeConfig',
+                JSON.stringify(userData.tdeeConfig),
+              )
+              return userData.tdeeConfig
+            }
+          }
+        }
+        return null
+      } catch (e) {
+        console.error('Failed to load TDEE config', e)
+        return null
       }
-      return null
-    } catch (e) {
-      console.error('Failed to load TDEE config', e)
-      return null
-    }
-  }, [])
+    },
+    [],
+  )
 
   const saveTDEEConfig = useCallback(
     async (config: TDEEConfig, user: FirebaseUser | null): Promise<void> => {

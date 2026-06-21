@@ -530,12 +530,17 @@ describe('useData Hook', () => {
   })
 
   describe('User Data Sync', () => {
-    it('should sync settings and workouts from firestore for an existing user', async () => {
+    it('should sync settings, workouts, and TDEE config from firestore for an existing user', async () => {
       const firestoreData = {
         settings: { ...defaultSettings, restSeconds: 90 },
         workouts: [
           { id: 'firebase-workout', name: 'Firebase Workout', exercises: [] },
         ],
+        tdeeConfig: {
+          gender: 'male',
+          weight: 80,
+          height: 180,
+        },
       }
       ;(getDoc as jest.Mock).mockResolvedValue({
         exists: () => true,
@@ -549,6 +554,7 @@ describe('useData Hook', () => {
 
       expect(result.current.settings).toEqual(firestoreData.settings)
       expect(result.current.workouts).toEqual(firestoreData.workouts)
+      expect(result.current.tdeeConfig).toEqual(firestoreData.tdeeConfig)
       expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
         'setCompletions',
         expect.any(String),
@@ -560,6 +566,10 @@ describe('useData Hook', () => {
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         'workouts',
         JSON.stringify(firestoreData.workouts),
+      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'tdeeConfig',
+        JSON.stringify(firestoreData.tdeeConfig),
       )
     })
 
@@ -580,10 +590,35 @@ describe('useData Hook', () => {
         )
       })
 
-      const setDocCall = (setDoc as jest.Mock).mock.calls[0]
+      const setDocCall = (setDoc as jest.Mock).mock.calls.find(call => call[1] && call[1].settings)
+      expect(setDocCall).toBeDefined()
       expect(setDocCall[1]).not.toHaveProperty('setCompletions')
       expect(setDocCall[1]).toHaveProperty('settings', localSettings)
       expect(setDocCall[1]).toHaveProperty('workouts', localWorkouts)
+    })
+
+    it('should migrate guest TDEE config to Firestore on sync', async () => {
+      const mockTDEEConfig = {
+        gender: 'male',
+        weight: 80,
+        height: 180,
+      }
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'tdeeConfig') return Promise.resolve(JSON.stringify(mockTDEEConfig))
+        return Promise.resolve(null)
+      })
+      ;(getDoc as jest.Mock).mockResolvedValue({ exists: () => false })
+
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.syncUserData(mockUser, {} as Settings, [])
+      })
+
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ tdeeConfig: mockTDEEConfig }),
+        { merge: true }
+      )
     })
 
     it('should migrate guest history to firestore', async () => {
@@ -1604,6 +1639,21 @@ describe('useData Hook', () => {
       expect(result.current.tdeeConfig).toBeNull()
     })
 
+    it('should load TDEE config from Firestore if not in AsyncStorage', async () => {
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+      ;(getDoc as jest.Mock).mockResolvedValue({
+        exists: () => true,
+        data: () => ({ tdeeConfig: mockTDEEConfig }),
+      })
+
+      const { result } = renderHook(() => useData())
+      let config
+      await act(async () => { config = await result.current.loadTDEEConfig(mockUser) })
+      expect(config).toEqual(mockTDEEConfig)
+      expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('tdeeConfig', JSON.stringify(mockTDEEConfig))
+    })
+
     it('should load TDEE config - with saved config', async () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(mockTDEEConfig))
       const { result } = renderHook(() => useData())
@@ -1636,12 +1686,12 @@ describe('useData Hook', () => {
       const { result } = renderHook(() => useData())
       await act(async () => { await result.current.saveTDEEConfig(mockTDEEConfig as any, mockUser) })
       expect(AsyncStorage.setItem).toHaveBeenCalledWith('tdeeConfig', JSON.stringify(mockTDEEConfig))
-      expect(updateDoc).toHaveBeenCalled()
+      expect(setDoc).toHaveBeenCalled()
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
     })
 
     it('should handle save TDEE config Firestore failure', async () => {
-      ;(updateDoc as jest.Mock).mockRejectedValue(new Error('Firestore error'))
+      ;(setDoc as jest.Mock).mockRejectedValue(new Error('Firestore error'))
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const { result } = renderHook(() => useData())
       await act(async () => { await result.current.saveTDEEConfig(mockTDEEConfig as any, mockUser) })
