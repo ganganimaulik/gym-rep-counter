@@ -34,6 +34,7 @@ import type {
   CalorieLog,
   TDEEConfig,
   JournalEntry,
+  SupplementLog,
 } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
 
@@ -53,6 +54,7 @@ interface SerializedJournalEntry {
     seconds: number
     nanoseconds: number
   }
+  supplements?: SupplementLog[]
 }
 
 interface SerializedWeightLog {
@@ -84,6 +86,7 @@ export interface Settings {
   eccentricCountdownEnabled: boolean
   countdownAnnouncementThreshold: number
   volume: number
+  supplementSuggestions?: { name: string; defaultDosage: string }[]
 }
 
 export interface Exercise {
@@ -202,12 +205,14 @@ export interface DataHook {
     note: string,
     date: Date,
     user: FirebaseUser | null,
+    supplements?: SupplementLog[],
   ) => Promise<void>
   updateJournalEntry: (
     id: string,
     note: string,
     date: Date,
     user: FirebaseUser | null,
+    supplements?: SupplementLog[],
   ) => Promise<void>
   deleteJournalEntry: (id: string, user: FirebaseUser | null) => Promise<void>
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
@@ -225,6 +230,23 @@ const defaultSettings: Settings = {
   eccentricCountdownEnabled: true,
   countdownAnnouncementThreshold: 15,
   volume: 1.0,
+  supplementSuggestions: [
+    { name: 'Creatine', defaultDosage: '5g' },
+    { name: 'Whey Protein', defaultDosage: '1 scoop' },
+    { name: 'Pre-workout', defaultDosage: '1 scoop' },
+    { name: 'Fish Oil', defaultDosage: '1 cap' },
+    { name: 'Vitamin D3', defaultDosage: '5000 IU' },
+    { name: 'Caffeine', defaultDosage: '200mg' },
+    { name: 'Multivitamin', defaultDosage: '1 tab' },
+    { name: 'Zinc', defaultDosage: '50mg' },
+    { name: 'Magnesium', defaultDosage: '400mg' },
+    { name: 'BCAA', defaultDosage: '5g' },
+    { name: 'Ashwagandha', defaultDosage: '600mg' },
+    { name: 'Beta-Alanine', defaultDosage: '3g' },
+    { name: 'Citrulline Malate', defaultDosage: '6g' },
+    { name: 'L-Glutamine', defaultDosage: '5g' },
+    { name: 'L-Theanine', defaultDosage: '200mg' },
+  ],
 }
 
 export const useData = (): DataHook => {
@@ -1718,10 +1740,16 @@ export const useData = (): DataHook => {
   )
 
   const addJournalEntry = useCallback(
-    async (note: string, date: Date, user: FirebaseUser | null) => {
+    async (
+      note: string,
+      date: Date,
+      user: FirebaseUser | null,
+      supplements?: SupplementLog[],
+    ) => {
       const newEntryBase = {
         note,
         date: Timestamp.fromDate(date),
+        supplements: supplements || [],
       }
 
       if (user) {
@@ -1779,10 +1807,12 @@ export const useData = (): DataHook => {
       note: string,
       date: Date,
       user: FirebaseUser | null,
+      supplements?: SupplementLog[],
     ) => {
       const updates = {
         note,
         date: Timestamp.fromDate(date),
+        supplements: supplements || [],
       }
 
       if (user) {

@@ -46,6 +46,14 @@ const createMockSet = (
 })
 
 describe('analyticsUtils', () => {
+  beforeAll(() => {
+    jest.useFakeTimers()
+    jest.setSystemTime(new Date('2024-01-05')) // Friday
+  })
+
+  afterAll(() => {
+    jest.useRealTimers()
+  })
   describe('calculatePRs', () => {
     it('should return empty array for empty history', () => {
       const result = calculatePRs([])

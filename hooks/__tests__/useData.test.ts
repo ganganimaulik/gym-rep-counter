@@ -94,6 +94,23 @@ describe('useData Hook', () => {
     eccentricCountdownEnabled: true,
     countdownAnnouncementThreshold: 15,
     volume: 1.0,
+    supplementSuggestions: [
+      { name: 'Creatine', defaultDosage: '5g' },
+      { name: 'Whey Protein', defaultDosage: '1 scoop' },
+      { name: 'Pre-workout', defaultDosage: '1 scoop' },
+      { name: 'Fish Oil', defaultDosage: '1 cap' },
+      { name: 'Vitamin D3', defaultDosage: '5000 IU' },
+      { name: 'Caffeine', defaultDosage: '200mg' },
+      { name: 'Multivitamin', defaultDosage: '1 tab' },
+      { name: 'Zinc', defaultDosage: '50mg' },
+      { name: 'Magnesium', defaultDosage: '400mg' },
+      { name: 'BCAA', defaultDosage: '5g' },
+      { name: 'Ashwagandha', defaultDosage: '600mg' },
+      { name: 'Beta-Alanine', defaultDosage: '3g' },
+      { name: 'Citrulline Malate', defaultDosage: '6g' },
+      { name: 'L-Glutamine', defaultDosage: '5g' },
+      { name: 'L-Theanine', defaultDosage: '200mg' },
+    ],
   }
 
   beforeEach(() => {
@@ -1543,12 +1560,38 @@ describe('useData Hook', () => {
       expect(result.current.journalEntries[0].note).toBe('New note')
     })
 
+    it('should add journal entry with supplements for guest user', async () => {
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('[]')
+      const { result } = renderHook(() => useData())
+      const supplements = [{ name: 'Creatine', dosage: '5g' }]
+      await act(async () => { await result.current.addJournalEntry('New note with supps', new Date(), null, supplements) })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestJournalEntries',
+        expect.stringContaining('"name":"Creatine"')
+      )
+      expect(result.current.journalEntries[0].note).toBe('New note with supps')
+      expect(result.current.journalEntries[0].supplements).toEqual(supplements)
+    })
+
     it('should add journal entry for authenticated user', async () => {
       ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
       await act(async () => { await result.current.addJournalEntry('New db note', new Date(), mockUser) })
       expect(addDoc).toHaveBeenCalled()
       expect(result.current.journalEntries[0].note).toBe('New db note')
+    })
+
+    it('should add journal entry with supplements for authenticated user', async () => {
+      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
+      const { result } = renderHook(() => useData())
+      const supplements = [{ name: 'Whey Protein', dosage: '1 scoop' }]
+      await act(async () => { await result.current.addJournalEntry('New db note with supps', new Date(), mockUser, supplements) })
+      expect(addDoc).toHaveBeenCalledWith(undefined, expect.objectContaining({
+        note: 'New db note with supps',
+        supplements: supplements
+      }))
+      expect(result.current.journalEntries[0].note).toBe('New db note with supps')
+      expect(result.current.journalEntries[0].supplements).toEqual(supplements)
     })
 
     it('should update journal entry for guest user', async () => {
@@ -1561,6 +1604,21 @@ describe('useData Hook', () => {
       expect(result.current.journalEntries[0].note).toBe('Updated note')
     })
 
+    it('should update journal entry with supplements for guest user', async () => {
+      const guestEntries = [{ id: '1', note: 'Old note', date: { seconds: 1000, nanoseconds: 0 }, supplements: [] }]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestEntries))
+      const { result } = renderHook(() => useData())
+      const supplements = [{ name: 'Creatine', dosage: '5g' }]
+      await act(async () => { await result.current.fetchJournalEntries(null) })
+      await act(async () => { await result.current.updateJournalEntry('1', 'Updated note with supps', new Date(), null, supplements) })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestJournalEntries',
+        expect.stringContaining('"name":"Creatine"')
+      )
+      expect(result.current.journalEntries[0].note).toBe('Updated note with supps')
+      expect(result.current.journalEntries[0].supplements).toEqual(supplements)
+    })
+
     it('should update journal entry for authenticated user', async () => {
       ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
       const dbEntries = [{ id: '1', note: 'Old note', date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
@@ -1570,6 +1628,22 @@ describe('useData Hook', () => {
       await act(async () => { await result.current.updateJournalEntry('1', 'Updated DB note', new Date(), mockUser) })
       expect(updateDoc).toHaveBeenCalled()
       expect(result.current.journalEntries[0].note).toBe('Updated DB note')
+    })
+
+    it('should update journal entry with supplements for authenticated user', async () => {
+      ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
+      const dbEntries = [{ id: '1', note: 'Old note', date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
+      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbEntries.map(entry => ({ id: entry.id, data: () => ({ note: entry.note, date: entry.date }) })) })
+      const { result } = renderHook(() => useData())
+      const supplements = [{ name: 'Whey Protein', dosage: '1 scoop' }]
+      await act(async () => { await result.current.fetchJournalEntries(mockUser) })
+      await act(async () => { await result.current.updateJournalEntry('1', 'Updated DB note with supps', new Date(), mockUser, supplements) })
+      expect(updateDoc).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+        note: 'Updated DB note with supps',
+        supplements: supplements
+      }))
+      expect(result.current.journalEntries[0].note).toBe('Updated DB note with supps')
+      expect(result.current.journalEntries[0].supplements).toEqual(supplements)
     })
 
     it('should delete journal entry for guest user', async () => {

@@ -9,14 +9,16 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native'
 import { styled } from 'nativewind'
-import { Pencil, Trash2, Plus } from 'lucide-react-native'
+import { Pencil, Trash2, Plus, X } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { JournalEntry } from '../declarations'
+import type { JournalEntry, SupplementLog } from '../declarations'
 import { DataHook } from '../hooks/useData'
 
 const StyledView = styled(View)
@@ -24,6 +26,17 @@ const StyledText = styled(Text)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledTextInput = styled(TextInput)
 const StyledBlurView = styled(BlurView)
+const StyledScrollView = styled(ScrollView)
+
+const POPULAR_SUPPLEMENTS = [
+  { name: 'Creatine', defaultDosage: '5g' },
+  { name: 'Pre-workout', defaultDosage: '1 scoop' },
+  { name: 'Fish Oil', defaultDosage: '1 cap' },
+  { name: 'Vitamin D3', defaultDosage: '5000 IU' },
+  { name: 'Multivitamin', defaultDosage: '1 tab' },
+  { name: 'Magnesium', defaultDosage: '400mg' },
+  { name: 'Ashwagandha', defaultDosage: '600mg' },
+]
 
 interface JournalScreenProps {
   visible: boolean
@@ -51,6 +64,20 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   const [editNote, setEditNote] = useState('')
   const [dateValue, setDateValue] = useState<Date>(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [supplementsList, setSupplementsList] = useState<SupplementLog[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dosageQuery, setDosageQuery] = useState('')
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const suggestions = dataHook.settings.supplementSuggestions || []
+
+  const handleRemoveSuggestion = async (nameToRemove: string) => {
+    const currentSuggestions = dataHook.settings.supplementSuggestions || []
+    const updatedSuggestions = currentSuggestions.filter(s => s.name.toLowerCase() !== nameToRemove.toLowerCase())
+    await dataHook.saveSettings({
+      ...dataHook.settings,
+      supplementSuggestions: updatedSuggestions,
+    }, user)
+  }
 
 
   const loadEntries = useCallback(async () => {
@@ -74,6 +101,10 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     setEditNote('')
     setDateValue(new Date())
     setShowDatePicker(false)
+    setSupplementsList([])
+    setSearchQuery('')
+    setDosageQuery('')
+    setIsSearchFocused(false)
   }
 
   const handleItemPress = (item: JournalEntry) => {
@@ -81,6 +112,10 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     setDateValue(item.date.toDate())
     setEditModal({ visible: true, item })
     setShowDatePicker(false)
+    setSupplementsList(item.supplements || [])
+    setSearchQuery('')
+    setDosageQuery('')
+    setIsSearchFocused(false)
   }
 
   const handleEditSave = async () => {
@@ -94,22 +129,32 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         editNote,
         dateValue,
         user,
+        supplementsList,
       )
     } else {
         await addJournalEntry(
             editNote,
             dateValue,
             user,
+            supplementsList,
         )
     }
 
     setEditModal({ visible: false, item: null })
     setEditNote('')
+    setSupplementsList([])
+    setSearchQuery('')
+    setDosageQuery('')
+    setIsSearchFocused(false)
   }
 
   const handleEditClose = () => {
     setEditModal({ visible: false, item: null })
     setEditNote('')
+    setSupplementsList([])
+    setSearchQuery('')
+    setDosageQuery('')
+    setIsSearchFocused(false)
   }
 
   const handleDelete = async () => {
@@ -118,6 +163,10 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     await deleteJournalEntry(editModal.item.id, user)
     setEditModal({ visible: false, item: null })
     setEditNote('')
+    setSupplementsList([])
+    setSearchQuery('')
+    setDosageQuery('')
+    setIsSearchFocused(false)
   }
 
   const renderItem = ({
@@ -144,6 +193,24 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
             <Pencil color="#71717a" size={14} />
           </StyledView>
         </StyledView>
+        {item.supplements && item.supplements.length > 0 && (
+          <StyledView className="flex-row flex-wrap gap-1.5 mt-3">
+            {item.supplements.map((supp, index) => (
+              <StyledView
+                key={index}
+                className="bg-violet-500/10 border border-violet-500/20 px-2.5 py-0.5 rounded-lg flex-row items-center">
+                <StyledText className="text-violet-400 font-semibold text-[10px] tracking-wide">
+                  {supp.name}
+                </StyledText>
+                {supp.dosage ? (
+                  <StyledText className="text-violet-500 text-[9px] font-medium ml-1">
+                    {supp.dosage}
+                  </StyledText>
+                ) : null}
+              </StyledView>
+            ))}
+          </StyledView>
+        )}
         <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-3">
           {item.date.toDate().toLocaleTimeString(undefined, {
             hour: '2-digit',
@@ -272,6 +339,152 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                 placeholderTextColor="#52525b"
                 autoFocus={true}
               />
+
+              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                Supplements Taken
+              </StyledText>
+
+              {/* Added Supplements List */}
+              {supplementsList.length > 0 && (
+                <StyledView className="flex-row flex-wrap gap-1.5 mb-3 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/80">
+                  {supplementsList.map((item, index) => (
+                    <StyledView
+                      key={index}
+                      className="bg-violet-500/10 border border-violet-500/20 px-2 py-1 rounded-lg flex-row items-center">
+                      <StyledText className="text-violet-300 font-semibold text-[10px] tracking-wide">
+                        {item.name}
+                      </StyledText>
+                      {item.dosage ? (
+                        <StyledText className="text-violet-500 text-[9px] font-medium ml-1">
+                          ({item.dosage})
+                        </StyledText>
+                      ) : null}
+                      <StyledTouchableOpacity
+                        onPress={() => {
+                          setSupplementsList((prev) => prev.filter((_, i) => i !== index))
+                        }}
+                        className="ml-1.5 bg-violet-500/20 p-0.5 rounded-full"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <X color="#a78bfa" size={8} />
+                      </StyledTouchableOpacity>
+                    </StyledView>
+                  ))}
+                </StyledView>
+              )}
+
+              {/* Add Supplement Inputs */}
+              <StyledView className="flex-row gap-2 items-center mb-3">
+                <StyledView className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl">
+                  <StyledTextInput
+                    className="text-white px-3 py-2 font-medium text-xs"
+                    value={searchQuery}
+                    onChangeText={(text) => {
+                      setSearchQuery(text)
+                      setIsSearchFocused(true)
+                    }}
+                    onFocus={() => setIsSearchFocused(true)}
+                    placeholder="Search/Add Supp..."
+                    placeholderTextColor="#52525b"
+                  />
+                </StyledView>
+                <StyledView className="w-16 bg-zinc-950 border border-zinc-800 rounded-xl">
+                  <StyledTextInput
+                    className="text-white px-2 py-2 font-medium text-xs text-center"
+                    value={dosageQuery}
+                    onChangeText={setDosageQuery}
+                    placeholder="Dosage"
+                    placeholderTextColor="#52525b"
+                  />
+                </StyledView>
+                <StyledTouchableOpacity
+                  onPress={async () => {
+                    const name = searchQuery.trim()
+                    if (name) {
+                      const dosage = dosageQuery.trim() || undefined
+                      if (!supplementsList.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+                        setSupplementsList(prev => [...prev, { name, dosage }])
+                      }
+
+                      // Persist to suggestions if not already present
+                      const alreadyExists = suggestions.some(s => s.name.toLowerCase() === name.toLowerCase())
+                      if (!alreadyExists) {
+                        const updatedSuggestions = [...suggestions, { name, defaultDosage: dosage || '' }]
+                        await dataHook.saveSettings({
+                          ...dataHook.settings,
+                          supplementSuggestions: updatedSuggestions,
+                        }, user)
+                      }
+
+                      setSearchQuery('')
+                      setDosageQuery('')
+                      setIsSearchFocused(false)
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  className="bg-violet-600/20 border border-violet-500/30 p-2 rounded-xl">
+                  <Plus color="#a78bfa" size={14} />
+                </StyledTouchableOpacity>
+              </StyledView>
+
+              {/* Suggestions Box */}
+              {isSearchFocused && (
+                <StyledView className="bg-zinc-950 border border-zinc-800 p-2 rounded-xl mb-3">
+                  <StyledView className="flex-row justify-between items-center mb-1.5 px-1 border-b border-zinc-900 pb-1">
+                    <StyledText className="text-zinc-500 text-[9px] font-black tracking-wider uppercase">
+                      {searchQuery.trim() === '' ? 'Popular Supplements' : 'Suggestions'}
+                    </StyledText>
+                    <StyledTouchableOpacity onPress={() => setIsSearchFocused(false)}>
+                      <StyledText className="text-zinc-500 text-[9px] font-bold">
+                        Close
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  </StyledView>
+                  <StyledScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 6, paddingVertical: 2 }}
+                    keyboardShouldPersistTaps="handled">
+                    {(() => {
+                      const query = searchQuery.trim().toLowerCase()
+                      const filtered = query
+                        ? suggestions.filter(s => s.name.toLowerCase().includes(query))
+                        : suggestions
+
+                      if (filtered.length === 0) {
+                        return (
+                          <StyledText className="text-zinc-550 text-[10px] italic px-1">
+                            No match. Tap '+' to add custom.
+                          </StyledText>
+                        )
+                      }
+
+                      return filtered.map((supp, idx) => (
+                        <StyledView
+                          key={idx}
+                          className="bg-zinc-900 border border-zinc-800 rounded-lg flex-row items-center pl-2.5 pr-1.5 py-1">
+                          <StyledTouchableOpacity
+                            onPress={() => {
+                              setSearchQuery(supp.name)
+                              setDosageQuery(supp.defaultDosage)
+                              setIsSearchFocused(false)
+                            }}
+                            className="mr-2">
+                            <StyledText className="text-zinc-300 text-[10px] font-semibold">
+                              {supp.name} {supp.defaultDosage ? <StyledText className="text-zinc-500 font-normal">({supp.defaultDosage})</StyledText> : null}
+                            </StyledText>
+                          </StyledTouchableOpacity>
+                          <StyledTouchableOpacity
+                            onPress={() => handleRemoveSuggestion(supp.name)}
+                            className="bg-zinc-800 hover:bg-zinc-700 p-0.5 rounded"
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <X color="#71717a" size={8} />
+                          </StyledTouchableOpacity>
+                        </StyledView>
+                      ))
+                    })()}
+                  </StyledScrollView>
+                </StyledView>
+              )}
 
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
                 Date

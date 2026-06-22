@@ -24,10 +24,16 @@ export interface CalorieLog {
   date: Timestamp
 }
 
+export interface SupplementLog {
+  name: string
+  dosage?: string
+}
+
 export interface JournalEntry {
   id: string
   note: string
   date: Timestamp
+  supplements?: SupplementLog[]
 }
 
 // Analytics Types
