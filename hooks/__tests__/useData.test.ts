@@ -1573,6 +1573,22 @@ describe('useData Hook', () => {
       expect(result.current.journalEntries[0].supplements).toEqual(supplements)
     })
 
+    it('should add journal entry with duplicate supplements for guest user', async () => {
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('[]')
+      const { result } = renderHook(() => useData())
+      const supplements = [
+        { name: 'Creatine', dosage: '5g' },
+        { name: 'Creatine', dosage: '5g' },
+      ]
+      await act(async () => { await result.current.addJournalEntry('New note with duplicate supps', new Date(), null, supplements) })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestJournalEntries',
+        expect.stringContaining('"name":"Creatine"')
+      )
+      expect(result.current.journalEntries[0].note).toBe('New note with duplicate supps')
+      expect(result.current.journalEntries[0].supplements).toEqual(supplements)
+    })
+
     it('should add journal entry for authenticated user', async () => {
       ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())

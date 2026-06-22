@@ -401,9 +401,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                     const name = searchQuery.trim()
                     if (name) {
                       const dosage = dosageQuery.trim() || undefined
-                      if (!supplementsList.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-                        setSupplementsList(prev => [...prev, { name, dosage }])
-                      }
+                      setSupplementsList(prev => [...prev, { name, dosage }])
 
                       // Persist to suggestions if not already present
                       const alreadyExists = suggestions.some(s => s.name.toLowerCase() === name.toLowerCase())
