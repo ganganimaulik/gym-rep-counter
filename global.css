@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Web-specific styling for select and option elements */
+select {
+  background-color: #18181b !important; /* bg-zinc-900 */
+  color: #ffffff !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-color: #27272a !important; /* border-zinc-800 */
+  border-radius: 0.75rem !important; /* rounded-xl */
+}
+
+select option {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+}
+
