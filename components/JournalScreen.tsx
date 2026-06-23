@@ -12,10 +12,9 @@ import {
   ScrollView,
 } from 'react-native'
 import { styled } from 'nativewind'
-import { Pencil, Trash2, Plus, X } from 'lucide-react-native'
+import { Pencil, Trash2, Plus, X, Scale, Flame } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { JournalEntry, SupplementLog } from '../declarations'
@@ -28,15 +27,6 @@ const StyledTextInput = styled(TextInput)
 const StyledBlurView = styled(BlurView)
 const StyledScrollView = styled(ScrollView)
 
-const POPULAR_SUPPLEMENTS = [
-  { name: 'Creatine', defaultDosage: '5g' },
-  { name: 'Pre-workout', defaultDosage: '1 scoop' },
-  { name: 'Fish Oil', defaultDosage: '1 cap' },
-  { name: 'Vitamin D3', defaultDosage: '5000 IU' },
-  { name: 'Multivitamin', defaultDosage: '1 tab' },
-  { name: 'Magnesium', defaultDosage: '400mg' },
-  { name: 'Ashwagandha', defaultDosage: '600mg' },
-]
 
 interface JournalScreenProps {
   visible: boolean
@@ -49,12 +39,27 @@ interface EditModalState {
   item: JournalEntry | null
 }
 
+const getLocalDateKey = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const JournalScreen: React.FC<JournalScreenProps> = ({
   visible,
   user,
   dataHook,
 }) => {
-  const { fetchJournalEntries, addJournalEntry, updateJournalEntry, deleteJournalEntry, journalEntries } = dataHook
+  const {
+    fetchJournalEntries,
+    addJournalEntry,
+    updateJournalEntry,
+    deleteJournalEntry,
+    journalEntries,
+    weightLogs,
+    calorieLogs,
+  } = dataHook
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [editModal, setEditModal] = useState<EditModalState>({
@@ -69,6 +74,34 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   const [dosageQuery, setDosageQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const suggestions = dataHook.settings.supplementSuggestions || []
+
+  const weightLookup = useMemo(() => {
+    const lookup: Record<string, number> = {}
+    weightLogs.forEach((log) => {
+      if (log.date && typeof log.date.toDate === 'function') {
+        const d = log.date.toDate()
+        const key = getLocalDateKey(d)
+        if (lookup[key] === undefined) {
+          lookup[key] = log.weight
+        }
+      }
+    })
+    return lookup
+  }, [weightLogs])
+
+  const calorieLookup = useMemo(() => {
+    const lookup: Record<string, number> = {}
+    calorieLogs.forEach((log) => {
+      if (log.date && typeof log.date.toDate === 'function') {
+        const d = log.date.toDate()
+        const key = getLocalDateKey(d)
+        if (lookup[key] === undefined) {
+          lookup[key] = log.calories
+        }
+      }
+    })
+    return lookup
+  }, [calorieLogs])
 
   const handleRemoveSuggestion = async (nameToRemove: string) => {
     const currentSuggestions = dataHook.settings.supplementSuggestions || []
@@ -269,6 +302,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
       <SectionList
         sections={sections}
         renderItem={renderItem}
+        extraData={{ weightLookup, calorieLookup }}
         stickySectionHeadersEnabled={false}
         keyExtractor={(item) => item.id}
         renderSectionHeader={({ section: { title } }) => {
@@ -278,15 +312,41 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           const day = parseInt(parts[2], 10)
           const date = new Date(year, month, day)
 
+          const weight = weightLookup[title]
+          const calories = calorieLookup[title]
+          const weightUnit = dataHook.tdeeConfig?.weightUnit ?? 'kg'
+
           return (
-            <StyledText className="text-zinc-500 text-xs font-black tracking-[0.2em] mt-4 mb-3 uppercase">
-              {date.toLocaleDateString(undefined, {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </StyledText>
+            <StyledView className="flex-row justify-between items-center mt-5 mb-3">
+              <StyledText className="text-zinc-500 text-xs font-black tracking-[0.2em] uppercase">
+                {date.toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </StyledText>
+              {(weight !== undefined || calories !== undefined) && (
+                <StyledView className="flex-row items-center gap-2">
+                  {weight !== undefined && (
+                    <StyledView className="flex-row items-center bg-zinc-900 border border-zinc-800/80 px-2.5 py-1 rounded-xl gap-1">
+                      <Scale color="#10b981" size={10} />
+                      <StyledText className="text-zinc-300 font-extrabold text-[10px]">
+                        {weight} {weightUnit}
+                      </StyledText>
+                    </StyledView>
+                  )}
+                  {calories !== undefined && (
+                    <StyledView className="flex-row items-center bg-zinc-900 border border-zinc-800/80 px-2.5 py-1 rounded-xl gap-1">
+                      <Flame color="#ef4444" size={10} />
+                      <StyledText className="text-zinc-300 font-extrabold text-[10px]">
+                        {calories} kcal
+                      </StyledText>
+                    </StyledView>
+                  )}
+                </StyledView>
+              )}
+            </StyledView>
           )
         }}
         contentContainerStyle={{ paddingBottom: 60 }}
@@ -321,11 +381,16 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
             intensity={25}
             tint="dark"
             className="flex-1 justify-center items-center px-4 bg-black/60">
-            <StyledView className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
-              <StyledText className="text-white text-xl font-black mb-1 text-center">
+            <StyledView className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-sm shadow-2xl max-h-[85%] overflow-hidden">
+              <StyledText className="text-white text-xl font-black pt-6 px-6 pb-2 text-center">
                  {editModal.item ? 'Edit Note' : 'New Note'}
               </StyledText>
 
+              <StyledScrollView
+                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+              >
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 mt-4 uppercase tracking-wide">
                 Note
               </StyledText>
@@ -450,8 +515,8 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
 
                       if (filtered.length === 0) {
                         return (
-                          <StyledText className="text-zinc-550 text-[10px] italic px-1">
-                            No match. Tap '+' to add custom.
+                          <StyledText className="text-zinc-555 text-[10px] italic px-1">
+                            No match. Tap &quot;+&quot; to add custom.
                           </StyledText>
                         )
                       }
@@ -534,6 +599,41 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                 />
               )}
 
+              {/* Daily Stats for the selected date */}
+              {(() => {
+                const dateKey = getLocalDateKey(dateValue)
+                const weight = weightLookup[dateKey]
+                const calories = calorieLookup[dateKey]
+                const weightUnit = dataHook.tdeeConfig?.weightUnit ?? 'kg'
+                if (weight === undefined && calories === undefined) return null
+
+                return (
+                  <StyledView className="mb-4 bg-zinc-950 border border-zinc-850 p-3 rounded-xl flex-row justify-around items-center">
+                    {weight !== undefined ? (
+                      <StyledView className="flex-row items-center gap-1.5">
+                        <Scale color="#10b981" size={12} />
+                        <StyledText className="text-zinc-300 font-extrabold text-xs">
+                          {weight} {weightUnit}
+                        </StyledText>
+                      </StyledView>
+                    ) : (
+                      <StyledText className="text-zinc-650 text-xs italic font-bold">No weight logged</StyledText>
+                    )}
+                    <StyledView className="w-[1px] h-4 bg-zinc-800" />
+                    {calories !== undefined ? (
+                      <StyledView className="flex-row items-center gap-1.5">
+                        <Flame color="#ef4444" size={12} />
+                        <StyledText className="text-zinc-300 font-extrabold text-xs">
+                          {calories} kcal
+                        </StyledText>
+                      </StyledView>
+                    ) : (
+                      <StyledText className="text-zinc-650 text-xs italic font-bold">No calories logged</StyledText>
+                    )}
+                  </StyledView>
+                )
+              })()}
+
               <StyledView className="flex-row gap-3 mt-2">
                 <StyledTouchableOpacity
                   onPress={handleEditClose}
@@ -563,6 +663,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                     </StyledText>
                 </StyledTouchableOpacity>
               )}
+             </StyledScrollView>
             </StyledView>
           </StyledBlurView>
         </KeyboardAvoidingView>
