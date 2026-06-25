@@ -2,9 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: false,
-  workers: 1, // Run tests sequentially to avoid local storage and database sharing conflicts
-  reporter: 'list',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
   use: {
     baseURL: 'http://localhost:8081',
     trace: 'on-first-retry',
@@ -19,9 +21,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx http-server dist -p 8081',
+    command: 'EXPO_PUBLIC_PLAYWRIGHT=1 EXPO_PUBLIC_API_KEY=test-api-key EXPO_PUBLIC_AUTH_DOMAIN=test-domain EXPO_PUBLIC_PROJECT_ID=test-project npm run web',
     url: 'http://localhost:8081',
     reuseExistingServer: !process.env.CI,
-    timeout: 30000,
+    timeout: 120000, // Metro bundling might take some time on CI, so increase timeout to 2 minutes
   },
 });
