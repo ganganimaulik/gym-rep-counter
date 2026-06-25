@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Keyboard,
-  StyleSheet,
   Alert,
 } from 'react-native'
 import { styled } from 'nativewind'
@@ -23,7 +22,6 @@ import {
   Info,
   Activity,
   Pencil,
-  Plus,
 } from 'lucide-react-native'
 import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
@@ -92,9 +90,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     tdeeConfig,
     saveTDEEConfig,
     loadTDEEConfig,
-    addWeightLog,
-    addCalorieLog,
-    deleteTDEEConfig,
   } = dataHook
 
   // Compute TDEE from logs + config
@@ -203,10 +198,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     }
   }, [tdeeConfig])
 
-  // ── Quick log state ──
-  const [logWeight, setLogWeight] = useState('')
-  const [logCalories, setLogCalories] = useState('')
-
   // ── Handlers ──
 
   const handleStartTracking = useCallback(async () => {
@@ -313,34 +304,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     saveTDEEConfig,
     user,
   ])
-
-  const handleQuickLog = useCallback(async () => {
-    const weightNum = parseFloat(logWeight)
-    const calorieNum = parseInt(logCalories, 10)
-
-    if (
-      (isNaN(weightNum) || weightNum <= 0) &&
-      (isNaN(calorieNum) || calorieNum <= 0)
-    ) {
-      Alert.alert('Missing Data', 'Enter at least a weight or calorie value.')
-      return
-    }
-
-    const promises: Promise<void>[] = []
-    if (!isNaN(weightNum) && weightNum > 0) {
-      promises.push(addWeightLog(weightNum, new Date(), user))
-    }
-    if (!isNaN(calorieNum) && calorieNum > 0) {
-      promises.push(addCalorieLog(calorieNum, new Date(), user))
-    }
-
-    await Promise.all(promises)
-
-    setLogWeight('')
-    setLogCalories('')
-    Keyboard.dismiss()
-    Alert.alert('Logged', 'Daily stats saved successfully.')
-  }, [logWeight, logCalories, addWeightLog, addCalorieLog, user])
 
   // ── Chart data ──
 
