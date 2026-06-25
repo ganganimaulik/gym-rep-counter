@@ -1031,7 +1031,6 @@ export const useData = (): DataHook => {
           const parsed = JSON.parse(saved) as TDEEConfig
           const docRef = doc(db, 'users', user.uid)
           await setDoc(docRef, { tdeeConfig: parsed }, { merge: true })
-          console.log('Guest TDEE config migrated successfully.')
         }
       } catch (e) {
         console.error('Failed to migrate guest TDEE config', e)
