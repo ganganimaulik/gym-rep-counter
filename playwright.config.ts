@@ -9,6 +9,7 @@ export default defineConfig({
     baseURL: 'http://localhost:8081',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    video: 'on',
     viewport: { width: 450, height: 800 }, // Set standard mobile-like viewport for mobile-first layout
   },
   projects: [
