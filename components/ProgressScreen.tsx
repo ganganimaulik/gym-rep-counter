@@ -385,7 +385,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
               </StyledView>
               <StyledView className="flex-row justify-between items-center py-2">
                 <StyledView className="items-center flex-1">
-                  <StyledText className="text-orange-400 text-3xl font-black">
+                  <StyledText
+                    testID="streak-current-count"
+                    className="text-orange-400 text-3xl font-black">
                     {streak.currentStreak}
                   </StyledText>
                   <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-1">
@@ -393,7 +395,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   </StyledText>
                 </StyledView>
                 <StyledView className="items-center flex-1 border-x border-zinc-800/80">
-                  <StyledText className="text-indigo-400 text-3xl font-black">
+                  <StyledText
+                    testID="streak-longest-count"
+                    className="text-indigo-400 text-3xl font-black">
                     {streak.longestStreak}
                   </StyledText>
                   <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-1">
@@ -401,7 +405,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   </StyledText>
                 </StyledView>
                 <StyledView className="items-center flex-1">
-                  <StyledText className="text-emerald-400 text-3xl font-black">
+                  <StyledText
+                    testID="streak-weekly-count"
+                    className="text-emerald-400 text-3xl font-black">
                     {streak.currentWeekWorkouts}
                   </StyledText>
                   <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-1">
@@ -490,6 +496,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 </StyledView>
                 <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-3 overflow-hidden">
                   <Picker
+                    testID="trends-exercise-picker"
                     selectedValue={selectedExercise}
                     onValueChange={setSelectedExercise}
                     style={globalStyles.picker}
@@ -560,6 +567,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 Weight (kg)
               </StyledText>
               <StyledTextInput
+                testID="health-weight-input"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
                 keyboardType="numeric"
                 value={weightInput}
@@ -574,6 +582,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 Calories (kcal)
               </StyledText>
               <StyledTextInput
+                testID="health-calories-input"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
                 keyboardType="numeric"
                 value={calorieInput}

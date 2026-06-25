@@ -292,6 +292,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           JOURNAL
         </StyledText>
         <StyledTouchableOpacity
+            testID="add-journal-note-button"
             onPress={handleOpenAddEntry}
             activeOpacity={0.7}
             className="bg-sky-600/20 p-2 rounded-full border border-sky-500/30">
@@ -484,6 +485,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                     }
                   }}
                   activeOpacity={0.7}
+                  testID="add-supplement-button"
                   className="bg-violet-600/20 border border-violet-500/30 p-2 rounded-xl">
                   <Plus color="#a78bfa" size={14} />
                 </StyledTouchableOpacity>
@@ -646,6 +648,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                 <StyledTouchableOpacity
                   onPress={handleEditSave}
                   activeOpacity={0.7}
+                  testID="journal-note-save-button"
                   className="flex-1 bg-sky-600 py-3 rounded-xl items-center shadow-lg shadow-sky-600/15">
                   <StyledText className="text-white font-bold text-sm">
                     Save
@@ -654,6 +657,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
               </StyledView>
               {editModal.item && (
                 <StyledTouchableOpacity
+                    testID="journal-note-delete-button"
                     onPress={handleDelete}
                     activeOpacity={0.7}
                     className="mt-4 bg-red-950/20 border border-red-900/30 py-2.5 rounded-xl items-center flex-row justify-center">

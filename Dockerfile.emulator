@@ -1,0 +1,18 @@
+FROM node:20-alpine
+
+# Install Java JRE and bash
+RUN apk update && apk add --no-cache openjdk21-jre bash
+
+# Install firebase-tools globally
+RUN npm install -g firebase-tools
+
+# Working directory inside the container
+WORKDIR /app
+
+# Expose ports for UI, Firestore, and Auth
+EXPOSE 4000
+EXPOSE 8080
+EXPOSE 9099
+
+# Start emulators
+CMD ["firebase", "emulators:start", "--project", "gym-rep-counter"]

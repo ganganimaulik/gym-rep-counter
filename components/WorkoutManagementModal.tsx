@@ -103,6 +103,7 @@ const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
           {ex.sets} sets × {ex.reps} reps
         </StyledText>
         <Pressable
+          testID="delete-exercise-button"
           onPress={() => deleteExercise(workout.id, ex.id)}
           style={{ padding: 4 }}>
           <X color="#f87171" size={16} />
@@ -117,6 +118,7 @@ const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
             {workout.name}
           </StyledText>
           <StyledTouchableOpacity
+            testID="delete-workout-button"
             onPress={() => deleteWorkout(workout.id)}
             activeOpacity={0.7}
             className="p-1 bg-red-950/20 border border-red-900/30 rounded-lg">
@@ -380,6 +382,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                   Exercise Name
                 </StyledText>
                 <StyledTextInput
+                  testID="edit-exercise-name"
                   className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-semibold text-sm"
                   placeholder="Exercise name"
                   placeholderTextColor="#52525b"
@@ -393,6 +396,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                       Sets
                     </StyledText>
                     <StyledTextInput
+                      testID="edit-exercise-sets"
                       className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl text-center font-bold text-sm"
                       keyboardType="number-pad"
                       value={editSets}
@@ -404,6 +408,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                       Reps
                     </StyledText>
                     <StyledTextInput
+                      testID="edit-exercise-reps"
                       className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl text-center font-bold text-sm"
                       keyboardType="number-pad"
                       value={editReps}
