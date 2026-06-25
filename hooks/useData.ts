@@ -875,7 +875,6 @@ export const useData = (): DataHook => {
           `todaysCompletions-${getLocalDateString()}`,
         )
 
-        console.log('Guest history migrated successfully.')
         return migratedEntries
       } catch (e) {
         console.error('Failed to migrate guest history', e)
