@@ -107,9 +107,7 @@ describe('useAuth Hook', () => {
 
     expect(result.current.isSigningIn).toBe(false)
     expect(signInWithCredential).not.toHaveBeenCalled()
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      'User cancelled the Google Sign-In flow.',
-    )
+    expect(consoleLogSpy).not.toHaveBeenCalled()
     consoleLogSpy.mockRestore()
   })
 
