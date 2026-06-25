@@ -2,7 +2,7 @@ name: Playwright E2E Tests
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
       - 'components/**'
       - 'hooks/**'
@@ -17,7 +17,7 @@ on:
       - 'firebase.json'
       - '.github/workflows/e2e.yml'
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
       - 'components/**'
       - 'hooks/**'
@@ -84,7 +84,7 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Build Web Application
-        run: npx expo export -p web
+        run: EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_PLAYWRIGHT=1 EXPO_PUBLIC_API_KEY=test-api-key EXPO_PUBLIC_AUTH_DOMAIN=test-domain EXPO_PUBLIC_PROJECT_ID=test-project npx expo export -p web
 
       - name: Install Firebase Tools
         run: npm install -g firebase-tools

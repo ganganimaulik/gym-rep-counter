@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
@@ -21,9 +21,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'EXPO_PUBLIC_PLAYWRIGHT=1 EXPO_PUBLIC_API_KEY=test-api-key EXPO_PUBLIC_AUTH_DOMAIN=test-domain EXPO_PUBLIC_PROJECT_ID=test-project npm run web',
+    command: process.env.CI
+      ? 'npx http-server dist -p 8081'
+      : 'EXPO_PUBLIC_PLAYWRIGHT=1 EXPO_PUBLIC_API_KEY=test-api-key EXPO_PUBLIC_AUTH_DOMAIN=test-domain EXPO_PUBLIC_PROJECT_ID=test-project npm run web',
     url: 'http://localhost:8081',
     reuseExistingServer: !process.env.CI,
     timeout: 120000, // Metro bundling might take some time on CI, so increase timeout to 2 minutes
   },
-});
+})
