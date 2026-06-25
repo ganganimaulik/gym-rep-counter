@@ -16,6 +16,7 @@ import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { randomUUID } from 'expo-crypto'
 import { Workout, Exercise } from '../hooks/useData'
 
 const StyledView = styled(View)
@@ -235,7 +236,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   }
 
   const generateId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2)
+    return randomUUID()
   }
 
   const addWorkout = () => {
