@@ -280,13 +280,6 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     setCalorieInput('')
   }
 
-  const formatChartDate = (date: Date): string => {
-    return date.toLocaleDateString(undefined, {
-      month: 'numeric',
-      day: 'numeric',
-    })
-  }
-
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString(undefined, {
       month: 'short',
@@ -325,30 +318,6 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     }),
     [exerciseTrends],
   )
-
-  const weightChartData = useMemo(() => {
-    const reversed = [...weightLogs].reverse().slice(-7)
-    return {
-      labels: reversed.map((log) => formatChartDate(log.date.toDate())),
-      datasets: [
-        {
-          data: reversed.map((log) => log.weight),
-        },
-      ],
-    }
-  }, [weightLogs])
-
-  const calorieChartData = useMemo(() => {
-    const reversed = [...calorieLogs].reverse().slice(-7)
-    return {
-      labels: reversed.map((log) => formatChartDate(log.date.toDate())),
-      datasets: [
-        {
-          data: reversed.map((log) => log.calories),
-        },
-      ],
-    }
-  }, [calorieLogs])
 
   if (!visible) return null
 
