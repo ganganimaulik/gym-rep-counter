@@ -12,7 +12,7 @@ import {
 import { styled } from 'nativewind'
 import Slider from '@react-native-community/slider'
 import { GoogleSigninButton } from '@react-native-google-signin/google-signin'
-import { Check } from 'lucide-react-native'
+import { Check, Bell } from 'lucide-react-native'
 import SyncStatus from './SyncStatus'
 import UserProfile from './layout/UserProfile'
 import { Settings } from '../hooks/useData'
@@ -34,6 +34,7 @@ interface SettingsModalProps {
   user: FirebaseUser | null
   disconnectAccount: () => void
   isSigningIn: boolean
+  detectedSleepWindow?: string
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -44,6 +45,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   user,
   disconnectAccount,
   isSigningIn,
+  detectedSleepWindow,
 }) => {
   const [localSettings, setLocalSettings] = useState<Settings>(settings)
 
@@ -273,6 +275,49 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {`${Math.round(localSettings.volume * 100)}%`}
               </StyledText>
             </StyledView>
+          </StyledView>
+
+          {/* Notification Preferences Card */}
+          <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
+            <StyledView className="flex-row justify-between items-center mb-4">
+              <StyledText className="text-xs font-black text-zinc-400 tracking-widest uppercase">
+                Reminders
+              </StyledText>
+              <Bell color="#818cf8" size={14} />
+            </StyledView>
+            <StyledView className="flex-row justify-between items-center py-2.5">
+              <StyledView className="flex-1 pr-4">
+                <StyledText className="text-sm font-bold text-zinc-300">
+                  Stat Update Reminders
+                </StyledText>
+                <StyledText className="text-xs text-zinc-500 mt-1">
+                  Remind me every 4 hours to update my daily stats (weight, calories, journal).
+                </StyledText>
+              </StyledView>
+              <StyledSwitch
+                value={localSettings.statRemindersEnabled ?? true}
+                onValueChange={(value) =>
+                  handleValueChange('statRemindersEnabled', value)
+                }
+                trackColor={{ false: '#27272a', true: '#6366f1' }}
+                thumbColor={
+                  (localSettings.statRemindersEnabled ?? true)
+                    ? '#a5b4fc'
+                    : '#71717a'
+                }
+              />
+            </StyledView>
+
+            {(localSettings.statRemindersEnabled ?? true) && detectedSleepWindow && (
+              <StyledView className="border-t border-zinc-800/40 mt-3 pt-3 flex-row justify-between items-center">
+                <StyledText className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
+                  Quiet Sleep Window
+                </StyledText>
+                <StyledText className="text-xs font-medium text-zinc-500">
+                  {detectedSleepWindow}
+                </StyledText>
+              </StyledView>
+            )}
           </StyledView>
 
           {/* Action Save Button */}

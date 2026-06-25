@@ -10,7 +10,7 @@ configureReanimatedLogger({
   strict: false, // Reanimated runs in strict mode by default
 })
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   SafeAreaView,
   View,
@@ -35,6 +35,8 @@ import {
   enableBackgroundExecution,
   disableBackgroundExecution,
 } from './utils/backgroundTimer'
+import { detectSleepWindow } from './utils/sleepDetection'
+import { setupReminders, cancelAllReminders } from './utils/notifications'
 import type { User as FirebaseUser } from 'firebase/auth'
 
 import { useNetInfo } from '@react-native-community/netinfo'
@@ -109,6 +111,10 @@ const App: React.FC = () => {
     fetchCalorieLogs,
     loadTDEEConfig,
     fetchJournalEntries,
+    weightLogs,
+    calorieLogs,
+    journalEntries,
+    todaysCompletions,
   } = dataHook
 
   const onAuthSuccess = useCallback(
@@ -218,12 +224,54 @@ const App: React.FC = () => {
     })
 
     enableBackgroundExecution()
-
+ 
     return () => {
       subscription.remove()
       disableBackgroundExecution()
     }
   }, [user, fetchAllTodaysCompletions])
+
+  const sleepWindow = useMemo(() => {
+    return detectSleepWindow(weightLogs, calorieLogs, journalEntries, todaysCompletions)
+  }, [weightLogs, calorieLogs, journalEntries, todaysCompletions])
+
+  const formattedSleepWindow = useMemo(() => {
+    const formatHour = (hour: number) => {
+      const ampm = hour >= 12 ? 'PM' : 'AM'
+      const displayHour = hour % 12 === 0 ? 12 : hour % 12
+      return `${displayHour}:00 ${ampm}`
+    }
+    if (sleepWindow.isDefault) {
+      return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Default)`
+    }
+    return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Auto-detected)`
+  }, [sleepWindow])
+
+  useEffect(() => {
+    const triggerReminders = async () => {
+      if (settings.statRemindersEnabled ?? true) {
+        try {
+          await setupReminders(settings, weightLogs, calorieLogs, journalEntries, todaysCompletions)
+        } catch (e) {
+          console.error('Failed to setup reminders', e)
+        }
+      } else {
+        try {
+          await cancelAllReminders()
+        } catch (e) {
+          console.error('Failed to cancel reminders', e)
+        }
+      }
+    }
+    triggerReminders()
+  }, [
+    settings.statRemindersEnabled,
+    weightLogs.length,
+    calorieLogs.length,
+    journalEntries.length,
+    todaysCompletions.length,
+    settings,
+  ])
 
   useEffect(() => {
     fetchAllTodaysCompletions(user)
@@ -534,6 +582,7 @@ const App: React.FC = () => {
             user={user}
             disconnectAccount={disconnectAccount}
             isSigningIn={isSigningIn}
+            detectedSleepWindow={formattedSleepWindow}
           />
         )}
       </StyledView>

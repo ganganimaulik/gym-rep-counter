@@ -87,6 +87,7 @@ export interface Settings {
   countdownAnnouncementThreshold: number
   volume: number
   supplementSuggestions?: { name: string; defaultDosage: string }[]
+  statRemindersEnabled?: boolean
 }
 
 export interface Exercise {
@@ -230,6 +231,7 @@ const defaultSettings: Settings = {
   eccentricCountdownEnabled: true,
   countdownAnnouncementThreshold: 15,
   volume: 1.0,
+  statRemindersEnabled: true,
   supplementSuggestions: [
     { name: 'Creatine', defaultDosage: '5g' },
     { name: 'Whey Protein', defaultDosage: '1 scoop' },

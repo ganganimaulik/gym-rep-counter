@@ -94,6 +94,7 @@ describe('useData Hook', () => {
     eccentricCountdownEnabled: true,
     countdownAnnouncementThreshold: 15,
     volume: 1.0,
+    statRemindersEnabled: true,
     supplementSuggestions: [
       { name: 'Creatine', defaultDosage: '5g' },
       { name: 'Whey Protein', defaultDosage: '1 scoop' },

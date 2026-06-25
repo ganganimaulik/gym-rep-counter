@@ -54,7 +54,8 @@
           }
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "./plugins/withDisablePushEntitlement.js"
     ]
   }
 }
