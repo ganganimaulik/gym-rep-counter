@@ -23,8 +23,6 @@ type OnAuthSuccessCallback = (user: FirebaseUser | null) => Promise<void>
 
 export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   const [user, setUser] = useState<FirebaseUser | null>(null)
-
-
   const [initializing, setInitializing] = useState<boolean>(true)
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
 
@@ -32,25 +30,6 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   const initializingRef = useRef(true)
   const onAuthSuccessRef = useRef(onAuthSuccess)
   onAuthSuccessRef.current = onAuthSuccess
-
-  useEffect(() => {
-    if (Platform.OS === 'web' && process.env.EXPO_PUBLIC_PLAYWRIGHT === '1') {
-      // Support Playwright mock user via localStorage ONLY in test environment
-      const mockUserStr = localStorage.getItem('PLAYWRIGHT_MOCK_USER')
-      if (mockUserStr) {
-        try {
-          const mockUser = JSON.parse(mockUserStr)
-          setUser(mockUser)
-          onAuthSuccessRef.current(mockUser)
-        } catch (e) {}
-      }
-
-      ;(window as any).setMockUser = (mockUser: any) => {
-        setUser(mockUser)
-        onAuthSuccessRef.current(mockUser)
-      }
-    }
-  }, [])
 
   useEffect(() => {
     if (Platform.OS !== 'web') {

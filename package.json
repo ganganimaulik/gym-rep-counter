@@ -56,7 +56,6 @@
   "private": true,
   "devDependencies": {
     "@bacons/apple-targets": "^4.0.7",
-    "@playwright/test": "^1.61.1",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29",
     "@types/react": "^19.2.0",

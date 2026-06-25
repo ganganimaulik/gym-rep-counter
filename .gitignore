@@ -79,5 +79,3 @@ pids
 .grunt
 .lock-wscript
 .vercel
-playwright-report/
-test-results/
