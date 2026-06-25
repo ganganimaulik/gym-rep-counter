@@ -4,7 +4,7 @@ import {
   ReanimatedLogLevel,
 } from 'react-native-reanimated'
 
-// This is the default configuration
+// This is the default configuration for Reanimated
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false, // Reanimated runs in strict mode by default
