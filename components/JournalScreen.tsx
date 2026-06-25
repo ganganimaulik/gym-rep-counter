@@ -536,9 +536,6 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                             </StyledText>
                           )
                         }
-                            </StyledText>
-                          )
-                        }
 
                         return filtered.map((supp, idx) => (
                           <StyledView

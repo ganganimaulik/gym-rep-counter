@@ -204,7 +204,11 @@ describe('useTDEE Hook', () => {
     const calories = [createCalorieLog(2500, '2026-05-04')]
 
     const { result, rerender } = renderHook(
-      (props) => useTDEE(props.weights, props.calories, props.config),
+      (props: {
+        weights: typeof weights
+        calories: typeof calories
+        config: typeof baseConfig
+      }) => useTDEE(props.weights, props.calories, props.config),
       {
         initialProps: {
           weights,
