@@ -52,8 +52,13 @@ jobs:
       - name: Build Web Application
         run: npx expo export -p web
 
+      - name: Install Firebase Tools
+        run: npm install -g firebase-tools
+
       - name: Run Playwright tests
-        run: npx playwright test
+        run: |
+          firebase emulators:start --project gym-rep-counter &
+          npx playwright test
 
       - name: Upload Test Report
         if: always()
