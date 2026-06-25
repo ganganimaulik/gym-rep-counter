@@ -301,9 +301,6 @@ const App: React.FC = () => {
         audioHandler.speak(
           `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
         )
-        console.log(
-          `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
-        )
       } else {
         setStatusText('Workout Complete!')
         audioHandler.speak('Workout Complete!')
