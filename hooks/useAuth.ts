@@ -76,7 +76,6 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
       // Known error codes for user cancellation
       const gError = error as { code?: string }
       if (gError.code === '12501' || gError.code === 'SIGN_IN_CANCELLED') {
-        console.log('User cancelled the Google Sign-In flow.')
       } else {
         console.error('Google Sign-In error:', error)
       }
