@@ -11,7 +11,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
   Alert,
 } from 'react-native'
 import { styled } from 'nativewind'
@@ -19,10 +18,7 @@ import {
   Flame,
   Trophy,
   TrendingUp,
-  Scale,
   Trash2,
-  Pencil,
-  Activity,
 } from 'lucide-react-native'
 import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
