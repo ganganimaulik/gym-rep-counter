@@ -284,18 +284,20 @@ describe('useWorkoutTimer', () => {
       )
 
       act(() => result.current.startWorkout())
-      
+
       // Initially, at 20s, it says 'Get ready.'
-      expect(mockQueueSpeak).toHaveBeenCalledWith('Get ready.', { priority: true })
+      expect(mockQueueSpeak).toHaveBeenCalledWith('Get ready.', {
+        priority: true,
+      })
       mockQueueSpeak.mockClear()
 
       // Advance by 1 second to 19s
       act(() => jest.advanceTimersByTime(1000))
       // Not below threshold, shouldn't speak 19
       expect(mockQueueSpeak).not.toHaveBeenCalledWith('19')
-      
+
       // Advance by 6 ticks to cross 14
-      for(let i = 0; i < 6; i++) {
+      for (let i = 0; i < 6; i++) {
         act(() => jest.advanceTimersByTime(1000))
       }
       expect(mockQueueSpeak).toHaveBeenCalledWith('15')
@@ -323,21 +325,21 @@ describe('useWorkoutTimer', () => {
       act(() => result.current.startWorkout())
       // Get past countdown
       act(() => jest.advanceTimersByTime(1000))
-      
+
       await waitFor(() => {
         expect(result.current.phase).toBe('Concentric')
       })
-      
+
       // Get past concentric
       act(() => jest.advanceTimersByTime(1000))
-      
+
       await waitFor(() => {
         expect(result.current.phase).toBe('Eccentric')
       })
-      
+
       // Advance by 1 second to trigger eccentric tick if it were enabled
       act(() => jest.advanceTimersByTime(1000))
-      
+
       expect(mockSpeakEccentric).not.toHaveBeenCalled()
     })
 
@@ -354,16 +356,16 @@ describe('useWorkoutTimer', () => {
 
       act(() => result.current.startWorkout())
       // Enter concentric phase
-      for(let i = 0; i < defaultSettings.countdownSeconds; i++) {
+      for (let i = 0; i < defaultSettings.countdownSeconds; i++) {
         act(() => jest.advanceTimersByTime(1000))
       }
-      
+
       await waitFor(() => {
         expect(result.current.phase).toBe('Concentric')
       })
-      
+
       act(() => result.current.endSet())
-      
+
       await waitFor(() => {
         expect(mockOnSetComplete).toHaveBeenCalledWith({
           exerciseId: activeExercise.id,
@@ -620,7 +622,9 @@ describe('useWorkoutTimer', () => {
             mockOnSetComplete,
             1,
           ),
-        { initialProps: { settings: defaultSettings, exercise: activeExercise } },
+        {
+          initialProps: { settings: defaultSettings, exercise: activeExercise },
+        },
       )
 
       act(() => result.current.startWorkout())
@@ -644,9 +648,11 @@ describe('useWorkoutTimer', () => {
       )
 
       act(() => result.current.startWorkout())
-      act(() => jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000))
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000),
+      )
       act(() => result.current.endSet())
-      
+
       expect(result.current.isRunning).toBe(false)
       // Since no active exercise, it does fullReset when endSet is called instead of calling onSetComplete
       expect(mockOnSetComplete).not.toHaveBeenCalled()

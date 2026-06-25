@@ -34,7 +34,7 @@ const RepJumper: React.FC<RepJumperProps> = ({
   }
 
   return (
-    <StyledView>
+    <StyledView testID="rep-jumper-container">
       <StyledText className="text-sm font-medium text-gray-400 mb-4 text-center">
         Jump to Rep
       </StyledText>

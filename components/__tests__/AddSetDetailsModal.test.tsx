@@ -26,7 +26,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={10}
-      />
+      />,
     )
 
     expect(getByText('Set Complete')).toBeTruthy()
@@ -43,7 +43,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={10}
-      />
+      />,
     )
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -51,7 +51,7 @@ describe('AddSetDetailsModal', () => {
     const modalComponent = UNSAFE_getByType(Modal)
 
     if (modalComponent.props.onRequestClose) {
-        modalComponent.props.onRequestClose()
+      modalComponent.props.onRequestClose()
     }
 
     expect(mockOnClose).toHaveBeenCalled()
@@ -64,7 +64,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={10}
-      />
+      />,
     )
 
     const repsInput = getByTestId('reps-input')
@@ -87,7 +87,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={8}
-      />
+      />,
     )
 
     const saveButton = getByText('Save')
@@ -106,7 +106,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={10}
-      />
+      />,
     )
 
     const repsInput = getByTestId('reps-input')
@@ -126,7 +126,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={10}
-      />
+      />,
     )
 
     expect(getByTestId('reps-input').props.value).toBe('10')
@@ -137,7 +137,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={15}
-      />
+      />,
     )
 
     expect(getByTestId('reps-input').props.value).toBe('15')
@@ -150,7 +150,7 @@ describe('AddSetDetailsModal', () => {
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
         initialReps={5}
-      />
+      />,
     )
 
     const weightInput = getByTestId('weight-input')

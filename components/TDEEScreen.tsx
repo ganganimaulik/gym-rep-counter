@@ -111,7 +111,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
 
   // ── Body Fat settings state ──
   const [setupGender, setSetupGender] = useState<'male' | 'female'>('male')
-  const [setupMeasurementUnit, setSetupMeasurementUnit] = useState<'inch' | 'cm'>('inch')
+  const [setupMeasurementUnit, setSetupMeasurementUnit] = useState<
+    'inch' | 'cm'
+  >('inch')
   const [setupHeight, setSetupHeight] = useState('')
   const [setupWaist, setSetupWaist] = useState('')
   const [setupNeck, setSetupNeck] = useState('')
@@ -188,9 +190,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       setGoalRateInput(tdeeConfig.goalWeeklyRate?.toString() ?? '')
       setSetupWeightUnit(tdeeConfig.weightUnit ?? 'kg')
       setSetupEnergyUnit(tdeeConfig.energyUnit ?? 'cal')
-      
+
       if (tdeeConfig.gender) setSetupGender(tdeeConfig.gender)
-      if (tdeeConfig.measurementUnit) setSetupMeasurementUnit(tdeeConfig.measurementUnit)
+      if (tdeeConfig.measurementUnit)
+        setSetupMeasurementUnit(tdeeConfig.measurementUnit)
       setSetupHeight(tdeeConfig.heightValue?.toString() ?? '')
       setSetupWaist(tdeeConfig.waistValue?.toString() ?? '')
       setSetupNeck(tdeeConfig.neckValue?.toString() ?? '')
@@ -218,7 +221,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     const n = setupNeck.trim() ? parseFloat(setupNeck) : undefined
     if (n !== undefined) config.neckValue = n
 
-    const hp = setupGender === 'female' && setupHip.trim() ? parseFloat(setupHip) : undefined
+    const hp =
+      setupGender === 'female' && setupHip.trim()
+        ? parseFloat(setupHip)
+        : undefined
     if (hp !== undefined) config.hipValue = hp
 
     await saveTDEEConfig(config, user)
@@ -283,7 +289,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     if (n !== undefined) updatedConfig.neckValue = n
     else delete updatedConfig.neckValue
 
-    const hp = setupGender === 'female' && setupHip.trim() ? parseFloat(setupHip) : undefined
+    const hp =
+      setupGender === 'female' && setupHip.trim()
+        ? parseFloat(setupHip)
+        : undefined
     if (hp !== undefined) updatedConfig.hipValue = hp
     else delete updatedConfig.hipValue
 
@@ -430,6 +439,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
           </StyledText>
           <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
             <Picker
+              testID="setup-gender"
               selectedValue={setupGender}
               onValueChange={setSetupGender}
               style={globalStyles.picker}
@@ -510,9 +520,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 />
               </StyledView>
             )}
-            {setupGender !== 'female' && (
-              <StyledView className="flex-1" />
-            )}
+            {setupGender !== 'female' && <StyledView className="flex-1" />}
           </StyledView>
 
           <StyledTouchableOpacity
@@ -1163,6 +1171,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
               <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
                 <Picker
+                  testID="pref-gender"
                   selectedValue={setupGender}
                   onValueChange={setSetupGender}
                   style={globalStyles.picker}
@@ -1243,9 +1252,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                     />
                   </StyledView>
                 )}
-                {setupGender !== 'female' && (
-                  <StyledView className="flex-1" />
-                )}
+                {setupGender !== 'female' && <StyledView className="flex-1" />}
               </StyledView>
 
               <StyledTouchableOpacity

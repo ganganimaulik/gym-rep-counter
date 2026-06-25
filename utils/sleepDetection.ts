@@ -1,4 +1,9 @@
-import { WeightLog, CalorieLog, JournalEntry, WorkoutSet } from '../declarations'
+import {
+  WeightLog,
+  CalorieLog,
+  JournalEntry,
+  WorkoutSet,
+} from '../declarations'
 
 export interface SleepWindow {
   startHour: number // 0-23

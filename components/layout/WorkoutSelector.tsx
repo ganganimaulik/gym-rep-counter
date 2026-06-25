@@ -27,6 +27,7 @@ const SetTracker: React.FC<SetTrackerProps> = ({
       return (
         <StyledTouchableOpacity
           key={setNumber}
+          testID={`set-tracker-button-${setNumber}`}
           onPress={() => onSetPress(setNumber)}
           activeOpacity={0.7}
           className={`w-8 h-8 rounded-full justify-center items-center ${
