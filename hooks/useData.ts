@@ -920,7 +920,6 @@ export const useData = (): DataHook => {
 
         await batch.commit()
         await AsyncStorage.removeItem(key)
-        console.log('Guest weight logs migrated successfully.')
         return migrated
       } catch (e) {
         console.error('Failed to migrate guest weight logs', e)
