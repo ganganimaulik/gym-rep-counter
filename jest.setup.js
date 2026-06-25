@@ -41,3 +41,7 @@ jest.mock('./modules/workout-activity', () => ({
   updateActivity: jest.fn(),
   stopActivity: jest.fn(),
 }))
+
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest.fn(() => 'test-uuid'),
+}))

@@ -7,6 +7,7 @@ import {
   useMemo,
 } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { randomUUID } from 'expo-crypto'
 import {
   doc,
   getDoc,
@@ -1289,7 +1290,7 @@ export const useData = (): DataHook => {
           const savedRaw = await AsyncStorage.getItem(key)
           const guestLogs = savedRaw ? JSON.parse(savedRaw) : []
           const newEntry = {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: randomUUID(),
             ...newLogBase,
           }
           const updatedLogs = [newEntry, ...guestLogs]
@@ -1492,7 +1493,7 @@ export const useData = (): DataHook => {
           const savedRaw = await AsyncStorage.getItem(key)
           const guestLogs = savedRaw ? JSON.parse(savedRaw) : []
           const newEntry = {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: randomUUID(),
             ...newLogBase,
           }
           const updatedLogs = [newEntry, ...guestLogs]
@@ -1779,7 +1780,7 @@ export const useData = (): DataHook => {
           const savedRaw = await AsyncStorage.getItem(key)
           const guestEntries = savedRaw ? JSON.parse(savedRaw) : []
           const newEntry = {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: randomUUID(),
             ...newEntryBase,
           }
           const updatedEntries = [newEntry, ...guestEntries]

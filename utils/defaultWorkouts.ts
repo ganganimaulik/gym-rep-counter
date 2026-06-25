@@ -1,7 +1,8 @@
+import { randomUUID } from 'expo-crypto'
 import { Workout } from '../hooks/useData'
 
 const generateId = (): string => {
-  return Math.random().toString(36).substring(2, 11)
+  return randomUUID()
 }
 
 export const getDefaultWorkouts = (): Workout[] => {
