@@ -1,5 +1,10 @@
 import { detectSleepWindow } from '../sleepDetection'
-import { WeightLog, CalorieLog, JournalEntry, WorkoutSet } from '../../declarations'
+import {
+  WeightLog,
+  CalorieLog,
+  JournalEntry,
+  WorkoutSet,
+} from '../../declarations'
 
 // Helper to create a fake Firestore timestamp
 const mockTimestamp = (hour: number, dayOffset = 0) => {
@@ -27,7 +32,7 @@ describe('detectSleepWindow', () => {
       weightLogs,
       calorieLogs,
       journalEntries,
-      workoutHistory
+      workoutHistory,
     )
 
     expect(result.startHour).toBe(23)
@@ -52,21 +57,30 @@ describe('detectSleepWindow', () => {
       { id: 'j1', note: 'Good day', date: mockTimestamp(21, 1) },
     ]
     const workoutHistory: WorkoutSet[] = [
-      { id: 's1', workoutId: 'w', exerciseId: 'e', exerciseName: 'Pushup', reps: 10, weight: 0, set: 1, date: mockTimestamp(10, 1) },
+      {
+        id: 's1',
+        workoutId: 'w',
+        exerciseId: 'e',
+        exerciseName: 'Pushup',
+        reps: 10,
+        weight: 0,
+        set: 1,
+        date: mockTimestamp(10, 1),
+      },
     ]
 
     const result = detectSleepWindow(
       weightLogs,
       calorieLogs,
       journalEntries,
-      workoutHistory
+      workoutHistory,
     )
 
     // With active times: 8, 10, 13, 18, 20, 21.
     // Inactive period should be around late night / early morning (e.g. starting at 22:00 or 23:00)
     // Let's verify it is not default and chooses a night window close to 23:00.
     expect(result.isDefault).toBe(false)
-    
+
     // Check if the detected window avoids the active hours.
     // The active hours: [8, 10, 13, 18, 20, 21]
     // The window from 23 to 7 contains: 23, 0, 1, 2, 3, 4, 5, 6. None of these have logs!
@@ -95,11 +109,11 @@ describe('detectSleepWindow', () => {
       weightLogs,
       calorieLogs,
       journalEntries,
-      workoutHistory
+      workoutHistory,
     )
 
     expect(result.isDefault).toBe(false)
-    
+
     // The window starting at 9 AM (9 to 17 / 5 PM) has 0 logs.
     // Let's make sure the detected sleep window covers hours that don't have logs.
     // Specifically, let's verify that the active hours [23, 1, 2, 3, 5] are NOT in the sleep window.
@@ -109,7 +123,7 @@ describe('detectSleepWindow', () => {
     }
 
     const activeHours = [23, 1, 2, 3, 5]
-    activeHours.forEach(hour => {
+    activeHours.forEach((hour) => {
       expect(sleepHours).not.toContain(hour)
     })
   })

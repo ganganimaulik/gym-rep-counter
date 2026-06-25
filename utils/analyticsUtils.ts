@@ -171,32 +171,34 @@ export function calculateStreak(
     const firstWeekKey = sortedWeeks[0]
     const firstWeekDate = new Date(firstWeekKey)
     const currentWeekDate = getWeekStart(now)
-    
+
     // Check if the most recent week is current week or last week
     const diffFromCurrent = Math.round(
-      (currentWeekDate.getTime() - firstWeekDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+      (currentWeekDate.getTime() - firstWeekDate.getTime()) /
+        (7 * 24 * 60 * 60 * 1000),
     )
-    
+
     if (diffFromCurrent <= 1) {
       let continuous = 0
       for (let i = 0; i < sortedWeeks.length; i++) {
         const wKey = sortedWeeks[i]
         const wDays = weekWorkouts.get(wKey)!.size
         const wDate = new Date(wKey)
-        
+
         const expectedDiff = diffFromCurrent + i
         const actualDiff = Math.round(
-          (currentWeekDate.getTime() - wDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+          (currentWeekDate.getTime() - wDate.getTime()) /
+            (7 * 24 * 60 * 60 * 1000),
         )
-        
+
         if (actualDiff !== expectedDiff) break
-        
+
         if (actualDiff === 0) {
-           if (wDays > 0) continuous++
-           else break
+          if (wDays > 0) continuous++
+          else break
         } else {
-           if (wDays >= minDaysPerWeek) continuous++
-           else break
+          if (wDays >= minDaysPerWeek) continuous++
+          else break
         }
       }
       currentStreak = continuous

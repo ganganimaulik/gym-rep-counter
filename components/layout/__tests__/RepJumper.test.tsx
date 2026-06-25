@@ -18,7 +18,7 @@ describe('RepJumper', () => {
         maxReps={5}
         currentRep={mockCurrentRep}
         jumpToRep={mockJumpToRep}
-      />
+      />,
     )
 
     expect(getByText('Jump to Rep')).toBeTruthy()
@@ -37,7 +37,7 @@ describe('RepJumper', () => {
         maxReps={5}
         currentRep={mockCurrentRep}
         jumpToRep={mockJumpToRep}
-      />
+      />,
     )
 
     fireEvent.press(getByText('3'))
@@ -54,7 +54,7 @@ describe('RepJumper', () => {
         maxReps={0}
         currentRep={mockCurrentRep}
         jumpToRep={mockJumpToRep}
-      />
+      />,
     )
 
     expect(queryByText('1')).toBeNull()
