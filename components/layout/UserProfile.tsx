@@ -26,6 +26,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
       <StyledView className="flex-row items-center space-x-4">
         {user.photoURL && (
           <Image
+            testID="user-profile-image"
             source={{ uri: user.photoURL }}
             style={{ width: 48, height: 48, borderRadius: 24 }}
           />
@@ -40,6 +41,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
         </StyledView>
       </StyledView>
       <StyledTouchableOpacity
+        testID="disconnect-button"
         onPress={disconnectAccount}
         className="p-3 bg-red-600 rounded-lg">
         <LogOut color="white" size={24} />
