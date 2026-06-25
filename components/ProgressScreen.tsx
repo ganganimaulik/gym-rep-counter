@@ -14,12 +14,7 @@ import {
   Alert,
 } from 'react-native'
 import { styled } from 'nativewind'
-import {
-  Flame,
-  Trophy,
-  TrendingUp,
-  Trash2,
-} from 'lucide-react-native'
+import { Flame, Trophy, TrendingUp, Trash2 } from 'lucide-react-native'
 import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -653,6 +648,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   </StyledText>
                 </StyledTouchableOpacity>
                 <StyledTouchableOpacity
+                  testID="save-health-button"
                   onPress={handleSaveHealth}
                   activeOpacity={0.7}
                   className="flex-1 bg-indigo-600 py-3 rounded-xl items-center shadow-lg shadow-indigo-600/15">
@@ -664,6 +660,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
 
               {(editingWeightLog || editingCalorieLog) && (
                 <StyledTouchableOpacity
+                  testID="delete-health-button"
                   onPress={handleDeleteHealth}
                   activeOpacity={0.7}
                   className="mt-4 bg-red-950/20 border border-red-900/30 py-2.5 rounded-xl items-center flex-row justify-center">

@@ -2,13 +2,16 @@ import { renderHook } from '@testing-library/react-native'
 import { useTDEE } from '../useTDEE'
 import type { WeightLog, CalorieLog, TDEEConfig } from '../../declarations'
 import { Timestamp } from 'firebase/firestore'
-import { calculateSeedTDEE, roundDisplayTDEE } from '../../modules/tdeeCalculator'
+import {
+  calculateSeedTDEE,
+  roundDisplayTDEE,
+} from '../../modules/tdeeCalculator'
 
 const createTimestamp = (date: Date): Timestamp =>
   ({
     toDate: () => date,
     toMillis: () => date.getTime(),
-  } as unknown as Timestamp)
+  }) as unknown as Timestamp
 
 const createWeightLog = (weight: number, dateStr: string): WeightLog => ({
   id: Math.random().toString(),
@@ -201,14 +204,18 @@ describe('useTDEE Hook', () => {
     const calories = [createCalorieLog(2500, '2026-05-04')]
 
     const { result, rerender } = renderHook(
-      (props) => useTDEE(props.weights, props.calories, props.config),
+      (props: {
+        weights: typeof weights
+        calories: typeof calories
+        config: typeof baseConfig
+      }) => useTDEE(props.weights, props.calories, props.config),
       {
         initialProps: {
           weights,
           calories,
           config: baseConfig,
         },
-      }
+      },
     )
 
     const initialResult = result.current
@@ -221,10 +228,10 @@ describe('useTDEE Hook', () => {
 
   it('Filters data to most recent year for performance', () => {
     const now = new Date()
-    
+
     const twoYearsAgo = new Date(now)
     twoYearsAgo.setFullYear(now.getFullYear() - 2)
-    
+
     const halfYearAgo = new Date(now)
     halfYearAgo.setMonth(now.getMonth() - 6)
 

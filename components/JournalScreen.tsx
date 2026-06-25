@@ -27,7 +27,6 @@ const StyledTextInput = styled(TextInput)
 const StyledBlurView = styled(BlurView)
 const StyledScrollView = styled(ScrollView)
 
-
 interface JournalScreenProps {
   visible: boolean
   user: FirebaseUser | null
@@ -105,13 +104,17 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
 
   const handleRemoveSuggestion = async (nameToRemove: string) => {
     const currentSuggestions = dataHook.settings.supplementSuggestions || []
-    const updatedSuggestions = currentSuggestions.filter(s => s.name.toLowerCase() !== nameToRemove.toLowerCase())
-    await dataHook.saveSettings({
-      ...dataHook.settings,
-      supplementSuggestions: updatedSuggestions,
-    }, user)
+    const updatedSuggestions = currentSuggestions.filter(
+      (s) => s.name.toLowerCase() !== nameToRemove.toLowerCase(),
+    )
+    await dataHook.saveSettings(
+      {
+        ...dataHook.settings,
+        supplementSuggestions: updatedSuggestions,
+      },
+      user,
+    )
   }
-
 
   const loadEntries = useCallback(async () => {
     if (isLoading) return
@@ -165,12 +168,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         supplementsList,
       )
     } else {
-        await addJournalEntry(
-            editNote,
-            dateValue,
-            user,
-            supplementsList,
-        )
+      await addJournalEntry(editNote, dateValue, user, supplementsList)
     }
 
     setEditModal({ visible: false, item: null })
@@ -202,11 +200,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     setIsSearchFocused(false)
   }
 
-  const renderItem = ({
-    item,
-  }: {
-    item: JournalEntry
-  }) => {
+  const renderItem = ({ item }: { item: JournalEntry }) => {
     if (!item.date || typeof item.date.toDate !== 'function') {
       return null
     }
@@ -292,11 +286,11 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           JOURNAL
         </StyledText>
         <StyledTouchableOpacity
-            testID="add-journal-note-button"
-            onPress={handleOpenAddEntry}
-            activeOpacity={0.7}
-            className="bg-sky-600/20 p-2 rounded-full border border-sky-500/30">
-            <Plus color="#0ea5e9" size={20} />
+          testID="add-journal-note-button"
+          onPress={handleOpenAddEntry}
+          activeOpacity={0.7}
+          className="bg-sky-600/20 p-2 rounded-full border border-sky-500/30">
+          <Plus color="#0ea5e9" size={20} />
         </StyledTouchableOpacity>
       </StyledView>
 
@@ -384,290 +378,325 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
             className="flex-1 justify-center items-center px-4 bg-black/60">
             <StyledView className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-sm shadow-2xl max-h-[85%] overflow-hidden">
               <StyledText className="text-white text-xl font-black pt-6 px-6 pb-2 text-center">
-                 {editModal.item ? 'Edit Note' : 'New Note'}
+                {editModal.item ? 'Edit Note' : 'New Note'}
               </StyledText>
 
               <StyledScrollView
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 24,
+                  paddingBottom: 24,
+                }}
                 keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={true}
-              >
-              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 mt-4 uppercase tracking-wide">
-                Note
-              </StyledText>
-              <StyledTextInput
-                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-medium text-sm min-h-[100]"
-                multiline
-                textAlignVertical="top"
-                value={editNote}
-                onChangeText={setEditNote}
-                placeholder="How did you feel today?"
-                placeholderTextColor="#52525b"
-                autoFocus={true}
-              />
+                showsVerticalScrollIndicator={true}>
+                <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 mt-4 uppercase tracking-wide">
+                  Note
+                </StyledText>
+                <StyledTextInput
+                  className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-medium text-sm min-h-[100]"
+                  multiline
+                  textAlignVertical="top"
+                  value={editNote}
+                  onChangeText={setEditNote}
+                  placeholder="How did you feel today?"
+                  placeholderTextColor="#52525b"
+                  autoFocus={true}
+                />
 
-              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
-                Supplements Taken
-              </StyledText>
+                <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                  Supplements Taken
+                </StyledText>
 
-              {/* Added Supplements List */}
-              {supplementsList.length > 0 && (
-                <StyledView className="flex-row flex-wrap gap-1.5 mb-3 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/80">
-                  {supplementsList.map((item, index) => (
-                    <StyledView
-                      key={index}
-                      className="bg-violet-500/10 border border-violet-500/20 px-2 py-1 rounded-lg flex-row items-center">
-                      <StyledText className="text-violet-300 font-semibold text-[10px] tracking-wide">
-                        {item.name}
-                      </StyledText>
-                      {item.dosage ? (
-                        <StyledText className="text-violet-500 text-[9px] font-medium ml-1">
-                          ({item.dosage})
+                {/* Added Supplements List */}
+                {supplementsList.length > 0 && (
+                  <StyledView className="flex-row flex-wrap gap-1.5 mb-3 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800/80">
+                    {supplementsList.map((item, index) => (
+                      <StyledView
+                        key={index}
+                        className="bg-violet-500/10 border border-violet-500/20 px-2 py-1 rounded-lg flex-row items-center">
+                        <StyledText className="text-violet-300 font-semibold text-[10px] tracking-wide">
+                          {item.name}
                         </StyledText>
-                      ) : null}
+                        {item.dosage ? (
+                          <StyledText className="text-violet-500 text-[9px] font-medium ml-1">
+                            ({item.dosage})
+                          </StyledText>
+                        ) : null}
+                        <StyledTouchableOpacity
+                          onPress={() => {
+                            setSupplementsList((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            )
+                          }}
+                          className="ml-1.5 bg-violet-500/20 p-0.5 rounded-full"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <X color="#a78bfa" size={8} />
+                        </StyledTouchableOpacity>
+                      </StyledView>
+                    ))}
+                  </StyledView>
+                )}
+
+                {/* Add Supplement Inputs */}
+                <StyledView className="flex-row gap-2 items-center mb-3">
+                  <StyledView className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl">
+                    <StyledTextInput
+                      className="text-white px-3 py-2 font-medium text-xs"
+                      value={searchQuery}
+                      onChangeText={(text) => {
+                        setSearchQuery(text)
+                        setIsSearchFocused(true)
+                      }}
+                      onFocus={() => setIsSearchFocused(true)}
+                      placeholder="Search/Add Supp..."
+                      placeholderTextColor="#52525b"
+                    />
+                  </StyledView>
+                  <StyledView className="w-16 bg-zinc-950 border border-zinc-800 rounded-xl">
+                    <StyledTextInput
+                      className="text-white px-2 py-2 font-medium text-xs text-center"
+                      value={dosageQuery}
+                      onChangeText={setDosageQuery}
+                      placeholder="Dosage"
+                      placeholderTextColor="#52525b"
+                    />
+                  </StyledView>
+                  <StyledTouchableOpacity
+                    onPress={async () => {
+                      const name = searchQuery.trim()
+                      if (name) {
+                        const dosage = dosageQuery.trim() || undefined
+                        setSupplementsList((prev) => [
+                          ...prev,
+                          { name, dosage },
+                        ])
+
+                        // Persist to suggestions if not already present
+                        const alreadyExists = suggestions.some(
+                          (s) => s.name.toLowerCase() === name.toLowerCase(),
+                        )
+                        if (!alreadyExists) {
+                          const updatedSuggestions = [
+                            ...suggestions,
+                            { name, defaultDosage: dosage || '' },
+                          ]
+                          await dataHook.saveSettings(
+                            {
+                              ...dataHook.settings,
+                              supplementSuggestions: updatedSuggestions,
+                            },
+                            user,
+                          )
+                        }
+
+                        setSearchQuery('')
+                        setDosageQuery('')
+                        setIsSearchFocused(false)
+                      }
+                    }}
+                    activeOpacity={0.7}
+                    testID="add-supplement-button"
+                    className="bg-violet-600/20 border border-violet-500/30 p-2 rounded-xl">
+                    <Plus color="#a78bfa" size={14} />
+                  </StyledTouchableOpacity>
+                </StyledView>
+
+                {/* Suggestions Box */}
+                {isSearchFocused && (
+                  <StyledView className="bg-zinc-950 border border-zinc-800 p-2 rounded-xl mb-3">
+                    <StyledView className="flex-row justify-between items-center mb-1.5 px-1 border-b border-zinc-900 pb-1">
+                      <StyledText className="text-zinc-500 text-[9px] font-black tracking-wider uppercase">
+                        {searchQuery.trim() === ''
+                          ? 'Popular Supplements'
+                          : 'Suggestions'}
+                      </StyledText>
                       <StyledTouchableOpacity
-                        onPress={() => {
-                          setSupplementsList((prev) => prev.filter((_, i) => i !== index))
-                        }}
-                        className="ml-1.5 bg-violet-500/20 p-0.5 rounded-full"
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <X color="#a78bfa" size={8} />
+                        onPress={() => setIsSearchFocused(false)}>
+                        <StyledText className="text-zinc-500 text-[9px] font-bold">
+                          Close
+                        </StyledText>
                       </StyledTouchableOpacity>
                     </StyledView>
-                  ))}
-                </StyledView>
-              )}
+                    <StyledScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 6, paddingVertical: 2 }}
+                      keyboardShouldPersistTaps="handled">
+                      {(() => {
+                        const query = searchQuery.trim().toLowerCase()
+                        const filtered = query
+                          ? suggestions.filter((s) =>
+                              s.name.toLowerCase().includes(query),
+                            )
+                          : suggestions
 
-              {/* Add Supplement Inputs */}
-              <StyledView className="flex-row gap-2 items-center mb-3">
-                <StyledView className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl">
-                  <StyledTextInput
-                    className="text-white px-3 py-2 font-medium text-xs"
-                    value={searchQuery}
-                    onChangeText={(text) => {
-                      setSearchQuery(text)
-                      setIsSearchFocused(true)
-                    }}
-                    onFocus={() => setIsSearchFocused(true)}
-                    placeholder="Search/Add Supp..."
-                    placeholderTextColor="#52525b"
-                  />
-                </StyledView>
-                <StyledView className="w-16 bg-zinc-950 border border-zinc-800 rounded-xl">
-                  <StyledTextInput
-                    className="text-white px-2 py-2 font-medium text-xs text-center"
-                    value={dosageQuery}
-                    onChangeText={setDosageQuery}
-                    placeholder="Dosage"
-                    placeholderTextColor="#52525b"
-                  />
-                </StyledView>
-                <StyledTouchableOpacity
-                  onPress={async () => {
-                    const name = searchQuery.trim()
-                    if (name) {
-                      const dosage = dosageQuery.trim() || undefined
-                      setSupplementsList(prev => [...prev, { name, dosage }])
-
-                      // Persist to suggestions if not already present
-                      const alreadyExists = suggestions.some(s => s.name.toLowerCase() === name.toLowerCase())
-                      if (!alreadyExists) {
-                        const updatedSuggestions = [...suggestions, { name, defaultDosage: dosage || '' }]
-                        await dataHook.saveSettings({
-                          ...dataHook.settings,
-                          supplementSuggestions: updatedSuggestions,
-                        }, user)
-                      }
-
-                      setSearchQuery('')
-                      setDosageQuery('')
-                      setIsSearchFocused(false)
-                    }
-                  }}
-                  activeOpacity={0.7}
-                  testID="add-supplement-button"
-                  className="bg-violet-600/20 border border-violet-500/30 p-2 rounded-xl">
-                  <Plus color="#a78bfa" size={14} />
-                </StyledTouchableOpacity>
-              </StyledView>
-
-              {/* Suggestions Box */}
-              {isSearchFocused && (
-                <StyledView className="bg-zinc-950 border border-zinc-800 p-2 rounded-xl mb-3">
-                  <StyledView className="flex-row justify-between items-center mb-1.5 px-1 border-b border-zinc-900 pb-1">
-                    <StyledText className="text-zinc-500 text-[9px] font-black tracking-wider uppercase">
-                      {searchQuery.trim() === '' ? 'Popular Supplements' : 'Suggestions'}
-                    </StyledText>
-                    <StyledTouchableOpacity onPress={() => setIsSearchFocused(false)}>
-                      <StyledText className="text-zinc-500 text-[9px] font-bold">
-                        Close
-                      </StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-                  <StyledScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 6, paddingVertical: 2 }}
-                    keyboardShouldPersistTaps="handled">
-                    {(() => {
-                      const query = searchQuery.trim().toLowerCase()
-                      const filtered = query
-                        ? suggestions.filter(s => s.name.toLowerCase().includes(query))
-                        : suggestions
-
-                      if (filtered.length === 0) {
-                        return (
-                          <StyledText className="text-zinc-555 text-[10px] italic px-1">
-                            No match. Tap &quot;+&quot; to add custom.
-                          </StyledText>
-                        )
-                      }
-
-                      return filtered.map((supp, idx) => (
-                        <StyledView
-                          key={idx}
-                          className="bg-zinc-900 border border-zinc-800 rounded-lg flex-row items-center pl-2.5 pr-1.5 py-1">
-                          <StyledTouchableOpacity
-                            onPress={() => {
-                              setSearchQuery(supp.name)
-                              setDosageQuery(supp.defaultDosage)
-                              setIsSearchFocused(false)
-                            }}
-                            className="mr-2">
-                            <StyledText className="text-zinc-300 text-[10px] font-semibold">
-                              {supp.name} {supp.defaultDosage ? <StyledText className="text-zinc-500 font-normal">({supp.defaultDosage})</StyledText> : null}
+                        if (filtered.length === 0) {
+                          return (
+                            <StyledText className="text-zinc-555 text-[10px] italic px-1">
+                              No match. Tap &quot;+&quot; to add custom.
                             </StyledText>
-                          </StyledTouchableOpacity>
-                          <StyledTouchableOpacity
-                            onPress={() => handleRemoveSuggestion(supp.name)}
-                            className="bg-zinc-800 hover:bg-zinc-700 p-0.5 rounded"
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <X color="#71717a" size={8} />
-                          </StyledTouchableOpacity>
-                        </StyledView>
-                      ))
-                    })()}
-                  </StyledScrollView>
-                </StyledView>
-              )}
+                          )
+                        }
 
-              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
-                Date
-              </StyledText>
-              {Platform.OS === 'ios' ? (
-                <StyledView className="flex-row justify-between items-center bg-zinc-950 border border-zinc-800 p-3 rounded-xl mb-4">
-                  <StyledText className="text-zinc-500 text-sm font-bold">
-                    Select Date
-                  </StyledText>
+                        return filtered.map((supp, idx) => (
+                          <StyledView
+                            key={idx}
+                            className="bg-zinc-900 border border-zinc-800 rounded-lg flex-row items-center pl-2.5 pr-1.5 py-1">
+                            <StyledTouchableOpacity
+                              onPress={() => {
+                                setSearchQuery(supp.name)
+                                setDosageQuery(supp.defaultDosage)
+                                setIsSearchFocused(false)
+                              }}
+                              className="mr-2">
+                              <StyledText className="text-zinc-300 text-[10px] font-semibold">
+                                {supp.name}{' '}
+                                {supp.defaultDosage ? (
+                                  <StyledText className="text-zinc-500 font-normal">
+                                    ({supp.defaultDosage})
+                                  </StyledText>
+                                ) : null}
+                              </StyledText>
+                            </StyledTouchableOpacity>
+                            <StyledTouchableOpacity
+                              onPress={() => handleRemoveSuggestion(supp.name)}
+                              className="bg-zinc-800 hover:bg-zinc-700 p-0.5 rounded"
+                              hitSlop={{
+                                top: 8,
+                                bottom: 8,
+                                left: 8,
+                                right: 8,
+                              }}>
+                              <X color="#71717a" size={8} />
+                            </StyledTouchableOpacity>
+                          </StyledView>
+                        ))
+                      })()}
+                    </StyledScrollView>
+                  </StyledView>
+                )}
+
+                <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                  Date
+                </StyledText>
+                {Platform.OS === 'ios' ? (
+                  <StyledView className="flex-row justify-between items-center bg-zinc-950 border border-zinc-800 p-3 rounded-xl mb-4">
+                    <StyledText className="text-zinc-500 text-sm font-bold">
+                      Select Date
+                    </StyledText>
+                    <DateTimePicker
+                      value={dateValue}
+                      mode="date"
+                      display="compact"
+                      onChange={(_, selectedDate) => {
+                        if (selectedDate) setDateValue(selectedDate)
+                      }}
+                      themeVariant="dark"
+                    />
+                  </StyledView>
+                ) : (
+                  <StyledTouchableOpacity
+                    onPress={() => setShowDatePicker(true)}
+                    activeOpacity={0.7}
+                    className="flex-row justify-between items-center bg-zinc-950 border border-zinc-800 p-3.5 rounded-xl mb-4">
+                    <StyledText className="text-white font-bold text-sm">
+                      {dateValue.toLocaleDateString(undefined, {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </StyledText>
+                    <StyledText className="text-sky-400 font-extrabold text-xs uppercase tracking-wider">
+                      Change
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                )}
+
+                {Platform.OS !== 'ios' && showDatePicker && (
                   <DateTimePicker
                     value={dateValue}
                     mode="date"
-                    display="compact"
-                    onChange={(_, selectedDate) => {
-                      if (selectedDate) setDateValue(selectedDate)
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false)
+                      if (selectedDate) {
+                        setDateValue(selectedDate)
+                      }
                     }}
-                    themeVariant="dark"
                   />
+                )}
+
+                {/* Daily Stats for the selected date */}
+                {(() => {
+                  const dateKey = getLocalDateKey(dateValue)
+                  const weight = weightLookup[dateKey]
+                  const calories = calorieLookup[dateKey]
+                  const weightUnit = dataHook.tdeeConfig?.weightUnit ?? 'kg'
+                  if (weight === undefined && calories === undefined)
+                    return null
+
+                  return (
+                    <StyledView className="mb-4 bg-zinc-950 border border-zinc-850 p-3 rounded-xl flex-row justify-around items-center">
+                      {weight !== undefined ? (
+                        <StyledView className="flex-row items-center gap-1.5">
+                          <Scale color="#10b981" size={12} />
+                          <StyledText className="text-zinc-300 font-extrabold text-xs">
+                            {weight} {weightUnit}
+                          </StyledText>
+                        </StyledView>
+                      ) : (
+                        <StyledText className="text-zinc-650 text-xs italic font-bold">
+                          No weight logged
+                        </StyledText>
+                      )}
+                      <StyledView className="w-[1px] h-4 bg-zinc-800" />
+                      {calories !== undefined ? (
+                        <StyledView className="flex-row items-center gap-1.5">
+                          <Flame color="#ef4444" size={12} />
+                          <StyledText className="text-zinc-300 font-extrabold text-xs">
+                            {calories} kcal
+                          </StyledText>
+                        </StyledView>
+                      ) : (
+                        <StyledText className="text-zinc-650 text-xs italic font-bold">
+                          No calories logged
+                        </StyledText>
+                      )}
+                    </StyledView>
+                  )
+                })()}
+
+                <StyledView className="flex-row gap-3 mt-2">
+                  <StyledTouchableOpacity
+                    onPress={handleEditClose}
+                    activeOpacity={0.7}
+                    className="flex-1 bg-zinc-800 border border-zinc-700 py-3 rounded-xl items-center">
+                    <StyledText className="text-zinc-300 font-bold text-sm">
+                      Cancel
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                  <StyledTouchableOpacity
+                    onPress={handleEditSave}
+                    activeOpacity={0.7}
+                    testID="journal-note-save-button"
+                    className="flex-1 bg-sky-600 py-3 rounded-xl items-center shadow-lg shadow-sky-600/15">
+                    <StyledText className="text-white font-bold text-sm">
+                      Save
+                    </StyledText>
+                  </StyledTouchableOpacity>
                 </StyledView>
-              ) : (
-                <StyledTouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
-                  activeOpacity={0.7}
-                  className="flex-row justify-between items-center bg-zinc-950 border border-zinc-800 p-3.5 rounded-xl mb-4">
-                  <StyledText className="text-white font-bold text-sm">
-                    {dateValue.toLocaleDateString(undefined, {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </StyledText>
-                  <StyledText className="text-sky-400 font-extrabold text-xs uppercase tracking-wider">
-                    Change
-                  </StyledText>
-                </StyledTouchableOpacity>
-              )}
-
-              {Platform.OS !== 'ios' && showDatePicker && (
-                <DateTimePicker
-                  value={dateValue}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false)
-                    if (selectedDate) {
-                      setDateValue(selectedDate)
-                    }
-                  }}
-                />
-              )}
-
-              {/* Daily Stats for the selected date */}
-              {(() => {
-                const dateKey = getLocalDateKey(dateValue)
-                const weight = weightLookup[dateKey]
-                const calories = calorieLookup[dateKey]
-                const weightUnit = dataHook.tdeeConfig?.weightUnit ?? 'kg'
-                if (weight === undefined && calories === undefined) return null
-
-                return (
-                  <StyledView className="mb-4 bg-zinc-950 border border-zinc-850 p-3 rounded-xl flex-row justify-around items-center">
-                    {weight !== undefined ? (
-                      <StyledView className="flex-row items-center gap-1.5">
-                        <Scale color="#10b981" size={12} />
-                        <StyledText className="text-zinc-300 font-extrabold text-xs">
-                          {weight} {weightUnit}
-                        </StyledText>
-                      </StyledView>
-                    ) : (
-                      <StyledText className="text-zinc-650 text-xs italic font-bold">No weight logged</StyledText>
-                    )}
-                    <StyledView className="w-[1px] h-4 bg-zinc-800" />
-                    {calories !== undefined ? (
-                      <StyledView className="flex-row items-center gap-1.5">
-                        <Flame color="#ef4444" size={12} />
-                        <StyledText className="text-zinc-300 font-extrabold text-xs">
-                          {calories} kcal
-                        </StyledText>
-                      </StyledView>
-                    ) : (
-                      <StyledText className="text-zinc-650 text-xs italic font-bold">No calories logged</StyledText>
-                    )}
-                  </StyledView>
-                )
-              })()}
-
-              <StyledView className="flex-row gap-3 mt-2">
-                <StyledTouchableOpacity
-                  onPress={handleEditClose}
-                  activeOpacity={0.7}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 py-3 rounded-xl items-center">
-                  <StyledText className="text-zinc-300 font-bold text-sm">
-                    Cancel
-                  </StyledText>
-                </StyledTouchableOpacity>
-                <StyledTouchableOpacity
-                  onPress={handleEditSave}
-                  activeOpacity={0.7}
-                  testID="journal-note-save-button"
-                  className="flex-1 bg-sky-600 py-3 rounded-xl items-center shadow-lg shadow-sky-600/15">
-                  <StyledText className="text-white font-bold text-sm">
-                    Save
-                  </StyledText>
-                </StyledTouchableOpacity>
-              </StyledView>
-              {editModal.item && (
-                <StyledTouchableOpacity
+                {editModal.item && (
+                  <StyledTouchableOpacity
                     testID="journal-note-delete-button"
                     onPress={handleDelete}
                     activeOpacity={0.7}
                     className="mt-4 bg-red-950/20 border border-red-900/30 py-2.5 rounded-xl items-center flex-row justify-center">
                     <Trash2 color="#ef4444" size={16} />
                     <StyledText className="text-red-500 font-bold text-xs ml-2 uppercase tracking-wider">
-                    Delete Note
+                      Delete Note
                     </StyledText>
-                </StyledTouchableOpacity>
-              )}
-             </StyledScrollView>
+                  </StyledTouchableOpacity>
+                )}
+              </StyledScrollView>
             </StyledView>
           </StyledBlurView>
         </KeyboardAvoidingView>

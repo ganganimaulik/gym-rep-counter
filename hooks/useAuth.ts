@@ -24,7 +24,6 @@ type OnAuthSuccessCallback = (user: FirebaseUser | null) => Promise<void>
 export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   const [user, setUser] = useState<FirebaseUser | null>(null)
 
-
   const [initializing, setInitializing] = useState<boolean>(true)
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false)
 

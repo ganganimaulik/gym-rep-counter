@@ -1839,8 +1839,9 @@ export const useData = (): DataHook => {
           const savedRaw = await AsyncStorage.getItem(key)
           if (savedRaw) {
             const guestEntries = JSON.parse(savedRaw)
-            const updatedEntries = guestEntries.map((item: SerializedJournalEntry) =>
-              item.id === id ? { ...item, ...updates } : item,
+            const updatedEntries = guestEntries.map(
+              (item: SerializedJournalEntry) =>
+                item.id === id ? { ...item, ...updates } : item,
             )
             await AsyncStorage.setItem(key, JSON.stringify(updatedEntries))
 

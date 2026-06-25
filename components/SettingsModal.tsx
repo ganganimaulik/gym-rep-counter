@@ -123,15 +123,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       testID="mock-login-button"
                       className="bg-zinc-950 border border-indigo-900 rounded-xl px-6 py-3 flex-row items-center justify-center w-[220px]"
                       onPress={async () => {
-                        const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('firebase/auth');
-                        const { auth } = await import('../utils/firebase');
+                        const {
+                          signInWithEmailAndPassword,
+                          createUserWithEmailAndPassword,
+                        } = await import('firebase/auth')
+                        const { auth } = await import('../utils/firebase')
                         try {
-                          await signInWithEmailAndPassword(auth, 'test@example.com', 'password123');
+                          await signInWithEmailAndPassword(
+                            auth,
+                            'test@example.com',
+                            'password123',
+                          )
                         } catch (err) {
                           try {
-                            await createUserWithEmailAndPassword(auth, 'test@example.com', 'password123');
+                            await createUserWithEmailAndPassword(
+                              auth,
+                              'test@example.com',
+                              'password123',
+                            )
                           } catch (createErr) {
-                            console.error('Mock Sign In failed', createErr);
+                            console.error('Mock Sign In failed', createErr)
                           }
                         }
                       }}>
@@ -343,7 +354,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Stat Update Reminders
                 </StyledText>
                 <StyledText className="text-xs text-zinc-500 mt-1">
-                  Remind me every 4 hours to update my daily stats (weight, calories, journal).
+                  Remind me every 4 hours to update my daily stats (weight,
+                  calories, journal).
                 </StyledText>
               </StyledView>
               <StyledSwitch
@@ -368,7 +380,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     Auto-Detect Sleep
                   </StyledText>
                   <StyledText className="text-xs text-zinc-500 mt-1">
-                    Automatically calculate your quiet hours based on app activity.
+                    Automatically calculate your quiet hours based on app
+                    activity.
                   </StyledText>
                 </StyledView>
                 <StyledSwitch
@@ -387,76 +400,89 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </StyledView>
             )}
 
-            {(localSettings.statRemindersEnabled ?? true) && (localSettings.statRemindersUseAutoSleep ?? true) && detectedSleepWindow && (
-              <StyledView className="border-t border-zinc-800/40 mt-3 pt-3 flex-row justify-between items-center">
-                <StyledText className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
-                  Quiet Sleep Window
-                </StyledText>
-                <StyledText className="text-xs font-medium text-zinc-500">
-                  {detectedSleepWindow}
-                </StyledText>
-              </StyledView>
-            )}
-
-            {(localSettings.statRemindersEnabled ?? true) && !(localSettings.statRemindersUseAutoSleep ?? true) && (
-              <StyledView className="border-t border-zinc-800/40 mt-3 pt-3 space-y-3">
-                <StyledText className="text-xs font-black text-zinc-400 tracking-widest uppercase mb-1">
-                  Manual Sleep Settings
-                </StyledText>
-                
-                {/* Bedtime */}
-                <StyledView className="flex-row justify-between items-center bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/40">
-                  <StyledText className="text-sm font-bold text-zinc-400">
-                    Quiet Start (Bedtime)
+            {(localSettings.statRemindersEnabled ?? true) &&
+              (localSettings.statRemindersUseAutoSleep ?? true) &&
+              detectedSleepWindow && (
+                <StyledView className="border-t border-zinc-800/40 mt-3 pt-3 flex-row justify-between items-center">
+                  <StyledText className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
+                    Quiet Sleep Window
                   </StyledText>
-                  <StyledView className="flex-row items-center">
-                    <StyledTouchableOpacity
-                      testID="sleep-start-minus"
-                      onPress={() => adjustSleepStart(-1)}
-                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
-                      <StyledText className="text-white font-bold text-lg">-</StyledText>
-                    </StyledTouchableOpacity>
-                    <StyledText
-                      testID="sleep-start-text"
-                      className="text-sm font-black text-white w-20 text-center">
-                      {formatHour(localSettings.statRemindersSleepStart ?? 23)}
+                  <StyledText className="text-xs font-medium text-zinc-500">
+                    {detectedSleepWindow}
+                  </StyledText>
+                </StyledView>
+              )}
+
+            {(localSettings.statRemindersEnabled ?? true) &&
+              !(localSettings.statRemindersUseAutoSleep ?? true) && (
+                <StyledView className="border-t border-zinc-800/40 mt-3 pt-3 space-y-3">
+                  <StyledText className="text-xs font-black text-zinc-400 tracking-widest uppercase mb-1">
+                    Manual Sleep Settings
+                  </StyledText>
+
+                  {/* Bedtime */}
+                  <StyledView className="flex-row justify-between items-center bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/40">
+                    <StyledText className="text-sm font-bold text-zinc-400">
+                      Quiet Start (Bedtime)
                     </StyledText>
-                    <StyledTouchableOpacity
-                      testID="sleep-start-plus"
-                      onPress={() => adjustSleepStart(1)}
-                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
-                      <StyledText className="text-white font-bold text-lg">+</StyledText>
-                    </StyledTouchableOpacity>
+                    <StyledView className="flex-row items-center">
+                      <StyledTouchableOpacity
+                        testID="sleep-start-minus"
+                        onPress={() => adjustSleepStart(-1)}
+                        className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                        <StyledText className="text-white font-bold text-lg">
+                          -
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                      <StyledText
+                        testID="sleep-start-text"
+                        className="text-sm font-black text-white w-20 text-center">
+                        {formatHour(
+                          localSettings.statRemindersSleepStart ?? 23,
+                        )}
+                      </StyledText>
+                      <StyledTouchableOpacity
+                        testID="sleep-start-plus"
+                        onPress={() => adjustSleepStart(1)}
+                        className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                        <StyledText className="text-white font-bold text-lg">
+                          +
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    </StyledView>
+                  </StyledView>
+
+                  {/* Wake up */}
+                  <StyledView className="flex-row justify-between items-center bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/40">
+                    <StyledText className="text-sm font-bold text-zinc-400">
+                      Quiet End (Wake-up)
+                    </StyledText>
+                    <StyledView className="flex-row items-center">
+                      <StyledTouchableOpacity
+                        testID="sleep-end-minus"
+                        onPress={() => adjustSleepEnd(-1)}
+                        className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                        <StyledText className="text-white font-bold text-lg">
+                          -
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                      <StyledText
+                        testID="sleep-end-text"
+                        className="text-sm font-black text-white w-20 text-center">
+                        {formatHour(localSettings.statRemindersSleepEnd ?? 7)}
+                      </StyledText>
+                      <StyledTouchableOpacity
+                        testID="sleep-end-plus"
+                        onPress={() => adjustSleepEnd(1)}
+                        className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                        <StyledText className="text-white font-bold text-lg">
+                          +
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    </StyledView>
                   </StyledView>
                 </StyledView>
-
-                {/* Wake up */}
-                <StyledView className="flex-row justify-between items-center bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/40">
-                  <StyledText className="text-sm font-bold text-zinc-400">
-                    Quiet End (Wake-up)
-                  </StyledText>
-                  <StyledView className="flex-row items-center">
-                    <StyledTouchableOpacity
-                      testID="sleep-end-minus"
-                      onPress={() => adjustSleepEnd(-1)}
-                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
-                      <StyledText className="text-white font-bold text-lg">-</StyledText>
-                    </StyledTouchableOpacity>
-                    <StyledText
-                      testID="sleep-end-text"
-                      className="text-sm font-black text-white w-20 text-center">
-                      {formatHour(localSettings.statRemindersSleepEnd ?? 7)}
-                    </StyledText>
-                    <StyledTouchableOpacity
-                      testID="sleep-end-plus"
-                      onPress={() => adjustSleepEnd(1)}
-                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
-                      <StyledText className="text-white font-bold text-lg">+</StyledText>
-                    </StyledTouchableOpacity>
-                  </StyledView>
-                </StyledView>
-              </StyledView>
-            )}
+              )}
           </StyledView>
 
           {/* Action Save Button */}

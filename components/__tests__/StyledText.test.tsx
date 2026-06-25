@@ -12,7 +12,7 @@ describe('StyledText', () => {
     const { getByTestId } = render(
       <StyledText testID="styled-text" accessibilityLabel="Test Label">
         Testing Props
-      </StyledText>
+      </StyledText>,
     )
     const element = getByTestId('styled-text')
     expect(element).toBeTruthy()
