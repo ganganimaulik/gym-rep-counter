@@ -414,9 +414,7 @@ export const useData = (): DataHook => {
         ...entry,
         set,
         startTime:
-          startTime > 0
-            ? Timestamp.fromMillis(startTime)
-            : Timestamp.fromMillis(Date.now()),
+          startTime > 0 ? Timestamp.fromMillis(startTime) : undefined,
         date: endTime > 0 ? Timestamp.fromMillis(endTime) : Timestamp.now(),
       }
 

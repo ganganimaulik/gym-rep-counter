@@ -499,7 +499,11 @@ describe('useData Hook', () => {
       // Based on fix in previous task, 0 might be converted to undefined or treated specifically.
       // The requirement was: "startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : undefined"
       // So checking that we don't crash and arguments are correct.
-      expect(addDoc).toHaveBeenCalled()
+      expect(addDoc).toHaveBeenNthCalledWith(
+        1,
+        undefined, // first arg is collection ref (mocked or ignored usually)
+        expect.objectContaining({ startTime: undefined }),
+      )
 
       // Case 2: Undefined startTime (simulated by passing 0 and checking argument logic inside if accessible, or just no crash)
       // Since the function signature expects number, we pass 0 or a negative number.
@@ -519,6 +523,11 @@ describe('useData Hook', () => {
         )
       })
       expect(addDoc).toHaveBeenCalledTimes(2)
+      expect(addDoc).toHaveBeenNthCalledWith(
+        2,
+        undefined,
+        expect.objectContaining({ startTime: undefined }),
+      )
     })
 
     it('should allow saving history without a workoutId', async () => {
