@@ -87,7 +87,9 @@ describe('WorkoutActivityModule', () => {
 
     startActivity(mockState)
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith('WorkoutActivityModule is not available')
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'WorkoutActivityModule is not available',
+    )
   })
 
   it('should log error when startActivity throws an exception', () => {
@@ -116,7 +118,10 @@ describe('WorkoutActivityModule', () => {
 
     startActivity(mockState)
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to call startActivity:', testError)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to call startActivity:',
+      testError,
+    )
   })
 
   it('should call updateActivity on native module when available', () => {
@@ -229,7 +234,9 @@ describe('WorkoutActivityModule', () => {
 
     stopActivity()
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith('WorkoutActivityModule is not available')
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'WorkoutActivityModule is not available',
+    )
   })
 
   it('should log error when stopActivity throws an exception', () => {
@@ -245,7 +252,10 @@ describe('WorkoutActivityModule', () => {
 
     stopActivity()
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to call stopActivity:', testError)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to call stopActivity:',
+      testError,
+    )
   })
 
   it('should not call requireNativeModule when environment is web', () => {

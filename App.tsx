@@ -224,7 +224,7 @@ const App: React.FC = () => {
     })
 
     enableBackgroundExecution()
- 
+
     return () => {
       subscription.remove()
       disableBackgroundExecution()
@@ -232,7 +232,12 @@ const App: React.FC = () => {
   }, [user, fetchAllTodaysCompletions])
 
   const sleepWindow = useMemo(() => {
-    return detectSleepWindow(weightLogs, calorieLogs, journalEntries, todaysCompletions)
+    return detectSleepWindow(
+      weightLogs,
+      calorieLogs,
+      journalEntries,
+      todaysCompletions,
+    )
   }, [weightLogs, calorieLogs, journalEntries, todaysCompletions])
 
   const formattedSleepWindow = useMemo(() => {
@@ -252,13 +257,24 @@ const App: React.FC = () => {
       return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Default)`
     }
     return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Auto-detected)`
-  }, [sleepWindow, settings.statRemindersUseAutoSleep, settings.statRemindersSleepStart, settings.statRemindersSleepEnd])
+  }, [
+    sleepWindow,
+    settings.statRemindersUseAutoSleep,
+    settings.statRemindersSleepStart,
+    settings.statRemindersSleepEnd,
+  ])
 
   useEffect(() => {
     const triggerReminders = async () => {
       if (settings.statRemindersEnabled ?? true) {
         try {
-          await setupReminders(settings, weightLogs, calorieLogs, journalEntries, todaysCompletions)
+          await setupReminders(
+            settings,
+            weightLogs,
+            calorieLogs,
+            journalEntries,
+            todaysCompletions,
+          )
         } catch (e) {
           console.error('Failed to setup reminders', e)
         }
@@ -594,7 +610,8 @@ const App: React.FC = () => {
       {/* Modern Bottom Tab Bar */}
       <StyledView className="flex-row border-t border-zinc-900 bg-zinc-950 py-2 justify-around items-center">
         <StyledTouchableOpacity
-          testID="tab-workout" onPress={() => setCurrentTab('workout')}
+          testID="tab-workout"
+          onPress={() => setCurrentTab('workout')}
           className="items-center py-1 flex-1">
           <Dumbbell
             color={currentTab === 'workout' ? '#3b82f6' : '#71717a'}
@@ -606,7 +623,8 @@ const App: React.FC = () => {
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
-          testID="tab-routines" onPress={() => setCurrentTab('routines')}
+          testID="tab-routines"
+          onPress={() => setCurrentTab('routines')}
           className="items-center py-1 flex-1">
           <ClipboardList
             color={currentTab === 'routines' ? '#8b5cf6' : '#71717a'}
@@ -618,7 +636,8 @@ const App: React.FC = () => {
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
-          testID="tab-history" onPress={() => setCurrentTab('history')}
+          testID="tab-history"
+          onPress={() => setCurrentTab('history')}
           className="items-center py-1 flex-1">
           <History
             color={currentTab === 'history' ? '#fb923c' : '#71717a'}
@@ -630,7 +649,8 @@ const App: React.FC = () => {
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
-          testID="tab-analytics" onPress={() => setCurrentTab('analytics')}
+          testID="tab-analytics"
+          onPress={() => setCurrentTab('analytics')}
           className="items-center py-1 flex-1">
           <BarChart3
             color={currentTab === 'analytics' ? '#10b981' : '#71717a'}
@@ -642,7 +662,8 @@ const App: React.FC = () => {
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
-          testID="tab-journal" onPress={() => setCurrentTab('journal')}
+          testID="tab-journal"
+          onPress={() => setCurrentTab('journal')}
           className="items-center py-1 flex-1">
           <Book
             color={currentTab === 'journal' ? '#0ea5e9' : '#71717a'}
@@ -655,7 +676,8 @@ const App: React.FC = () => {
           </StyledText>
         </StyledTouchableOpacity>
         <StyledTouchableOpacity
-          testID="tab-settings" onPress={() => setCurrentTab('settings')}
+          testID="tab-settings"
+          onPress={() => setCurrentTab('settings')}
           className="items-center py-1 flex-1">
           <SettingsIcon
             color={currentTab === 'settings' ? '#f43f5e' : '#71717a'}

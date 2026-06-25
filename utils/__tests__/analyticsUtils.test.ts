@@ -131,7 +131,7 @@ describe('analyticsUtils', () => {
     it('should track multi-week consecutive streak where current and longest both increase', () => {
       const now = new Date()
       const history: WorkoutSet[] = []
-      
+
       // 3 consecutive weeks, 5 workouts each
       for (let w = 0; w < 3; w++) {
         for (let d = 0; d < 5; d++) {
@@ -140,7 +140,7 @@ describe('analyticsUtils', () => {
           history.push(createMockSet('ex1', 'Bench', 80, 10, date))
         }
       }
-      
+
       const result = calculateStreak(history, 5)
       expect(result.currentStreak).toBe(3)
       expect(result.longestStreak).toBe(3)
@@ -149,7 +149,7 @@ describe('analyticsUtils', () => {
     it('should reset current streak but preserve longest streak when broken by gap week', () => {
       const now = new Date()
       const history: WorkoutSet[] = []
-      
+
       // Longest streak: 4 weeks ago to 2 weeks ago (3 weeks)
       for (let w = 2; w < 5; w++) {
         for (let d = 0; d < 5; d++) {
@@ -158,14 +158,14 @@ describe('analyticsUtils', () => {
           history.push(createMockSet('ex1', 'Bench', 80, 10, date))
         }
       }
-      
+
       // Current week: 5 workouts
       for (let d = 0; d < 5; d++) {
         const date = new Date(now)
         date.setDate(date.getDate() - d)
         history.push(createMockSet('ex1', 'Bench', 80, 10, date))
       }
-      
+
       const result = calculateStreak(history, 5)
       expect(result.currentStreak).toBe(1)
       expect(result.longestStreak).toBe(3)
@@ -174,28 +174,28 @@ describe('analyticsUtils', () => {
     it('should break streak if a week has fewer than minDaysPerWeek workouts', () => {
       const now = new Date()
       const history: WorkoutSet[] = []
-      
+
       // Week 3: 5 workouts
       for (let d = 0; d < 5; d++) {
         const date = new Date(now)
         date.setDate(date.getDate() - (14 + d))
         history.push(createMockSet('ex1', 'Bench', 80, 10, date))
       }
-      
+
       // Week 2: 3 workouts (non-qualifying)
       for (let d = 0; d < 3; d++) {
         const date = new Date(now)
         date.setDate(date.getDate() - (7 + d))
         history.push(createMockSet('ex1', 'Bench', 80, 10, date))
       }
-      
+
       // Week 1: 5 workouts
       for (let d = 0; d < 5; d++) {
         const date = new Date(now)
         date.setDate(date.getDate() - d)
         history.push(createMockSet('ex1', 'Bench', 80, 10, date))
       }
-      
+
       const result = calculateStreak(history, 5)
       expect(result.currentStreak).toBe(1)
       expect(result.longestStreak).toBe(1)
@@ -204,14 +204,14 @@ describe('analyticsUtils', () => {
     it('should count as current streak if last week was qualifying but current week is empty', () => {
       const now = new Date()
       const history: WorkoutSet[] = []
-      
+
       // Last week has 5 workouts
       for (let d = 0; d < 5; d++) {
         const date = new Date(now)
         date.setDate(date.getDate() - (7 + d))
         history.push(createMockSet('ex1', 'Bench', 80, 10, date))
       }
-      
+
       const result = calculateStreak(history, 5)
       expect(result.currentStreak).toBe(1)
     })
@@ -219,7 +219,7 @@ describe('analyticsUtils', () => {
     it('should handle minDaysPerWeek variations (default vs custom)', () => {
       const now = new Date()
       const history: WorkoutSet[] = []
-      
+
       // Week 2 and Week 1 each have 3 workouts
       for (let w = 0; w < 2; w++) {
         for (let d = 0; d < 3; d++) {
@@ -228,10 +228,10 @@ describe('analyticsUtils', () => {
           history.push(createMockSet('ex1', 'Bench', 80, 10, date))
         }
       }
-      
+
       const result5 = calculateStreak(history, 5)
       expect(result5.currentStreak).toBe(1)
-      
+
       const result3 = calculateStreak(history, 3)
       expect(result3.currentStreak).toBe(2)
     })
@@ -239,14 +239,14 @@ describe('analyticsUtils', () => {
     it('should return currentStreak = 0 for very old data only', () => {
       const now = new Date()
       const history: WorkoutSet[] = []
-      
+
       // 10 weeks ago: 5 workouts
       for (let d = 0; d < 5; d++) {
         const date = new Date(now)
         date.setDate(date.getDate() - (70 + d))
         history.push(createMockSet('ex1', 'Bench', 80, 10, date))
       }
-      
+
       const result = calculateStreak(history, 5)
       expect(result.currentStreak).toBe(0)
       expect(result.longestStreak).toBe(1)

@@ -1,6 +1,11 @@
 import * as Notifications from 'expo-notifications'
 import { detectSleepWindow } from './sleepDetection'
-import { WeightLog, CalorieLog, JournalEntry, WorkoutSet } from '../declarations'
+import {
+  WeightLog,
+  CalorieLog,
+  JournalEntry,
+  WorkoutSet,
+} from '../declarations'
 import { Settings } from '../hooks/useData'
 
 export async function setupReminders(
@@ -108,7 +113,10 @@ export async function setupReminders(
             sound: true,
             priority: Notifications.AndroidNotificationPriority.HIGH,
           },
-          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: candidateDate },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: candidateDate,
+          },
         })
         scheduledCount++
       } catch (err) {
