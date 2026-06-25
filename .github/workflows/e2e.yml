@@ -3,8 +3,32 @@ name: Playwright E2E Tests
 on:
   push:
     branches: [ main, master ]
+    paths:
+      - 'components/**'
+      - 'hooks/**'
+      - 'utils/**'
+      - 'modules/**'
+      - 'e2e/**'
+      - 'App.tsx'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/e2e.yml'
   pull_request:
     branches: [ main, master ]
+    paths:
+      - 'components/**'
+      - 'hooks/**'
+      - 'utils/**'
+      - 'modules/**'
+      - 'e2e/**'
+      - 'App.tsx'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/e2e.yml'
 
 # Cancel in-progress runs when a new push is made to the same branch/PR
 concurrency:
