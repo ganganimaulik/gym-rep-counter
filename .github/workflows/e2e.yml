@@ -14,6 +14,7 @@ on:
       - 'package-lock.json'
       - 'playwright.config.ts'
       - 'tsconfig.json'
+      - 'firebase.json'
       - '.github/workflows/e2e.yml'
   pull_request:
     branches: [ main, master ]
@@ -28,6 +29,7 @@ on:
       - 'package-lock.json'
       - 'playwright.config.ts'
       - 'tsconfig.json'
+      - 'firebase.json'
       - '.github/workflows/e2e.yml'
 
 # Cancel in-progress runs when a new push is made to the same branch/PR
