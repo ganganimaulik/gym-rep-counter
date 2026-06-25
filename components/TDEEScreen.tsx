@@ -446,6 +446,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 Height ({setupMeasurementUnit})
               </StyledText>
               <StyledTextInput
+                testID="setup-height"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                 keyboardType="numeric"
                 value={setupHeight}
@@ -461,6 +462,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 Waist ({setupMeasurementUnit})
               </StyledText>
               <StyledTextInput
+                testID="setup-waist"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                 keyboardType="numeric"
                 value={setupWaist}
@@ -479,6 +481,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 Neck ({setupMeasurementUnit})
               </StyledText>
               <StyledTextInput
+                testID="setup-neck"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                 keyboardType="numeric"
                 value={setupNeck}
@@ -495,6 +498,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                   Hips ({setupMeasurementUnit})
                 </StyledText>
                 <StyledTextInput
+                  testID="setup-hips"
                   className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                   keyboardType="numeric"
                   value={setupHip}
@@ -628,6 +632,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 Goal Weight ({weightUnit})
               </StyledText>
               <StyledTextInput
+                testID="goal-weight-input"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                 keyboardType="numeric"
                 value={goalWeightInput}
@@ -644,6 +649,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 Weekly Rate ({weightUnit}/wk)
               </StyledText>
               <StyledTextInput
+                testID="goal-rate-input"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                 keyboardType="numeric"
                 value={goalRateInput}
@@ -657,6 +663,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
           </StyledView>
 
           <StyledTouchableOpacity
+            testID="update-goal-button"
             onPress={handleSaveGoals}
             activeOpacity={0.85}
             className="bg-orange-500 py-3 rounded-xl items-center shadow-lg mb-4">
@@ -922,6 +929,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
           {/* History Tab Selector */}
           <StyledView className="flex-row bg-zinc-950 border border-zinc-800/80 p-1 rounded-xl mb-4">
             <StyledTouchableOpacity
+              testID="daily-logs-tab"
               onPress={() => setActiveHistoryTab('daily')}
               activeOpacity={0.8}
               className={`flex-1 py-2 rounded-lg items-center ${
@@ -935,6 +943,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
             </StyledTouchableOpacity>
             <StyledTouchableOpacity
+              testID="weekly-average-tab"
               onPress={() => setActiveHistoryTab('weekly')}
               activeOpacity={0.8}
               className={`flex-1 py-2 rounded-lg items-center ${
@@ -1085,6 +1094,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       {isConfigured && (
         <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl mb-4 shadow-xl overflow-hidden">
           <StyledTouchableOpacity
+            testID="preferences-expand-button"
             onPress={() => setUnitExpanded(!unitExpanded)}
             activeOpacity={0.7}
             className="flex-row items-center justify-between p-4">
@@ -1169,6 +1179,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                     Height ({setupMeasurementUnit})
                   </StyledText>
                   <StyledTextInput
+                    testID="pref-height"
                     className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                     keyboardType="numeric"
                     value={setupHeight}
@@ -1184,6 +1195,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                     Waist ({setupMeasurementUnit})
                   </StyledText>
                   <StyledTextInput
+                    testID="pref-waist"
                     className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                     keyboardType="numeric"
                     value={setupWaist}
@@ -1202,6 +1214,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                     Neck ({setupMeasurementUnit})
                   </StyledText>
                   <StyledTextInput
+                    testID="pref-neck"
                     className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                     keyboardType="numeric"
                     value={setupNeck}
@@ -1218,6 +1231,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                       Hips ({setupMeasurementUnit})
                     </StyledText>
                     <StyledTextInput
+                      testID="pref-hips"
                       className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                       keyboardType="numeric"
                       value={setupHip}
@@ -1235,6 +1249,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledView>
 
               <StyledTouchableOpacity
+                testID="save-preferences-button"
                 onPress={handleSaveGoals}
                 activeOpacity={0.85}
                 className="bg-zinc-800 border border-zinc-700 py-3 rounded-xl items-center shadow-lg">

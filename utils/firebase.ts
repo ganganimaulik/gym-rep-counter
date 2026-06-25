@@ -1,8 +1,8 @@
 import { initializeApp, FirebaseApp } from 'firebase/app'
-import { initializeAuth, Auth, getAuth } from 'firebase/auth'
+import { initializeAuth, Auth, getAuth, connectAuthEmulator } from 'firebase/auth'
 // @ts-expect-error - Valid import but types might be missing in some node_modules resolution
 import { getReactNativePersistence } from 'firebase/auth'
-import { getFirestore, Firestore } from 'firebase/firestore'
+import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore'
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
 
@@ -28,5 +28,10 @@ if (Platform.OS === 'web') {
 }
 
 const db: Firestore = getFirestore(app, 'default')
+
+if (process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
+  connectFirestoreEmulator(db, '127.0.0.1', 8080)
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+}
 
 export { auth, db }

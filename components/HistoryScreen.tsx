@@ -335,6 +335,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
                 Reps
               </StyledText>
               <StyledTextInput
+                testID="edit-log-reps"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
                 keyboardType="number-pad"
                 value={editReps}
@@ -346,6 +347,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
                 Weight (kg)
               </StyledText>
               <StyledTextInput
+                testID="edit-log-weight"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
                 keyboardType="number-pad"
                 value={editWeight}
@@ -364,6 +366,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
                   </StyledText>
                 </StyledTouchableOpacity>
                 <StyledTouchableOpacity
+                  testID="edit-log-save-button"
                   onPress={handleEditSave}
                   activeOpacity={0.7}
                   className="flex-1 bg-indigo-600 py-3 rounded-xl items-center shadow-lg shadow-indigo-600/15">

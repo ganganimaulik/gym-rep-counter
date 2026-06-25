@@ -109,14 +109,38 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 Sync Account
               </StyledText>
               {Platform.OS === 'web' ? (
-                <StyledTouchableOpacity
-                  className="bg-zinc-950 border border-zinc-800 rounded-xl px-6 py-3 flex-row items-center justify-center w-[220px]"
-                  onPress={onGoogleButtonPress}
-                  disabled={isSigningIn}>
-                  <StyledText className="text-white font-bold text-sm">
-                    {isSigningIn ? 'Signing in...' : 'Sign in with Google'}
-                  </StyledText>
-                </StyledTouchableOpacity>
+                <StyledView className="space-y-2 items-center">
+                  <StyledTouchableOpacity
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-6 py-3 flex-row items-center justify-center w-[220px]"
+                    onPress={onGoogleButtonPress}
+                    disabled={isSigningIn}>
+                    <StyledText className="text-white font-bold text-sm">
+                      {isSigningIn ? 'Signing in...' : 'Sign in with Google'}
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                  {process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === 'true' && (
+                    <StyledTouchableOpacity
+                      testID="mock-login-button"
+                      className="bg-zinc-950 border border-indigo-900 rounded-xl px-6 py-3 flex-row items-center justify-center w-[220px]"
+                      onPress={async () => {
+                        const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('firebase/auth');
+                        const { auth } = await import('../utils/firebase');
+                        try {
+                          await signInWithEmailAndPassword(auth, 'test@example.com', 'password123');
+                        } catch (err) {
+                          try {
+                            await createUserWithEmailAndPassword(auth, 'test@example.com', 'password123');
+                          } catch (createErr) {
+                            console.error('Mock Sign In failed', createErr);
+                          }
+                        }
+                      }}>
+                      <StyledText className="text-indigo-400 font-bold text-sm">
+                        Mock Sign In
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  )}
+                </StyledView>
               ) : (
                 <GoogleSigninButton
                   style={{ width: 220, height: 52 }}
@@ -144,6 +168,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Countdown (s)
                 </StyledText>
                 <StyledTextInput
+                  testID="setting-countdown"
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -160,6 +185,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Announcement
                 </StyledText>
                 <StyledTextInput
+                  testID="setting-announcement"
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -179,6 +205,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Rest Timer (s)
                 </StyledText>
                 <StyledTextInput
+                  testID="setting-rest"
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -195,6 +222,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Max Reps Limit
                 </StyledText>
                 <StyledTextInput
+                  testID="setting-max-reps"
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -211,6 +239,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Max Sets Limit
                 </StyledText>
                 <StyledTextInput
+                  testID="setting-max-sets"
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -227,6 +256,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Concentric (s)
                 </StyledText>
                 <StyledTextInput
+                  testID="setting-concentric"
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="decimal-pad"
                   returnKeyType="done"
@@ -243,6 +273,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Eccentric Duration (s)
                 </StyledText>
                 <StyledTextInput
+                  testID="setting-eccentric"
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="decimal-pad"
                   returnKeyType="done"
@@ -259,6 +290,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Eccentric Voice Count
                 </StyledText>
                 <StyledSwitch
+                  testID="toggle-eccentric-voice"
                   value={localSettings.eccentricCountdownEnabled}
                   onValueChange={(value) =>
                     handleValueChange('eccentricCountdownEnabled', value)
@@ -315,6 +347,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
               </StyledView>
               <StyledSwitch
+                testID="toggle-stat-reminders"
                 value={localSettings.statRemindersEnabled ?? true}
                 onValueChange={(value) =>
                   handleValueChange('statRemindersEnabled', value)
@@ -339,6 +372,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </StyledText>
                 </StyledView>
                 <StyledSwitch
+                  testID="toggle-auto-sleep"
                   value={localSettings.statRemindersUseAutoSleep ?? true}
                   onValueChange={(value) =>
                     handleValueChange('statRemindersUseAutoSleep', value)
@@ -377,14 +411,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </StyledText>
                   <StyledView className="flex-row items-center">
                     <StyledTouchableOpacity
+                      testID="sleep-start-minus"
                       onPress={() => adjustSleepStart(-1)}
                       className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
                       <StyledText className="text-white font-bold text-lg">-</StyledText>
                     </StyledTouchableOpacity>
-                    <StyledText className="text-sm font-black text-white w-20 text-center">
+                    <StyledText
+                      testID="sleep-start-text"
+                      className="text-sm font-black text-white w-20 text-center">
                       {formatHour(localSettings.statRemindersSleepStart ?? 23)}
                     </StyledText>
                     <StyledTouchableOpacity
+                      testID="sleep-start-plus"
                       onPress={() => adjustSleepStart(1)}
                       className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
                       <StyledText className="text-white font-bold text-lg">+</StyledText>
@@ -399,14 +437,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </StyledText>
                   <StyledView className="flex-row items-center">
                     <StyledTouchableOpacity
+                      testID="sleep-end-minus"
                       onPress={() => adjustSleepEnd(-1)}
                       className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
                       <StyledText className="text-white font-bold text-lg">-</StyledText>
                     </StyledTouchableOpacity>
-                    <StyledText className="text-sm font-black text-white w-20 text-center">
+                    <StyledText
+                      testID="sleep-end-text"
+                      className="text-sm font-black text-white w-20 text-center">
                       {formatHour(localSettings.statRemindersSleepEnd ?? 7)}
                     </StyledText>
                     <StyledTouchableOpacity
+                      testID="sleep-end-plus"
                       onPress={() => adjustSleepEnd(1)}
                       className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
                       <StyledText className="text-white font-bold text-lg">+</StyledText>
