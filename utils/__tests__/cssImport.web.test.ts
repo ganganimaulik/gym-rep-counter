@@ -5,4 +5,8 @@ describe('importGlobalCSS (web)', () => {
     expect(typeof importGlobalCSS).toBe('function');
     expect(importGlobalCSS()).toBeUndefined();
   });
+
+  it('should execute without throwing errors', () => {
+    expect(() => importGlobalCSS()).not.toThrow();
+  });
 });
