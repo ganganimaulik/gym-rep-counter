@@ -61,6 +61,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
   }
 
+  const formatHour = (hour: number) => {
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const displayHour = hour % 12 === 0 ? 12 : hour % 12
+    return `${displayHour}:00 ${ampm}`
+  }
+
+  const adjustSleepStart = (amount: number) => {
+    const current = localSettings.statRemindersSleepStart ?? 23
+    let next = (current + amount) % 24
+    if (next < 0) next += 24
+    handleValueChange('statRemindersSleepStart', next)
+  }
+
+  const adjustSleepEnd = (amount: number) => {
+    const current = localSettings.statRemindersSleepEnd ?? 7
+    let next = (current + amount) % 24
+    if (next < 0) next += 24
+    handleValueChange('statRemindersSleepEnd', next)
+  }
+
   if (!visible) return null
 
   return (
@@ -308,7 +328,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </StyledView>
 
-            {(localSettings.statRemindersEnabled ?? true) && detectedSleepWindow && (
+            {(localSettings.statRemindersEnabled ?? true) && (
+              <StyledView className="flex-row justify-between items-center py-2.5 border-t border-zinc-800/40 mt-2">
+                <StyledView className="flex-1 pr-4">
+                  <StyledText className="text-sm font-bold text-zinc-300">
+                    Auto-Detect Sleep
+                  </StyledText>
+                  <StyledText className="text-xs text-zinc-500 mt-1">
+                    Automatically calculate your quiet hours based on app activity.
+                  </StyledText>
+                </StyledView>
+                <StyledSwitch
+                  value={localSettings.statRemindersUseAutoSleep ?? true}
+                  onValueChange={(value) =>
+                    handleValueChange('statRemindersUseAutoSleep', value)
+                  }
+                  trackColor={{ false: '#27272a', true: '#6366f1' }}
+                  thumbColor={
+                    (localSettings.statRemindersUseAutoSleep ?? true)
+                      ? '#a5b4fc'
+                      : '#71717a'
+                  }
+                />
+              </StyledView>
+            )}
+
+            {(localSettings.statRemindersEnabled ?? true) && (localSettings.statRemindersUseAutoSleep ?? true) && detectedSleepWindow && (
               <StyledView className="border-t border-zinc-800/40 mt-3 pt-3 flex-row justify-between items-center">
                 <StyledText className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
                   Quiet Sleep Window
@@ -316,6 +361,58 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 <StyledText className="text-xs font-medium text-zinc-500">
                   {detectedSleepWindow}
                 </StyledText>
+              </StyledView>
+            )}
+
+            {(localSettings.statRemindersEnabled ?? true) && !(localSettings.statRemindersUseAutoSleep ?? true) && (
+              <StyledView className="border-t border-zinc-800/40 mt-3 pt-3 space-y-3">
+                <StyledText className="text-xs font-black text-zinc-400 tracking-widest uppercase mb-1">
+                  Manual Sleep Settings
+                </StyledText>
+                
+                {/* Bedtime */}
+                <StyledView className="flex-row justify-between items-center bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/40">
+                  <StyledText className="text-sm font-bold text-zinc-400">
+                    Quiet Start (Bedtime)
+                  </StyledText>
+                  <StyledView className="flex-row items-center">
+                    <StyledTouchableOpacity
+                      onPress={() => adjustSleepStart(-1)}
+                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                      <StyledText className="text-white font-bold text-lg">-</StyledText>
+                    </StyledTouchableOpacity>
+                    <StyledText className="text-sm font-black text-white w-20 text-center">
+                      {formatHour(localSettings.statRemindersSleepStart ?? 23)}
+                    </StyledText>
+                    <StyledTouchableOpacity
+                      onPress={() => adjustSleepStart(1)}
+                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                      <StyledText className="text-white font-bold text-lg">+</StyledText>
+                    </StyledTouchableOpacity>
+                  </StyledView>
+                </StyledView>
+
+                {/* Wake up */}
+                <StyledView className="flex-row justify-between items-center bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/40">
+                  <StyledText className="text-sm font-bold text-zinc-400">
+                    Quiet End (Wake-up)
+                  </StyledText>
+                  <StyledView className="flex-row items-center">
+                    <StyledTouchableOpacity
+                      onPress={() => adjustSleepEnd(-1)}
+                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                      <StyledText className="text-white font-bold text-lg">-</StyledText>
+                    </StyledTouchableOpacity>
+                    <StyledText className="text-sm font-black text-white w-20 text-center">
+                      {formatHour(localSettings.statRemindersSleepEnd ?? 7)}
+                    </StyledText>
+                    <StyledTouchableOpacity
+                      onPress={() => adjustSleepEnd(1)}
+                      className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 items-center justify-center">
+                      <StyledText className="text-white font-bold text-lg">+</StyledText>
+                    </StyledTouchableOpacity>
+                  </StyledView>
+                </StyledView>
               </StyledView>
             )}
           </StyledView>

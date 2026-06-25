@@ -241,11 +241,18 @@ const App: React.FC = () => {
       const displayHour = hour % 12 === 0 ? 12 : hour % 12
       return `${displayHour}:00 ${ampm}`
     }
+
+    if (settings.statRemindersUseAutoSleep === false) {
+      const start = settings.statRemindersSleepStart ?? 23
+      const end = settings.statRemindersSleepEnd ?? 7
+      return `${formatHour(start)} - ${formatHour(end)}`
+    }
+
     if (sleepWindow.isDefault) {
       return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Default)`
     }
     return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Auto-detected)`
-  }, [sleepWindow])
+  }, [sleepWindow, settings.statRemindersUseAutoSleep, settings.statRemindersSleepStart, settings.statRemindersSleepEnd])
 
   useEffect(() => {
     const triggerReminders = async () => {

@@ -37,20 +37,27 @@ export async function setupReminders(
   await Notifications.cancelAllScheduledNotificationsAsync()
 
   // 4. Get sleep window
-  const sleepWindow = detectSleepWindow(
-    weightLogs,
-    calorieLogs,
-    journalEntries,
-    workoutHistory,
-  )
+  let sleepStart = settings.statRemindersSleepStart ?? 23
+  let sleepEnd = settings.statRemindersSleepEnd ?? 7
+
+  if (settings.statRemindersUseAutoSleep ?? true) {
+    const sleepWindow = detectSleepWindow(
+      weightLogs,
+      calorieLogs,
+      journalEntries,
+      workoutHistory,
+    )
+    sleepStart = sleepWindow.startHour
+    sleepEnd = sleepWindow.endHour
+  }
 
   const isInSleepWindow = (date: Date) => {
     const hour = date.getHours()
-    if (sleepWindow.startHour <= sleepWindow.endHour) {
-      return hour >= sleepWindow.startHour && hour < sleepWindow.endHour
+    if (sleepStart <= sleepEnd) {
+      return hour >= sleepStart && hour < sleepEnd
     } else {
       // Wrap-around case (e.g. 23:00 to 07:00)
-      return hour >= sleepWindow.startHour || hour < sleepWindow.endHour
+      return hour >= sleepStart || hour < sleepEnd
     }
   }
 

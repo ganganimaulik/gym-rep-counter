@@ -88,6 +88,9 @@ export interface Settings {
   volume: number
   supplementSuggestions?: { name: string; defaultDosage: string }[]
   statRemindersEnabled?: boolean
+  statRemindersUseAutoSleep?: boolean
+  statRemindersSleepStart?: number
+  statRemindersSleepEnd?: number
 }
 
 export interface Exercise {
@@ -232,6 +235,9 @@ const defaultSettings: Settings = {
   countdownAnnouncementThreshold: 15,
   volume: 1.0,
   statRemindersEnabled: true,
+  statRemindersUseAutoSleep: true,
+  statRemindersSleepStart: 23,
+  statRemindersSleepEnd: 7,
   supplementSuggestions: [
     { name: 'Creatine', defaultDosage: '5g' },
     { name: 'Whey Protein', defaultDosage: '1 scoop' },

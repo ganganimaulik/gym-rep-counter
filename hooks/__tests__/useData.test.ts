@@ -95,6 +95,9 @@ describe('useData Hook', () => {
     countdownAnnouncementThreshold: 15,
     volume: 1.0,
     statRemindersEnabled: true,
+    statRemindersUseAutoSleep: true,
+    statRemindersSleepStart: 23,
+    statRemindersSleepEnd: 7,
     supplementSuggestions: [
       { name: 'Creatine', defaultDosage: '5g' },
       { name: 'Whey Protein', defaultDosage: '1 scoop' },
