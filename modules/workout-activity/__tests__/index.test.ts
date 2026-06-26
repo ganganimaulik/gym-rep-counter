@@ -126,6 +126,8 @@ describe('WorkoutActivityModule', () => {
 
   it('should call updateActivity on native module when available', () => {
     const { requireNativeModule } = require('expo-modules-core')
+    const mockReturnValue = 'update_success'
+    updateActivitySpy.mockReturnValue(mockReturnValue)
     requireNativeModule.mockReturnValue({
       startActivity: startActivitySpy,
       updateActivity: updateActivitySpy,
@@ -146,9 +148,10 @@ describe('WorkoutActivityModule', () => {
       restStartTimestamp: 0,
     }
 
-    updateActivity(mockState)
+    const result = updateActivity(mockState)
 
     expect(updateActivitySpy).toHaveBeenCalledWith(mockState)
+    expect(result).toBe(mockReturnValue)
   })
 
   it('should warn when updateActivity is called and native module is unavailable', () => {
@@ -171,11 +174,10 @@ describe('WorkoutActivityModule', () => {
       restStartTimestamp: 0,
     }
 
-    updateActivity(mockState)
+    const result = updateActivity(mockState)
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      'WorkoutActivityModule is not available',
-    )
+    expect(consoleWarnSpy).toHaveBeenCalledWith('WorkoutActivityModule is not available')
+    expect(result).toBeUndefined()
   })
 
   it('should log error when updateActivity throws an exception', () => {
@@ -201,12 +203,10 @@ describe('WorkoutActivityModule', () => {
       restStartTimestamp: 0,
     }
 
-    updateActivity(mockState)
+    const result = updateActivity(mockState)
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Failed to call updateActivity:',
-      testError,
-    )
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to call updateActivity:', testError)
+    expect(result).toBeUndefined()
   })
 
   it('should call stopActivity on native module when available', () => {
