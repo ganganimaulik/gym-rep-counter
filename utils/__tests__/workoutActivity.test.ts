@@ -55,13 +55,15 @@ describe('workoutActivity', () => {
     it('catches and logs error when native module throws', () => {
       Platform.OS = 'ios'
       const error = new Error('Test error')
-      ;(WorkoutActivity.startActivity as jest.Mock).mockImplementationOnce(() => {
-        throw error
-      })
+      ;(WorkoutActivity.startActivity as jest.Mock).mockImplementationOnce(
+        () => {
+          throw error
+        },
+      )
       startWorkoutActivity(dummyState)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Failed to start workout activity:',
-        error
+        error,
       )
     })
   })
@@ -82,13 +84,15 @@ describe('workoutActivity', () => {
     it('catches and logs error when native module throws', () => {
       Platform.OS = 'ios'
       const error = new Error('Test error')
-      ;(WorkoutActivity.updateActivity as jest.Mock).mockImplementationOnce(() => {
-        throw error
-      })
+      ;(WorkoutActivity.updateActivity as jest.Mock).mockImplementationOnce(
+        () => {
+          throw error
+        },
+      )
       updateWorkoutActivity(dummyState)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Failed to update workout activity:',
-        error
+        error,
       )
     })
   })
@@ -109,13 +113,15 @@ describe('workoutActivity', () => {
     it('catches and logs error when native module throws', () => {
       Platform.OS = 'ios'
       const error = new Error('Test error')
-      ;(WorkoutActivity.stopActivity as jest.Mock).mockImplementationOnce(() => {
-        throw error
-      })
+      ;(WorkoutActivity.stopActivity as jest.Mock).mockImplementationOnce(
+        () => {
+          throw error
+        },
+      )
       stopWorkoutActivity()
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Failed to stop workout activity:',
-        error
+        error,
       )
     })
   })
