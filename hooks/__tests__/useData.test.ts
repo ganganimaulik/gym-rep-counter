@@ -620,7 +620,9 @@ describe('useData Hook', () => {
         )
       })
 
-      const setDocCall = (setDoc as jest.Mock).mock.calls.find(call => call[1] && call[1].settings)
+      const setDocCall = (setDoc as jest.Mock).mock.calls.find(
+        (call) => call[1] && call[1].settings,
+      )
       expect(setDocCall).toBeDefined()
       expect(setDocCall[1]).not.toHaveProperty('setCompletions')
       expect(setDocCall[1]).toHaveProperty('settings', localSettings)
@@ -634,7 +636,8 @@ describe('useData Hook', () => {
         height: 180,
       }
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'tdeeConfig') return Promise.resolve(JSON.stringify(mockTDEEConfig))
+        if (key === 'tdeeConfig')
+          return Promise.resolve(JSON.stringify(mockTDEEConfig))
         return Promise.resolve(null)
       })
       ;(getDoc as jest.Mock).mockResolvedValue({ exists: () => false })
@@ -647,7 +650,7 @@ describe('useData Hook', () => {
       expect(setDoc).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({ tdeeConfig: mockTDEEConfig }),
-        { merge: true }
+        { merge: true },
       )
     })
 
@@ -1414,26 +1417,47 @@ describe('useData Hook', () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
       const { result } = renderHook(() => useData())
       let logs
-      await act(async () => { logs = await result.current.fetchCalorieLogs(null) })
+      await act(async () => {
+        logs = await result.current.fetchCalorieLogs(null)
+      })
       expect(logs).toEqual([])
     })
 
     it('should fetch calorie logs for guest user with data', async () => {
-      const guestLogs = [{ id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } }]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestLogs))
+      const guestLogs = [
+        { id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestLogs),
+      )
       const { result } = renderHook(() => useData())
       let logs
-      await act(async () => { logs = await result.current.fetchCalorieLogs(null) })
+      await act(async () => {
+        logs = await result.current.fetchCalorieLogs(null)
+      })
       expect(logs).toHaveLength(1)
       expect(logs![0].calories).toBe(2000)
     })
 
     it('should fetch calorie logs for authenticated user', async () => {
-      const dbLogs = [{ id: '1', calories: 2500, date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
-      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbLogs.map(log => ({ id: log.id, data: () => ({ calories: log.calories, date: log.date }) })) })
+      const dbLogs = [
+        {
+          id: '1',
+          calories: 2500,
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbLogs.map((log) => ({
+          id: log.id,
+          data: () => ({ calories: log.calories, date: log.date }),
+        })),
+      })
       const { result } = renderHook(() => useData())
       let logs
-      await act(async () => { logs = await result.current.fetchCalorieLogs(mockUser) })
+      await act(async () => {
+        logs = await result.current.fetchCalorieLogs(mockUser)
+      })
       expect(getDocs).toHaveBeenCalled()
       expect(logs).toHaveLength(1)
       expect(logs![0].calories).toBe(2500)
@@ -1442,69 +1466,133 @@ describe('useData Hook', () => {
     it('should add calorie log for guest user', async () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('[]')
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.addCalorieLog(2200, new Date(), null) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestCalorieLogs', expect.stringContaining('2200'))
+      await act(async () => {
+        await result.current.addCalorieLog(2200, new Date(), null)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestCalorieLogs',
+        expect.stringContaining('2200'),
+      )
       expect(result.current.calorieLogs[0].calories).toBe(2200)
     })
 
     it('should add calorie log for authenticated user', async () => {
       ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.addCalorieLog(2300, new Date(), mockUser) })
+      await act(async () => {
+        await result.current.addCalorieLog(2300, new Date(), mockUser)
+      })
       expect(addDoc).toHaveBeenCalled()
       expect(result.current.calorieLogs[0].calories).toBe(2300)
     })
 
     it('should update calorie log for guest user', async () => {
-      const guestLogs = [{ id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } }]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestLogs))
+      const guestLogs = [
+        { id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestLogs),
+      )
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchCalorieLogs(null) })
-      await act(async () => { await result.current.updateCalorieLog('1', 2100, new Date(), null) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestCalorieLogs', expect.stringContaining('2100'))
+      await act(async () => {
+        await result.current.fetchCalorieLogs(null)
+      })
+      await act(async () => {
+        await result.current.updateCalorieLog('1', 2100, new Date(), null)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestCalorieLogs',
+        expect.stringContaining('2100'),
+      )
       expect(result.current.calorieLogs[0].calories).toBe(2100)
     })
 
     it('should update calorie log for authenticated user', async () => {
       ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
-      const dbLogs = [{ id: '1', calories: 2000, date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
-      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbLogs.map(log => ({ id: log.id, data: () => ({ calories: log.calories, date: log.date }) })) })
+      const dbLogs = [
+        {
+          id: '1',
+          calories: 2000,
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbLogs.map((log) => ({
+          id: log.id,
+          data: () => ({ calories: log.calories, date: log.date }),
+        })),
+      })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchCalorieLogs(mockUser) })
-      await act(async () => { await result.current.updateCalorieLog('1', 2400, new Date(), mockUser) })
+      await act(async () => {
+        await result.current.fetchCalorieLogs(mockUser)
+      })
+      await act(async () => {
+        await result.current.updateCalorieLog('1', 2400, new Date(), mockUser)
+      })
       expect(updateDoc).toHaveBeenCalled()
       expect(result.current.calorieLogs[0].calories).toBe(2400)
     })
 
     it('should delete calorie log for guest user', async () => {
-      const guestLogs = [{ id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } }]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestLogs))
+      const guestLogs = [
+        { id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestLogs),
+      )
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchCalorieLogs(null) })
-      await act(async () => { await result.current.deleteCalorieLog('1', null) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestCalorieLogs', '[]')
+      await act(async () => {
+        await result.current.fetchCalorieLogs(null)
+      })
+      await act(async () => {
+        await result.current.deleteCalorieLog('1', null)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestCalorieLogs',
+        '[]',
+      )
       expect(result.current.calorieLogs).toHaveLength(0)
     })
 
     it('should delete calorie log for authenticated user', async () => {
       ;(deleteDoc as jest.Mock).mockResolvedValue(undefined)
-      const dbLogs = [{ id: '1', calories: 2000, date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
-      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbLogs.map(log => ({ id: log.id, data: () => ({ calories: log.calories, date: log.date }) })) })
+      const dbLogs = [
+        {
+          id: '1',
+          calories: 2000,
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbLogs.map((log) => ({
+          id: log.id,
+          data: () => ({ calories: log.calories, date: log.date }),
+        })),
+      })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchCalorieLogs(mockUser) })
-      await act(async () => { await result.current.deleteCalorieLog('1', mockUser) })
+      await act(async () => {
+        await result.current.fetchCalorieLogs(mockUser)
+      })
+      await act(async () => {
+        await result.current.deleteCalorieLog('1', mockUser)
+      })
       expect(deleteDoc).toHaveBeenCalled()
       expect(result.current.calorieLogs).toHaveLength(0)
     })
 
     it('should migrate guest calorie logs - success', async () => {
-      const guestLogs = [{ id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } }]
+      const guestLogs = [
+        { id: '1', calories: 2000, date: { seconds: 1000, nanoseconds: 0 } },
+      ]
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestCalorieLogs') return Promise.resolve(JSON.stringify(guestLogs))
+        if (key === 'guestCalorieLogs')
+          return Promise.resolve(JSON.stringify(guestLogs))
         return Promise.resolve(null)
       })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.migrateGuestCalorieLogs(mockUser) })
+      await act(async () => {
+        await result.current.migrateGuestCalorieLogs(mockUser)
+      })
       expect(writeBatch).toHaveBeenCalled()
       expect(mockBatch.commit).toHaveBeenCalled()
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('guestCalorieLogs')
@@ -1516,16 +1604,27 @@ describe('useData Hook', () => {
         return Promise.resolve(null)
       })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.migrateGuestCalorieLogs(mockUser) })
+      await act(async () => {
+        await result.current.migrateGuestCalorieLogs(mockUser)
+      })
       expect(writeBatch).not.toHaveBeenCalled()
     })
 
     it('should migrate guest calorie logs - error', async () => {
-      ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Migration Error'))
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(
+        new Error('Migration Error'),
+      )
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.migrateGuestCalorieLogs(mockUser) })
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to migrate guest calorie logs', expect.any(Error))
+      await act(async () => {
+        await result.current.migrateGuestCalorieLogs(mockUser)
+      })
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to migrate guest calorie logs',
+        expect.any(Error),
+      )
       consoleErrorSpy.mockRestore()
     })
   })
@@ -1540,26 +1639,47 @@ describe('useData Hook', () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
       const { result } = renderHook(() => useData())
       let entries
-      await act(async () => { entries = await result.current.fetchJournalEntries(null) })
+      await act(async () => {
+        entries = await result.current.fetchJournalEntries(null)
+      })
       expect(entries).toEqual([])
     })
 
     it('should fetch journal entries for guest user with data', async () => {
-      const guestEntries = [{ id: '1', note: 'Test note', date: { seconds: 1000, nanoseconds: 0 } }]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestEntries))
+      const guestEntries = [
+        { id: '1', note: 'Test note', date: { seconds: 1000, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestEntries),
+      )
       const { result } = renderHook(() => useData())
       let entries
-      await act(async () => { entries = await result.current.fetchJournalEntries(null) })
+      await act(async () => {
+        entries = await result.current.fetchJournalEntries(null)
+      })
       expect(entries).toHaveLength(1)
       expect(entries![0].note).toBe('Test note')
     })
 
     it('should fetch journal entries for authenticated user', async () => {
-      const dbEntries = [{ id: '1', note: 'DB note', date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
-      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbEntries.map(entry => ({ id: entry.id, data: () => ({ note: entry.note, date: entry.date }) })) })
+      const dbEntries = [
+        {
+          id: '1',
+          note: 'DB note',
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbEntries.map((entry) => ({
+          id: entry.id,
+          data: () => ({ note: entry.note, date: entry.date }),
+        })),
+      })
       const { result } = renderHook(() => useData())
       let entries
-      await act(async () => { entries = await result.current.fetchJournalEntries(mockUser) })
+      await act(async () => {
+        entries = await result.current.fetchJournalEntries(mockUser)
+      })
       expect(getDocs).toHaveBeenCalled()
       expect(entries).toHaveLength(1)
       expect(entries![0].note).toBe('DB note')
@@ -1568,8 +1688,13 @@ describe('useData Hook', () => {
     it('should add journal entry for guest user', async () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('[]')
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.addJournalEntry('New note', new Date(), null) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestJournalEntries', expect.stringContaining('New note'))
+      await act(async () => {
+        await result.current.addJournalEntry('New note', new Date(), null)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestJournalEntries',
+        expect.stringContaining('New note'),
+      )
       expect(result.current.journalEntries[0].note).toBe('New note')
     })
 
@@ -1577,10 +1702,17 @@ describe('useData Hook', () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('[]')
       const { result } = renderHook(() => useData())
       const supplements = [{ name: 'Creatine', dosage: '5g' }]
-      await act(async () => { await result.current.addJournalEntry('New note with supps', new Date(), null, supplements) })
+      await act(async () => {
+        await result.current.addJournalEntry(
+          'New note with supps',
+          new Date(),
+          null,
+          supplements,
+        )
+      })
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         'guestJournalEntries',
-        expect.stringContaining('"name":"Creatine"')
+        expect.stringContaining('"name":"Creatine"'),
       )
       expect(result.current.journalEntries[0].note).toBe('New note with supps')
       expect(result.current.journalEntries[0].supplements).toEqual(supplements)
@@ -1593,19 +1725,34 @@ describe('useData Hook', () => {
         { name: 'Creatine', dosage: '5g' },
         { name: 'Creatine', dosage: '5g' },
       ]
-      await act(async () => { await result.current.addJournalEntry('New note with duplicate supps', new Date(), null, supplements) })
+      await act(async () => {
+        await result.current.addJournalEntry(
+          'New note with duplicate supps',
+          new Date(),
+          null,
+          supplements,
+        )
+      })
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         'guestJournalEntries',
-        expect.stringContaining('"name":"Creatine"')
+        expect.stringContaining('"name":"Creatine"'),
       )
-      expect(result.current.journalEntries[0].note).toBe('New note with duplicate supps')
+      expect(result.current.journalEntries[0].note).toBe(
+        'New note with duplicate supps',
+      )
       expect(result.current.journalEntries[0].supplements).toEqual(supplements)
     })
 
     it('should add journal entry for authenticated user', async () => {
       ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.addJournalEntry('New db note', new Date(), mockUser) })
+      await act(async () => {
+        await result.current.addJournalEntry(
+          'New db note',
+          new Date(),
+          mockUser,
+        )
+      })
       expect(addDoc).toHaveBeenCalled()
       expect(result.current.journalEntries[0].note).toBe('New db note')
     })
@@ -1614,107 +1761,248 @@ describe('useData Hook', () => {
       ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
       const supplements = [{ name: 'Whey Protein', dosage: '1 scoop' }]
-      await act(async () => { await result.current.addJournalEntry('New db note with supps', new Date(), mockUser, supplements) })
-      expect(addDoc).toHaveBeenCalledWith(undefined, expect.objectContaining({
-        note: 'New db note with supps',
-        supplements: supplements
-      }))
-      expect(result.current.journalEntries[0].note).toBe('New db note with supps')
+      await act(async () => {
+        await result.current.addJournalEntry(
+          'New db note with supps',
+          new Date(),
+          mockUser,
+          supplements,
+        )
+      })
+      expect(addDoc).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({
+          note: 'New db note with supps',
+          supplements: supplements,
+        }),
+      )
+      expect(result.current.journalEntries[0].note).toBe(
+        'New db note with supps',
+      )
       expect(result.current.journalEntries[0].supplements).toEqual(supplements)
     })
 
     it('should update journal entry for guest user', async () => {
-      const guestEntries = [{ id: '1', note: 'Old note', date: { seconds: 1000, nanoseconds: 0 } }]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestEntries))
+      const guestEntries = [
+        { id: '1', note: 'Old note', date: { seconds: 1000, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestEntries),
+      )
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchJournalEntries(null) })
-      await act(async () => { await result.current.updateJournalEntry('1', 'Updated note', new Date(), null) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestJournalEntries', expect.stringContaining('Updated note'))
+      await act(async () => {
+        await result.current.fetchJournalEntries(null)
+      })
+      await act(async () => {
+        await result.current.updateJournalEntry(
+          '1',
+          'Updated note',
+          new Date(),
+          null,
+        )
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestJournalEntries',
+        expect.stringContaining('Updated note'),
+      )
       expect(result.current.journalEntries[0].note).toBe('Updated note')
     })
 
     it('should update journal entry with supplements for guest user', async () => {
-      const guestEntries = [{ id: '1', note: 'Old note', date: { seconds: 1000, nanoseconds: 0 }, supplements: [] }]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestEntries))
+      const guestEntries = [
+        {
+          id: '1',
+          note: 'Old note',
+          date: { seconds: 1000, nanoseconds: 0 },
+          supplements: [],
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestEntries),
+      )
       const { result } = renderHook(() => useData())
       const supplements = [{ name: 'Creatine', dosage: '5g' }]
-      await act(async () => { await result.current.fetchJournalEntries(null) })
-      await act(async () => { await result.current.updateJournalEntry('1', 'Updated note with supps', new Date(), null, supplements) })
+      await act(async () => {
+        await result.current.fetchJournalEntries(null)
+      })
+      await act(async () => {
+        await result.current.updateJournalEntry(
+          '1',
+          'Updated note with supps',
+          new Date(),
+          null,
+          supplements,
+        )
+      })
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         'guestJournalEntries',
-        expect.stringContaining('"name":"Creatine"')
+        expect.stringContaining('"name":"Creatine"'),
       )
-      expect(result.current.journalEntries[0].note).toBe('Updated note with supps')
+      expect(result.current.journalEntries[0].note).toBe(
+        'Updated note with supps',
+      )
       expect(result.current.journalEntries[0].supplements).toEqual(supplements)
     })
 
     it('should update journal entry for authenticated user', async () => {
       ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
-      const dbEntries = [{ id: '1', note: 'Old note', date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
-      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbEntries.map(entry => ({ id: entry.id, data: () => ({ note: entry.note, date: entry.date }) })) })
+      const dbEntries = [
+        {
+          id: '1',
+          note: 'Old note',
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbEntries.map((entry) => ({
+          id: entry.id,
+          data: () => ({ note: entry.note, date: entry.date }),
+        })),
+      })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchJournalEntries(mockUser) })
-      await act(async () => { await result.current.updateJournalEntry('1', 'Updated DB note', new Date(), mockUser) })
+      await act(async () => {
+        await result.current.fetchJournalEntries(mockUser)
+      })
+      await act(async () => {
+        await result.current.updateJournalEntry(
+          '1',
+          'Updated DB note',
+          new Date(),
+          mockUser,
+        )
+      })
       expect(updateDoc).toHaveBeenCalled()
       expect(result.current.journalEntries[0].note).toBe('Updated DB note')
     })
 
     it('should update journal entry with supplements for authenticated user', async () => {
       ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
-      const dbEntries = [{ id: '1', note: 'Old note', date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
-      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbEntries.map(entry => ({ id: entry.id, data: () => ({ note: entry.note, date: entry.date }) })) })
+      const dbEntries = [
+        {
+          id: '1',
+          note: 'Old note',
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbEntries.map((entry) => ({
+          id: entry.id,
+          data: () => ({ note: entry.note, date: entry.date }),
+        })),
+      })
       const { result } = renderHook(() => useData())
       const supplements = [{ name: 'Whey Protein', dosage: '1 scoop' }]
-      await act(async () => { await result.current.fetchJournalEntries(mockUser) })
-      await act(async () => { await result.current.updateJournalEntry('1', 'Updated DB note with supps', new Date(), mockUser, supplements) })
-      expect(updateDoc).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-        note: 'Updated DB note with supps',
-        supplements: supplements
-      }))
-      expect(result.current.journalEntries[0].note).toBe('Updated DB note with supps')
+      await act(async () => {
+        await result.current.fetchJournalEntries(mockUser)
+      })
+      await act(async () => {
+        await result.current.updateJournalEntry(
+          '1',
+          'Updated DB note with supps',
+          new Date(),
+          mockUser,
+          supplements,
+        )
+      })
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          note: 'Updated DB note with supps',
+          supplements: supplements,
+        }),
+      )
+      expect(result.current.journalEntries[0].note).toBe(
+        'Updated DB note with supps',
+      )
       expect(result.current.journalEntries[0].supplements).toEqual(supplements)
     })
 
     it('should delete journal entry for guest user', async () => {
-      const guestEntries = [{ id: '1', note: 'Note', date: { seconds: 1000, nanoseconds: 0 } }]
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(guestEntries))
+      const guestEntries = [
+        { id: '1', note: 'Note', date: { seconds: 1000, nanoseconds: 0 } },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(guestEntries),
+      )
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchJournalEntries(null) })
-      await act(async () => { await result.current.deleteJournalEntry('1', null) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestJournalEntries', '[]')
+      await act(async () => {
+        await result.current.fetchJournalEntries(null)
+      })
+      await act(async () => {
+        await result.current.deleteJournalEntry('1', null)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestJournalEntries',
+        '[]',
+      )
       expect(result.current.journalEntries).toHaveLength(0)
     })
 
     it('should delete journal entry for authenticated user', async () => {
       ;(deleteDoc as jest.Mock).mockResolvedValue(undefined)
-      const dbEntries = [{ id: '1', note: 'Note', date: { toDate: () => new Date(), toMillis: () => Date.now() } }]
-      ;(getDocs as jest.Mock).mockResolvedValue({ docs: dbEntries.map(entry => ({ id: entry.id, data: () => ({ note: entry.note, date: entry.date }) })) })
+      const dbEntries = [
+        {
+          id: '1',
+          note: 'Note',
+          date: { toDate: () => new Date(), toMillis: () => Date.now() },
+        },
+      ]
+      ;(getDocs as jest.Mock).mockResolvedValue({
+        docs: dbEntries.map((entry) => ({
+          id: entry.id,
+          data: () => ({ note: entry.note, date: entry.date }),
+        })),
+      })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.fetchJournalEntries(mockUser) })
-      await act(async () => { await result.current.deleteJournalEntry('1', mockUser) })
+      await act(async () => {
+        await result.current.fetchJournalEntries(mockUser)
+      })
+      await act(async () => {
+        await result.current.deleteJournalEntry('1', mockUser)
+      })
       expect(deleteDoc).toHaveBeenCalled()
       expect(result.current.journalEntries).toHaveLength(0)
     })
 
     it('should migrate guest journal entries - success', async () => {
-      const guestEntries = [{ id: '1', note: 'Migrate note', date: { seconds: 1000, nanoseconds: 0 } }]
+      const guestEntries = [
+        {
+          id: '1',
+          note: 'Migrate note',
+          date: { seconds: 1000, nanoseconds: 0 },
+        },
+      ]
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestJournalEntries') return Promise.resolve(JSON.stringify(guestEntries))
+        if (key === 'guestJournalEntries')
+          return Promise.resolve(JSON.stringify(guestEntries))
         return Promise.resolve(null)
       })
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.migrateGuestJournalEntries(mockUser) })
+      await act(async () => {
+        await result.current.migrateGuestJournalEntries(mockUser)
+      })
       expect(writeBatch).toHaveBeenCalled()
       expect(mockBatch.commit).toHaveBeenCalled()
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('guestJournalEntries')
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+        'guestJournalEntries',
+      )
     })
 
     it('should migrate guest journal entries - failure', async () => {
-      ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Migration Error'))
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(
+        new Error('Migration Error'),
+      )
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.migrateGuestJournalEntries(mockUser) })
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to migrate guest journal entries', expect.any(Error))
+      await act(async () => {
+        await result.current.migrateGuestJournalEntries(mockUser)
+      })
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to migrate guest journal entries',
+        expect.any(Error),
+      )
       consoleErrorSpy.mockRestore()
     })
   })
@@ -1737,7 +2025,9 @@ describe('useData Hook', () => {
       ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
       const { result } = renderHook(() => useData())
       let config
-      await act(async () => { config = await result.current.loadTDEEConfig() })
+      await act(async () => {
+        config = await result.current.loadTDEEConfig()
+      })
       expect(config).toBeNull()
       expect(result.current.tdeeConfig).toBeNull()
     })
@@ -1751,62 +2041,102 @@ describe('useData Hook', () => {
 
       const { result } = renderHook(() => useData())
       let config
-      await act(async () => { config = await result.current.loadTDEEConfig(mockUser) })
+      await act(async () => {
+        config = await result.current.loadTDEEConfig(mockUser)
+      })
       expect(config).toEqual(mockTDEEConfig)
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('tdeeConfig', JSON.stringify(mockTDEEConfig))
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'tdeeConfig',
+        JSON.stringify(mockTDEEConfig),
+      )
     })
 
     it('should load TDEE config - with saved config', async () => {
-      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(mockTDEEConfig))
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(mockTDEEConfig),
+      )
       const { result } = renderHook(() => useData())
       let config
-      await act(async () => { config = await result.current.loadTDEEConfig() })
+      await act(async () => {
+        config = await result.current.loadTDEEConfig()
+      })
       expect(config).toEqual(mockTDEEConfig)
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
     })
 
     it('should handle load TDEE config error', async () => {
-      ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Load error'))
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(
+        new Error('Load error'),
+      )
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
       const { result } = renderHook(() => useData())
       let config
-      await act(async () => { config = await result.current.loadTDEEConfig() })
+      await act(async () => {
+        config = await result.current.loadTDEEConfig()
+      })
       expect(config).toBeNull()
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load TDEE config', expect.any(Error))
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to load TDEE config',
+        expect.any(Error),
+      )
       consoleErrorSpy.mockRestore()
     })
 
     it('should save TDEE config for guest user', async () => {
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.saveTDEEConfig(mockTDEEConfig as any, null) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('tdeeConfig', JSON.stringify(mockTDEEConfig))
+      await act(async () => {
+        await result.current.saveTDEEConfig(mockTDEEConfig as any, null)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'tdeeConfig',
+        JSON.stringify(mockTDEEConfig),
+      )
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
       expect(setDoc).not.toHaveBeenCalled()
     })
 
     it('should save TDEE config for authenticated user', async () => {
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.saveTDEEConfig(mockTDEEConfig as any, mockUser) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('tdeeConfig', JSON.stringify(mockTDEEConfig))
+      await act(async () => {
+        await result.current.saveTDEEConfig(mockTDEEConfig as any, mockUser)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'tdeeConfig',
+        JSON.stringify(mockTDEEConfig),
+      )
       expect(setDoc).toHaveBeenCalled()
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
     })
 
     it('should handle save TDEE config Firestore failure', async () => {
       ;(setDoc as jest.Mock).mockRejectedValue(new Error('Firestore error'))
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.saveTDEEConfig(mockTDEEConfig as any, mockUser) })
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('tdeeConfig', JSON.stringify(mockTDEEConfig))
+      await act(async () => {
+        await result.current.saveTDEEConfig(mockTDEEConfig as any, mockUser)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'tdeeConfig',
+        JSON.stringify(mockTDEEConfig),
+      )
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to sync TDEE config to Firestore', expect.any(Error))
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to sync TDEE config to Firestore',
+        expect.any(Error),
+      )
       consoleErrorSpy.mockRestore()
     })
 
     it('should delete TDEE config for guest user', async () => {
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.deleteTDEEConfig(null) })
+      await act(async () => {
+        await result.current.deleteTDEEConfig(null)
+      })
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('tdeeConfig')
       expect(result.current.tdeeConfig).toBeNull()
     })
@@ -1814,9 +2144,14 @@ describe('useData Hook', () => {
     it('should delete TDEE config for authenticated user', async () => {
       ;(deleteField as jest.Mock).mockReturnValue('deleteField()')
       const { result } = renderHook(() => useData())
-      await act(async () => { await result.current.deleteTDEEConfig(mockUser) })
+      await act(async () => {
+        await result.current.deleteTDEEConfig(mockUser)
+      })
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('tdeeConfig')
-      expect(updateDoc).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String) }), { tdeeConfig: 'deleteField()' })
+      expect(updateDoc).toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.any(String) }),
+        { tdeeConfig: 'deleteField()' },
+      )
       expect(result.current.tdeeConfig).toBeNull()
     })
   })

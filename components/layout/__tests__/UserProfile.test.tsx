@@ -32,7 +32,7 @@ describe('UserProfile', () => {
 
   it('renders correctly with user data', () => {
     const { getByText, getByTestId } = render(
-      <UserProfile user={mockUser} disconnectAccount={mockDisconnectAccount} />
+      <UserProfile user={mockUser} disconnectAccount={mockDisconnectAccount} />,
     )
 
     expect(getByText('Test User')).toBeTruthy()
@@ -43,7 +43,10 @@ describe('UserProfile', () => {
   it('does not render image when user has no photoURL', () => {
     const userWithoutPhoto = { ...mockUser, photoURL: null }
     const { getByText, queryByTestId } = render(
-      <UserProfile user={userWithoutPhoto} disconnectAccount={mockDisconnectAccount} />
+      <UserProfile
+        user={userWithoutPhoto}
+        disconnectAccount={mockDisconnectAccount}
+      />,
     )
 
     expect(getByText('Test User')).toBeTruthy()
@@ -53,7 +56,7 @@ describe('UserProfile', () => {
 
   it('returns null when user is null', () => {
     const { toJSON } = render(
-      <UserProfile user={null} disconnectAccount={mockDisconnectAccount} />
+      <UserProfile user={null} disconnectAccount={mockDisconnectAccount} />,
     )
 
     expect(toJSON()).toBeNull()
@@ -61,7 +64,7 @@ describe('UserProfile', () => {
 
   it('calls disconnectAccount when logout button is pressed', () => {
     const { getByTestId } = render(
-      <UserProfile user={mockUser} disconnectAccount={mockDisconnectAccount} />
+      <UserProfile user={mockUser} disconnectAccount={mockDisconnectAccount} />,
     )
 
     const disconnectBtn = getByTestId('disconnect-button')

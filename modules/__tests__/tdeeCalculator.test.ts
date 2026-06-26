@@ -276,7 +276,9 @@ describe('tdeeCalculator', () => {
 
     it('returns null for negative or zero values', () => {
       expect(calculateBodyFatPercent('male', -34, 15, 70, 'inch')).toBeNull()
-      expect(calculateBodyFatPercent('female', 30, 0, 65, 'inch', 38)).toBeNull()
+      expect(
+        calculateBodyFatPercent('female', 30, 0, 65, 'inch', 38),
+      ).toBeNull()
       expect(calculateBodyFatPercent('male', 34, 15, -70, 'inch')).toBeNull()
     })
   })
