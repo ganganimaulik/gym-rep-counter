@@ -429,11 +429,15 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 </StyledText>
                 <LineChart
                   data={volumeChartData}
-                  width={screenWidth}
+                  width={screenWidth - 20}
                   height={170}
                   chartConfig={chartConfig}
                   bezier
-                  style={{ borderRadius: 12, marginLeft: -12 }}
+                  style={{
+                    borderRadius: 12,
+                    marginLeft: -40,
+                    marginRight: -30,
+                  }}
                 />
               </StyledView>
             )}
@@ -509,7 +513,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                     </StyledText>
                     <LineChart
                       data={trendsChartData}
-                      width={screenWidth}
+                      width={screenWidth - 20}
                       height={170}
                       chartConfig={{
                         ...chartConfig,
@@ -517,7 +521,11 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                           `rgba(16, 185, 129, ${opacity})`,
                       }}
                       bezier
-                      style={{ borderRadius: 12, marginLeft: -12 }}
+                      style={{
+                        borderRadius: 12,
+                        marginLeft: -40,
+                        marginRight: -30,
+                      }}
                     />
                   </>
                 ) : (

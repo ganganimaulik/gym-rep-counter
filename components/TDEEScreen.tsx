@@ -126,12 +126,45 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const [activeHistoryTab, setActiveHistoryTab] = useState<'weekly' | 'daily'>(
     'daily',
   )
+  const [timeframeDaily, setTimeframeDaily] = useState<number>(7) // default to 7 days
+  const [timeframeWeekly, setTimeframeWeekly] = useState<number>(84) // default to 12 weeks = 84 days
 
   // ── Date Formatting Helpers ──
   const formatChartDate = useCallback((date: Date): string => {
     return date.toLocaleDateString(undefined, {
       month: 'numeric',
       day: 'numeric',
+    })
+  }, [])
+
+  const getSpacedLabels = useCallback(
+    (dates: Date[]): string[] => {
+      if (dates.length === 0) return []
+      const formatted = dates.map((d) => formatChartDate(d))
+      if (formatted.length <= 6) return formatted
+
+      const step = Math.ceil(formatted.length / 5)
+      return formatted.map((lbl, idx) => {
+        if (idx === 0 || idx === formatted.length - 1 || idx % step === 0) {
+          return lbl
+        }
+        return ''
+      })
+    },
+    [formatChartDate],
+  )
+
+  const getSpacedWeekLabels = useCallback((dates: Date[]): string[] => {
+    if (dates.length === 0) return []
+    const formatted = dates.map((d) => formatWeekDate(d))
+    if (formatted.length <= 6) return formatted
+
+    const step = Math.ceil(formatted.length / 5)
+    return formatted.map((lbl, idx) => {
+      if (idx === 0 || idx === formatted.length - 1 || idx % step === 0) {
+        return lbl
+      }
+      return ''
     })
   }, [])
 
@@ -160,28 +193,42 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   }, [weightLogs, calorieLogs])
 
   const weightChartData = useMemo(() => {
-    const reversed = [...weightLogs].reverse().slice(-7)
+    let filtered = [...weightLogs]
+    if (timeframeDaily > 0) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - timeframeDaily)
+      filtered = filtered.filter((log) => log.date.toDate() >= cutoff)
+    }
+    const reversed = filtered.reverse()
+    const labels = getSpacedLabels(reversed.map((log) => log.date.toDate()))
     return {
-      labels: reversed.map((log) => formatChartDate(log.date.toDate())),
+      labels,
       datasets: [
         {
           data: reversed.map((log) => log.weight),
         },
       ],
     }
-  }, [weightLogs, formatChartDate])
+  }, [weightLogs, getSpacedLabels, timeframeDaily])
 
   const calorieChartData = useMemo(() => {
-    const reversed = [...calorieLogs].reverse().slice(-7)
+    let filtered = [...calorieLogs]
+    if (timeframeDaily > 0) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - timeframeDaily)
+      filtered = filtered.filter((log) => log.date.toDate() >= cutoff)
+    }
+    const reversed = filtered.reverse()
+    const labels = getSpacedLabels(reversed.map((log) => log.date.toDate()))
     return {
-      labels: reversed.map((log) => formatChartDate(log.date.toDate())),
+      labels,
       datasets: [
         {
           data: reversed.map((log) => log.calories),
         },
       ],
     }
-  }, [calorieLogs, formatChartDate])
+  }, [calorieLogs, getSpacedLabels, timeframeDaily])
 
   // Sync goal inputs when config loads
   useEffect(() => {
@@ -322,19 +369,25 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       return { labels: [''], datasets: [{ data: [0] }] }
     }
 
-    // Take last 12 weeks max
-    const sliced = weeksWithTDEE.slice(-12)
+    let filtered = [...weeksWithTDEE]
+    if (timeframeWeekly > 0) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - timeframeWeekly)
+      filtered = filtered.filter((w) => w.weekStart >= cutoff)
+    }
+
+    const labels = getSpacedWeekLabels(filtered.map((w) => w.weekStart))
     return {
-      labels: sliced.map((w) => formatWeekDate(w.weekStart)),
+      labels,
       datasets: [
         {
-          data: sliced.map((w) => w.displayTDEE!),
+          data: filtered.map((w) => w.displayTDEE!),
           color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
           strokeWidth: 2.5,
         },
       ],
     }
-  }, [tdeeData.weeks])
+  }, [tdeeData.weeks, timeframeWeekly, getSpacedWeekLabels])
 
   // ── Weekly breakdown ──
 
@@ -769,6 +822,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
           {/* Chart Tab Selector */}
           <StyledView className="flex-row bg-zinc-950 border border-zinc-800/80 p-1 rounded-xl mb-4">
             <StyledTouchableOpacity
+              testID="chart-tab-tdee"
               onPress={() => setActiveChartTab('tdee')}
               activeOpacity={0.8}
               className={`flex-1 py-2 rounded-lg items-center ${
@@ -782,6 +836,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
             </StyledTouchableOpacity>
             <StyledTouchableOpacity
+              testID="chart-tab-weight"
               onPress={() => setActiveChartTab('weight')}
               activeOpacity={0.8}
               className={`flex-1 py-2 rounded-lg items-center ${
@@ -795,6 +850,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
             </StyledTouchableOpacity>
             <StyledTouchableOpacity
+              testID="chart-tab-calories"
               onPress={() => setActiveChartTab('calories')}
               activeOpacity={0.8}
               className={`flex-1 py-2 rounded-lg items-center ${
@@ -809,27 +865,92 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
             </StyledTouchableOpacity>
           </StyledView>
 
+          {/* Timeframe Selector */}
+          <StyledView className="flex-row bg-zinc-950 border border-zinc-800/80 p-1 rounded-xl mb-4">
+            {activeChartTab === 'tdee'
+              ? (
+                  [
+                    { label: '4 Weeks', value: 28, testID: 'timeframe-4w' },
+                    { label: '12 Weeks', value: 84, testID: 'timeframe-12w' },
+                    { label: '6 Months', value: 180, testID: 'timeframe-6m' },
+                    { label: 'All', value: 0, testID: 'timeframe-all-weekly' },
+                  ] as const
+                ).map((item) => (
+                  <StyledTouchableOpacity
+                    key={item.value}
+                    testID={item.testID}
+                    onPress={() => setTimeframeWeekly(item.value)}
+                    activeOpacity={0.8}
+                    className={`flex-1 py-1.5 rounded-lg items-center ${
+                      timeframeWeekly === item.value
+                        ? 'bg-zinc-800 shadow-sm'
+                        : ''
+                    }`}>
+                    <StyledText
+                      className={`text-[9px] font-black uppercase tracking-wider ${
+                        timeframeWeekly === item.value
+                          ? 'text-white'
+                          : 'text-zinc-500'
+                      }`}>
+                      {item.label}
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                ))
+              : (
+                  [
+                    { label: '7 Days', value: 7, testID: 'timeframe-7d' },
+                    { label: '30 Days', value: 30, testID: 'timeframe-30d' },
+                    { label: '90 Days', value: 90, testID: 'timeframe-90d' },
+                    { label: 'All', value: 0, testID: 'timeframe-all' },
+                  ] as const
+                ).map((item) => (
+                  <StyledTouchableOpacity
+                    key={item.value}
+                    testID={item.testID}
+                    onPress={() => setTimeframeDaily(item.value)}
+                    activeOpacity={0.8}
+                    className={`flex-1 py-1.5 rounded-lg items-center ${
+                      timeframeDaily === item.value
+                        ? 'bg-zinc-800 shadow-sm'
+                        : ''
+                    }`}>
+                    <StyledText
+                      className={`text-[9px] font-black uppercase tracking-wider ${
+                        timeframeDaily === item.value
+                          ? 'text-white'
+                          : 'text-zinc-500'
+                      }`}>
+                      {item.label}
+                    </StyledText>
+                  </StyledTouchableOpacity>
+                ))}
+          </StyledView>
+
           {/* Chart Body */}
           {activeChartTab === 'tdee' && (
             <StyledView>
               <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
                 Smoothed TDEE over time ({energyLabel}/day)
               </StyledText>
-              {tdeeData.weeksWithData >= 2 ? (
+              {tdeeChartData.datasets[0].data.length >= 2 ? (
                 <LineChart
                   data={tdeeChartData}
-                  width={screenWidth}
+                  width={screenWidth - 20}
                   height={170}
                   chartConfig={tdeeChartConfig}
                   bezier
-                  style={{ borderRadius: 12, marginLeft: -12 }}
+                  style={{
+                    borderRadius: 12,
+                    marginLeft: -40,
+                    marginRight: -30,
+                  }}
                 />
               ) : (
                 <StyledView className="h-[170] justify-center items-center border border-dashed border-zinc-800 rounded-xl py-6">
                   <TrendingUp color="#3f3f46" size={36} />
                   <StyledText className="text-zinc-500 text-xs italic text-center mt-3 px-4">
-                    Need at least 2 weeks of calculation data to display TDEE
-                    trend chart.
+                    Need at least 2 weeks of calculation data in the selected
+                    timeframe to display TDEE trend chart.
                   </StyledText>
                 </StyledView>
               )}
@@ -841,10 +962,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
                 Body weight over time ({weightUnit})
               </StyledText>
-              {weightLogs.length >= 2 ? (
+              {weightChartData.datasets[0].data.length >= 2 ? (
                 <LineChart
                   data={weightChartData}
-                  width={screenWidth}
+                  width={screenWidth - 20}
                   height={170}
                   chartConfig={{
                     backgroundGradientFrom: '#18181b',
@@ -865,13 +986,18 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                     },
                   }}
                   bezier
-                  style={{ borderRadius: 12, marginLeft: -12 }}
+                  style={{
+                    borderRadius: 12,
+                    marginLeft: -40,
+                    marginRight: -30,
+                  }}
                 />
               ) : (
                 <StyledView className="h-[170] justify-center items-center border border-dashed border-zinc-800 rounded-xl py-6">
                   <Scale color="#3f3f46" size={36} />
                   <StyledText className="text-zinc-500 text-xs italic text-center mt-3 px-4">
-                    Log at least 2 entries to display weight progress chart.
+                    Need at least 2 entries in the selected timeframe to display
+                    weight progress chart.
                   </StyledText>
                 </StyledView>
               )}
@@ -883,10 +1009,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
                 Daily caloric intake ({energyLabel})
               </StyledText>
-              {calorieLogs.length >= 2 ? (
+              {calorieChartData.datasets[0].data.length >= 2 ? (
                 <LineChart
                   data={calorieChartData}
-                  width={screenWidth}
+                  width={screenWidth - 20}
                   height={170}
                   chartConfig={{
                     backgroundGradientFrom: '#18181b',
@@ -907,13 +1033,18 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                     },
                   }}
                   bezier
-                  style={{ borderRadius: 12, marginLeft: -12 }}
+                  style={{
+                    borderRadius: 12,
+                    marginLeft: -40,
+                    marginRight: -30,
+                  }}
                 />
               ) : (
                 <StyledView className="h-[170] justify-center items-center border border-dashed border-zinc-800 rounded-xl py-6">
                   <Activity color="#3f3f46" size={36} />
                   <StyledText className="text-zinc-500 text-xs italic text-center mt-3 px-4">
-                    Log at least 2 entries to display calorie progress chart.
+                    Need at least 2 entries in the selected timeframe to display
+                    calorie progress chart.
                   </StyledText>
                 </StyledView>
               )}

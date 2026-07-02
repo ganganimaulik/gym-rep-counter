@@ -99,4 +99,72 @@ test.describe('Analytics Screen', () => {
     // Verify it is removed
     await expect(page.locator('text=79.2 kg')).not.toBeVisible()
   })
+
+  test('should support switching chart timeframes and display appropriate warnings', async ({
+    page,
+  }) => {
+    // 1. Setup TDEE first
+    await page.click('text=Health & TDEE')
+    await page.waitForTimeout(1000)
+    await page.locator('[data-testid="setup-height"]').fill('175')
+    await page.locator('[data-testid="setup-waist"]').fill('82')
+    await page.locator('[data-testid="setup-neck"]').fill('38')
+    await page.click('text=Start Tracking')
+
+    // 2. Since TDEE tab is active by default, verify weekly timeframe buttons are visible
+    await expect(page.locator('[data-testid="timeframe-4w"]')).toBeVisible()
+    await expect(page.locator('[data-testid="timeframe-12w"]')).toBeVisible()
+    await expect(page.locator('[data-testid="timeframe-6m"]')).toBeVisible()
+    await expect(
+      page.locator('[data-testid="timeframe-all-weekly"]'),
+    ).toBeVisible()
+
+    // 3. Switch to Weight chart tab
+    await page.locator('[data-testid="chart-tab-weight"]').click()
+
+    // 4. Verify daily timeframe buttons are visible
+    await expect(page.locator('[data-testid="timeframe-7d"]')).toBeVisible()
+    await expect(page.locator('[data-testid="timeframe-30d"]')).toBeVisible()
+    await expect(page.locator('[data-testid="timeframe-90d"]')).toBeVisible()
+    await expect(page.locator('[data-testid="timeframe-all"]')).toBeVisible()
+
+    // 5. By default (7 Days selected), since we have 0 logs, it should show the warning
+    await expect(
+      page
+        .locator(
+          'text=Need at least 2 entries in the selected timeframe to display weight progress chart.',
+        )
+        .first(),
+    ).toBeVisible()
+
+    // 6. Switch timeframes and verify warning still displays properly
+    await page.locator('[data-testid="timeframe-30d"]').click()
+    await expect(
+      page
+        .locator(
+          'text=Need at least 2 entries in the selected timeframe to display weight progress chart.',
+        )
+        .first(),
+    ).toBeVisible()
+
+    // 7. Switch to Calories tab and verify warning
+    await page.locator('[data-testid="chart-tab-calories"]').click()
+    await expect(
+      page
+        .locator(
+          'text=Need at least 2 entries in the selected timeframe to display calorie progress chart.',
+        )
+        .first(),
+    ).toBeVisible()
+
+    // 8. Switch to TDEE tab and verify warning
+    await page.locator('[data-testid="chart-tab-tdee"]').click()
+    await expect(
+      page
+        .locator(
+          'text=Need at least 2 weeks of calculation data in the selected timeframe to display TDEE trend chart.',
+        )
+        .first(),
+    ).toBeVisible()
+  })
 })
