@@ -176,7 +176,9 @@ describe('WorkoutActivityModule', () => {
 
     const result = updateActivity(mockState)
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith('WorkoutActivityModule is not available')
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'WorkoutActivityModule is not available',
+    )
     expect(result).toBeUndefined()
   })
 
@@ -205,7 +207,10 @@ describe('WorkoutActivityModule', () => {
 
     const result = updateActivity(mockState)
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to call updateActivity:', testError)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to call updateActivity:',
+      testError,
+    )
     expect(result).toBeUndefined()
   })
 

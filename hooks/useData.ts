@@ -413,8 +413,7 @@ export const useData = (): DataHook => {
       const newEntryBase = {
         ...entry,
         set,
-        startTime:
-          startTime > 0 ? Timestamp.fromMillis(startTime) : undefined,
+        startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : undefined,
         date: endTime > 0 ? Timestamp.fromMillis(endTime) : Timestamp.now(),
       }
 

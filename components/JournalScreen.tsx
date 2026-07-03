@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native'
 import { styled } from 'nativewind'
 import { Pencil, Trash2, Plus, X, Scale, Flame } from 'lucide-react-native'
@@ -102,18 +103,91 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     return lookup
   }, [calorieLogs])
 
-  const handleRemoveSuggestion = async (nameToRemove: string) => {
-    const currentSuggestions = dataHook.settings.supplementSuggestions || []
-    const updatedSuggestions = currentSuggestions.filter(
-      (s) => s.name.toLowerCase() !== nameToRemove.toLowerCase(),
-    )
-    await dataHook.saveSettings(
-      {
-        ...dataHook.settings,
-        supplementSuggestions: updatedSuggestions,
-      },
-      user,
-    )
+  const updatePopularSupplements = useCallback(
+    async (supplementsToSync: SupplementLog[]) => {
+      if (!supplementsToSync || supplementsToSync.length === 0) return
+
+      const currentSuggestions = dataHook.settings.supplementSuggestions || []
+      const updatedSuggestions = [...currentSuggestions]
+      let hasChanges = false
+
+      supplementsToSync.forEach((supp) => {
+        const name = supp.name.trim()
+        if (!name) return
+        const dosage = supp.dosage ? supp.dosage.trim() : ''
+
+        const existingIndex = updatedSuggestions.findIndex(
+          (s) => s.name.toLowerCase() === name.toLowerCase(),
+        )
+
+        if (existingIndex === -1) {
+          updatedSuggestions.push({ name, defaultDosage: dosage })
+          hasChanges = true
+        } else if (updatedSuggestions[existingIndex].defaultDosage !== dosage) {
+          updatedSuggestions[existingIndex] = {
+            ...updatedSuggestions[existingIndex],
+            defaultDosage: dosage,
+          }
+          hasChanges = true
+        }
+      })
+
+      if (hasChanges) {
+        await dataHook.saveSettings(
+          {
+            ...dataHook.settings,
+            supplementSuggestions: updatedSuggestions,
+          },
+          user,
+        )
+      }
+    },
+    [dataHook.settings, dataHook.saveSettings, user],
+  )
+
+  const handleRemoveSuggestion = (nameToRemove: string) => {
+    const performDelete = async () => {
+      const currentSuggestions = dataHook.settings.supplementSuggestions || []
+      const updatedSuggestions = currentSuggestions.filter(
+        (s) => s.name.toLowerCase() !== nameToRemove.toLowerCase(),
+      )
+      await dataHook.saveSettings(
+        {
+          ...dataHook.settings,
+          supplementSuggestions: updatedSuggestions,
+        },
+        user,
+      )
+    }
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm) {
+        if (
+          window.confirm(
+            `Are you sure you want to delete "${nameToRemove}" from popular supplements?`,
+          )
+        ) {
+          performDelete()
+        }
+      } else {
+        performDelete()
+      }
+    } else {
+      Alert.alert(
+        'Delete Supplement',
+        `Are you sure you want to delete "${nameToRemove}" from popular supplements?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              performDelete()
+            },
+          },
+        ],
+      )
+    }
   }
 
   const loadEntries = useCallback(async () => {
@@ -158,6 +232,8 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     if (!editNote.trim()) {
       return
     }
+
+    await updatePopularSupplements(supplementsList)
 
     if (editModal.item) {
       await updateJournalEntry(
@@ -465,28 +541,9 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       const name = searchQuery.trim()
                       if (name) {
                         const dosage = dosageQuery.trim() || undefined
-                        setSupplementsList((prev) => [
-                          ...prev,
-                          { name, dosage },
-                        ])
-
-                        // Persist to suggestions if not already present
-                        const alreadyExists = suggestions.some(
-                          (s) => s.name.toLowerCase() === name.toLowerCase(),
-                        )
-                        if (!alreadyExists) {
-                          const updatedSuggestions = [
-                            ...suggestions,
-                            { name, defaultDosage: dosage || '' },
-                          ]
-                          await dataHook.saveSettings(
-                            {
-                              ...dataHook.settings,
-                              supplementSuggestions: updatedSuggestions,
-                            },
-                            user,
-                          )
-                        }
+                        const newSupp = { name, dosage }
+                        setSupplementsList((prev) => [...prev, newSupp])
+                        await updatePopularSupplements([newSupp])
 
                         setSearchQuery('')
                         setDosageQuery('')
@@ -558,6 +615,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                               </StyledText>
                             </StyledTouchableOpacity>
                             <StyledTouchableOpacity
+                              testID={`remove-suggestion-${supp.name}`}
                               onPress={() => handleRemoveSuggestion(supp.name)}
                               className="bg-zinc-800 hover:bg-zinc-700 p-0.5 rounded"
                               hitSlop={{

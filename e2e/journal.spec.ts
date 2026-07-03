@@ -55,4 +55,49 @@ test.describe('Journal Screen', () => {
     // Verify custom supplement tag is added to note modal
     await expect(page.locator('text=MySpecialSupp').first()).toBeVisible()
   })
+
+  test('should confirm before removing a popular supplement suggestion', async ({
+    page,
+  }) => {
+    // Open note modal
+    await page.locator('[data-testid="add-journal-note-button"]').click()
+    await expect(page.locator('text=Save').first()).toBeVisible()
+
+    const searchInput = page.getByPlaceholder('Search/Add Supp...')
+    await searchInput.click()
+    await expect(page.locator('text=Popular Supplements').first()).toBeVisible()
+
+    // Setup dialog listener to verify dialog prompt and accept it
+    let dialogMessage = ''
+    page.once('dialog', async (dialog) => {
+      dialogMessage = dialog.message()
+      await dialog.accept()
+    })
+
+    // Click remove button on Creatine
+    const removeBtn = page.locator('[data-testid="remove-suggestion-Creatine"]')
+    await removeBtn.click()
+
+    expect(dialogMessage).toContain('Creatine')
+  })
+
+  test('should update popular supplement with latest dosage used', async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="add-journal-note-button"]').click()
+    await expect(page.locator('text=Save').first()).toBeVisible()
+
+    const searchInput = page.getByPlaceholder('Search/Add Supp...')
+    await searchInput.fill('Creatine')
+
+    await page.getByPlaceholder('Dosage').fill('10g')
+    await page.locator('[data-testid="add-supplement-button"]').click()
+
+    // Focus search input again to show popular supplements list
+    await searchInput.click()
+    await searchInput.fill('Creatine')
+
+    // Expect updated dosage (10g) in suggestion box for Creatine
+    await expect(page.locator('text=(10g)').first()).toBeVisible()
+  })
 })
