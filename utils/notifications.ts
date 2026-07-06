@@ -7,6 +7,7 @@ import {
   WorkoutSet,
 } from '../declarations'
 import { Settings } from '../hooks/useData'
+import { buildBedtimeReminderBody } from './supplementSchedule'
 
 export async function setupReminders(
   settings: Settings,
@@ -90,7 +91,7 @@ export async function setupReminders(
     lastLogTime = Math.max(lastLogTime, getLogTime(l.date || l.startTime))
   })
 
-  // 6. Schedule future notifications
+  // 6. Schedule future stat reminder notifications
   const now = Date.now()
   let baseTime = now
   if (lastLogTime > 0 && now - lastLogTime < 4 * 60 * 60 * 1000) {
@@ -127,7 +128,88 @@ export async function setupReminders(
     offsetHours += 4
   }
 
-  console.log(`Successfully scheduled ${scheduledCount} notifications.`)
+  console.log(`Successfully scheduled ${scheduledCount} stat reminders.`)
+
+  // 7. Schedule bedtime supplement/journal reminders
+  const bedtimeCount = await scheduleBedtimeReminders(
+    sleepStart,
+    settings.supplementSuggestions || [],
+    journalEntries,
+  )
+  console.log(`Successfully scheduled ${bedtimeCount} bedtime reminders.`)
+}
+
+/**
+ * Schedule bedtime reminder notifications for the next 10 days.
+ * Each notification fires 4 hours before the configured sleep start time
+ * and includes untaken supplements and journal entry reminders.
+ */
+async function scheduleBedtimeReminders(
+  sleepStartHour: number,
+  supplementSuggestions: NonNullable<Settings['supplementSuggestions']>,
+  journalEntries: JournalEntry[],
+): Promise<number> {
+  // If no supplements have schedules set, we still remind about journal entries
+  const reminderHour = ((sleepStartHour - 4) + 24) % 24
+
+  const now = new Date()
+  let scheduledCount = 0
+  const daysToSchedule = 10
+
+  for (let dayOffset = 0; dayOffset < daysToSchedule; dayOffset++) {
+    const targetDate = new Date(now)
+    targetDate.setDate(targetDate.getDate() + dayOffset)
+    targetDate.setHours(reminderHour, 0, 0, 0)
+
+    // Skip if this time has already passed
+    if (targetDate.getTime() <= now.getTime()) {
+      continue
+    }
+
+    // Build the notification content for this specific day
+    const reminderContent = buildBedtimeReminderBody(
+      supplementSuggestions,
+      journalEntries,
+      targetDate,
+    )
+
+    // For future days beyond today, we can't know what supplements will
+    // be taken, so just schedule a generic reminder
+    const content =
+      dayOffset === 0 && reminderContent
+        ? {
+            title: reminderContent.title,
+            body: reminderContent.body,
+          }
+        : {
+            title: 'Evening Reminder 🌙',
+            body: '💊 Check your supplements & 📓 make a journal entry before bed!',
+          }
+
+    // Skip today's reminder if nothing to remind about
+    if (dayOffset === 0 && !reminderContent) {
+      continue
+    }
+
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          ...content,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: targetDate,
+        },
+      })
+      scheduledCount++
+    } catch (err) {
+      console.error('Error scheduling bedtime reminder', err)
+    }
+  }
+
+  return scheduledCount
 }
 
 export async function cancelAllReminders() {

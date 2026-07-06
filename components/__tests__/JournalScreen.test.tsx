@@ -12,6 +12,9 @@ jest.mock('lucide-react-native', () => ({
   X: () => null,
   Scale: () => null,
   Flame: () => null,
+  Check: () => null,
+  AlertTriangle: () => null,
+  Calendar: () => null,
 }))
 
 // Mock DateTimePicker
@@ -198,5 +201,93 @@ describe('JournalScreen', () => {
         null,
       )
     })
+  })
+
+  test('shows supplement status panel when supplements are due today', async () => {
+    const today = new Date()
+    const mockTimestamp = {
+      toDate: () => today,
+      toMillis: () => today.getTime(),
+      seconds: Math.floor(today.getTime() / 1000),
+      nanoseconds: 0,
+    }
+
+    const dataHookWithScheduled: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+          { name: 'Fish Oil', defaultDosage: '1 cap', schedule: 'daily' },
+        ],
+      },
+      journalEntries: [
+        {
+          id: '1',
+          note: 'Morning',
+          date: mockTimestamp,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        },
+      ],
+    }
+
+    const { getByTestId, queryByTestId } = render(
+      <JournalScreen
+        user={null}
+        visible={true}
+        dataHook={dataHookWithScheduled}
+      />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Panel should be visible
+    expect(getByTestId('supplement-status-panel')).toBeTruthy()
+
+    // Creatine should be shown (taken)
+    expect(getByTestId('supplement-status-creatine')).toBeTruthy()
+
+    // Fish Oil should be shown (untaken)
+    expect(getByTestId('supplement-status-fish-oil')).toBeTruthy()
+  })
+
+  test('does not show supplement status panel when no supplements are scheduled', async () => {
+    const { queryByTestId } = render(
+      <JournalScreen user={null} visible={true} dataHook={mockDataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Panel should not be visible since no supplements have schedules
+    expect(queryByTestId('supplement-status-panel')).toBeNull()
+  })
+
+  test('shows journal reminder badge when no journal entry exists today', async () => {
+    const dataHookWithScheduledNoJournal: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+        ],
+      },
+      journalEntries: [], // No journal entries today
+    }
+
+    const { getByTestId } = render(
+      <JournalScreen
+        user={null}
+        visible={true}
+        dataHook={dataHookWithScheduledNoJournal}
+      />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(getByTestId('journal-reminder-badge')).toBeTruthy()
   })
 })

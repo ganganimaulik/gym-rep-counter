@@ -38,6 +38,7 @@ import type {
   SupplementLog,
 } from '../declarations'
 import getLocalDateString from '../utils/getLocalDateString'
+import type { SupplementSuggestion } from '../utils/supplementSchedule'
 
 // Interface for a WorkoutSet object that has been serialized to JSON
 // where the Firestore Timestamp is just a plain object.
@@ -87,7 +88,7 @@ export interface Settings {
   eccentricCountdownEnabled: boolean
   countdownAnnouncementThreshold: number
   volume: number
-  supplementSuggestions?: { name: string; defaultDosage: string }[]
+  supplementSuggestions?: SupplementSuggestion[]
   statRemindersEnabled?: boolean
   statRemindersUseAutoSleep?: boolean
   statRemindersSleepStart?: number

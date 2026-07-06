@@ -511,4 +511,64 @@ test.describe('Gym Rep Counter E2E Tests', () => {
     await expect(page.getByText('test@example.com')).not.toBeVisible()
     await expect(page.getByText('Sign in with Google')).toBeVisible()
   })
+
+  test('14. Journal Screen - Supplement schedule configuration and status panel', async ({
+    page,
+  }) => {
+    await page.getByText('Journal', { exact: true }).click()
+
+    // Initially, no supplement status panel should be visible
+    // (default supplements have no schedule set)
+    await expect(
+      page.locator('[data-testid="supplement-status-panel"]'),
+    ).not.toBeVisible()
+
+    // Open note modal to access supplement suggestions
+    await page.locator('[data-testid="add-journal-note-button"]').click()
+    await expect(page.getByPlaceholder('How did you feel today?')).toBeVisible()
+
+    // Focus the search input to show popular supplements
+    await page.getByPlaceholder('Search/Add Supp...').click()
+    await expect(
+      page.locator('div:has-text("Popular Supplements")').first(),
+    ).toBeVisible()
+
+    // Tap "Manage" to open the Manage Supplements modal
+    await page.locator('[data-testid="manage-supplements-button"]').click()
+
+    // Manage modal should be visible
+    await expect(page.getByText('Manage Supplements')).toBeVisible()
+
+    // Tap Creatine to expand its schedule options
+    await page.locator('[data-testid="manage-supplement-Creatine"]').click()
+    await expect(page.getByText('Not Scheduled')).toBeVisible()
+    await expect(page.getByText('Daily')).toBeVisible()
+    await expect(page.getByText('Specific Days')).toBeVisible()
+    await expect(page.getByText('Every Other Day')).toBeVisible()
+
+    // Select "Daily" schedule
+    await page.locator('[data-testid="schedule-option-daily"]').click()
+
+    // Close the manage modal
+    await page.locator('[data-testid="close-manage-modal"]').click()
+
+    // Close the note modal
+    await page.getByText('Cancel').click()
+
+    // Now the supplement status panel should be visible
+    await expect(
+      page.locator('[data-testid="supplement-status-panel"]'),
+    ).toBeVisible()
+    await expect(page.getByText("Today's Supplements")).toBeVisible()
+
+    // Creatine should be shown as untaken (since we haven't logged it yet)
+    await expect(
+      page.locator('[data-testid="supplement-status-creatine"]'),
+    ).toBeVisible()
+
+    // Journal reminder badge should be visible (no entry for today yet)
+    await expect(
+      page.locator('[data-testid="journal-reminder-badge"]'),
+    ).toBeVisible()
+  })
 })

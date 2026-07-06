@@ -13,13 +13,30 @@ import {
   Alert,
 } from 'react-native'
 import { styled } from 'nativewind'
-import { Pencil, Trash2, Plus, X, Scale, Flame } from 'lucide-react-native'
+import {
+  Pencil,
+  Trash2,
+  Plus,
+  X,
+  Scale,
+  Flame,
+  Check,
+  AlertTriangle,
+  Calendar,
+} from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import DateTimePicker from '@react-native-community/datetimepicker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { JournalEntry, SupplementLog } from '../declarations'
 import { DataHook } from '../hooks/useData'
+import {
+  SupplementSuggestion,
+  SupplementScheduleType,
+  getSupplementsDueToday,
+  getSupplementsTakenOnDate,
+  hasJournalEntryForDate,
+} from '../utils/supplementSchedule'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -27,6 +44,15 @@ const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledTextInput = styled(TextInput)
 const StyledBlurView = styled(BlurView)
 const StyledScrollView = styled(ScrollView)
+
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+const SCHEDULE_OPTIONS: { value: SupplementScheduleType; label: string }[] = [
+  { value: 'none', label: 'Not Scheduled' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'specific_days', label: 'Specific Days' },
+  { value: 'every_other_day', label: 'Every Other Day' },
+]
 
 interface JournalScreenProps {
   visible: boolean
@@ -73,7 +99,65 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [dosageQuery, setDosageQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [scheduleModalSupp, setScheduleModalSupp] =
+    useState<SupplementSuggestion | null>(null)
+  const [manageModalVisible, setManageModalVisible] = useState(false)
   const suggestions = dataHook.settings.supplementSuggestions || []
+
+  // Today's supplement status
+  const today = useMemo(() => new Date(), [])
+  const supplementsDueToday = useMemo(
+    () => getSupplementsDueToday(suggestions, today, journalEntries),
+    [suggestions, today, journalEntries],
+  )
+  const takenNamesToday = useMemo(
+    () => getSupplementsTakenOnDate(journalEntries, today),
+    [journalEntries, today],
+  )
+  const hasJournalToday = useMemo(
+    () => hasJournalEntryForDate(journalEntries, today),
+    [journalEntries, today],
+  )
+
+  const handleUpdateSchedule = useCallback(
+    async (
+      suppName: string,
+      schedule: SupplementScheduleType,
+      scheduleDays?: number[],
+    ) => {
+      const currentSuggestions = dataHook.settings.supplementSuggestions || []
+      const updatedSuggestions = currentSuggestions.map((s) => {
+        if (s.name.toLowerCase() === suppName.toLowerCase()) {
+          const updated: SupplementSuggestion = { ...s, schedule }
+          if (schedule === 'specific_days') {
+            updated.scheduleDays = scheduleDays || []
+          } else {
+            delete updated.scheduleDays
+          }
+          if (schedule === 'every_other_day' && !s.scheduleStartDate) {
+            const now = new Date()
+            updated.scheduleStartDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+          } else if (schedule !== 'every_other_day') {
+            delete updated.scheduleStartDate
+          }
+          return updated
+        }
+        return s
+      })
+      await dataHook.saveSettings(
+        { ...dataHook.settings, supplementSuggestions: updatedSuggestions },
+        user,
+      )
+      // Keep the accordion open with updated data
+      const updatedSupp = updatedSuggestions.find(
+        (s) => s.name.toLowerCase() === suppName.toLowerCase(),
+      )
+      if (updatedSupp) {
+        setScheduleModalSupp(updatedSupp)
+      }
+    },
+    [dataHook, user],
+  )
 
   const weightLookup = useMemo(() => {
     const lookup: Record<string, number> = {}
@@ -370,6 +454,66 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         </StyledTouchableOpacity>
       </StyledView>
 
+      {/* Today's Supplements Status Panel */}
+      {supplementsDueToday.length > 0 && (
+        <StyledView
+          testID="supplement-status-panel"
+          className="bg-zinc-900 border border-zinc-800/85 rounded-2xl p-4 mb-4">
+          <StyledView className="flex-row justify-between items-center mb-3">
+            <StyledText className="text-zinc-400 text-[10px] font-black tracking-[0.15em] uppercase">
+              Today's Supplements
+            </StyledText>
+            {!hasJournalToday && (
+              <StyledView
+                testID="journal-reminder-badge"
+                className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg flex-row items-center gap-1">
+                <StyledText className="text-amber-400 text-[9px] font-bold">
+                  📓 No journal entry
+                </StyledText>
+              </StyledView>
+            )}
+          </StyledView>
+          <StyledView className="flex-row flex-wrap gap-2">
+            {supplementsDueToday.map((supp) => {
+              const isTaken = takenNamesToday.includes(
+                supp.name.toLowerCase(),
+              )
+              return (
+                <StyledView
+                  key={supp.name}
+                  testID={`supplement-status-${supp.name.replace(/\s+/g, '-').toLowerCase()}`}
+                  className={`px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5 border ${
+                    isTaken
+                      ? 'bg-emerald-500/10 border-emerald-500/20'
+                      : 'bg-amber-500/10 border-amber-500/30'
+                  }`}>
+                  {isTaken ? (
+                    <Check color="#10b981" size={10} />
+                  ) : (
+                    <AlertTriangle color="#f59e0b" size={10} />
+                  )}
+                  <StyledText
+                    className={`text-[10px] font-semibold tracking-wide ${
+                      isTaken ? 'text-emerald-400' : 'text-amber-400'
+                    }`}>
+                    {supp.name}
+                  </StyledText>
+                  {supp.defaultDosage ? (
+                    <StyledText
+                      className={`text-[9px] font-medium ${
+                        isTaken ? 'text-emerald-600' : 'text-amber-600'
+                      }`}>
+                      {supp.defaultDosage}
+                    </StyledText>
+                  ) : null}
+                </StyledView>
+              )
+            })}
+          </StyledView>
+        </StyledView>
+      )}
+
+
       <SectionList
         sections={sections}
         renderItem={renderItem}
@@ -566,12 +710,24 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                           ? 'Popular Supplements'
                           : 'Suggestions'}
                       </StyledText>
-                      <StyledTouchableOpacity
-                        onPress={() => setIsSearchFocused(false)}>
-                        <StyledText className="text-zinc-500 text-[9px] font-bold">
-                          Close
-                        </StyledText>
-                      </StyledTouchableOpacity>
+                      <StyledView className="flex-row items-center gap-3">
+                        <StyledTouchableOpacity
+                          testID="manage-supplements-button"
+                          onPress={() => {
+                            setIsSearchFocused(false)
+                            setManageModalVisible(true)
+                          }}>
+                          <StyledText className="text-indigo-400 text-[9px] font-bold">
+                            Manage
+                          </StyledText>
+                        </StyledTouchableOpacity>
+                        <StyledTouchableOpacity
+                          onPress={() => setIsSearchFocused(false)}>
+                          <StyledText className="text-zinc-500 text-[9px] font-bold">
+                            Close
+                          </StyledText>
+                        </StyledTouchableOpacity>
+                      </StyledView>
                     </StyledView>
                     <StyledScrollView
                       horizontal
@@ -758,7 +914,219 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
             </StyledView>
           </StyledBlurView>
         </KeyboardAvoidingView>
+
+        {/* Manage Supplements Modal — nested inside edit modal for iOS */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={manageModalVisible}
+          onRequestClose={() => setManageModalVisible(false)}>
+          <StyledBlurView
+            intensity={25}
+            tint="dark"
+            className="flex-1 justify-end bg-black/60">
+            <StyledView className="bg-zinc-900 border-t border-zinc-800 rounded-t-3xl shadow-2xl max-h-[85%]">
+              <StyledView className="flex-row justify-between items-center px-6 pt-6 pb-3">
+                <StyledText className="text-white text-lg font-black">
+                  Manage Supplements
+                </StyledText>
+                <StyledTouchableOpacity
+                  testID="close-manage-modal"
+                  onPress={() => setManageModalVisible(false)}
+                  className="bg-zinc-800 p-1.5 rounded-full">
+                  <X color="#a1a1aa" size={16} />
+                </StyledTouchableOpacity>
+              </StyledView>
+              <StyledText className="text-zinc-500 text-[10px] font-semibold px-6 mb-4">
+                Set a schedule to track daily intake. Tap a supplement to configure.
+              </StyledText>
+              <StyledScrollView
+                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled">
+                {suggestions.map((supp, idx) => {
+                  const isExpanded =
+                    scheduleModalSupp?.name === supp.name
+                  const scheduleLabel =
+                    !supp.schedule || supp.schedule === 'none'
+                      ? 'Not scheduled'
+                      : supp.schedule === 'daily'
+                        ? 'Daily'
+                        : supp.schedule === 'specific_days'
+                          ? (supp.scheduleDays || []).map((d) => DAY_LABELS[d]).join(', ')
+                          : 'Every other day'
+
+                  return (
+                    <StyledView key={idx} className="mb-2">
+                      <StyledTouchableOpacity
+                        testID={`manage-supplement-${supp.name}`}
+                        onPress={() =>
+                          setScheduleModalSupp(
+                            isExpanded ? null : supp,
+                          )
+                        }
+                        activeOpacity={0.7}
+                        className={`flex-row items-center justify-between p-3.5 rounded-2xl border ${
+                          isExpanded
+                            ? 'bg-indigo-500/10 border-indigo-500/25'
+                            : 'bg-zinc-950 border-zinc-800'
+                        }`}>
+                        <StyledView className="flex-1">
+                          <StyledText className="text-white text-sm font-bold">
+                            {supp.name}
+                          </StyledText>
+                          <StyledView className="flex-row items-center gap-2 mt-0.5">
+                            {supp.defaultDosage ? (
+                              <StyledText className="text-zinc-500 text-[10px] font-medium">
+                                {supp.defaultDosage}
+                              </StyledText>
+                            ) : null}
+                            <StyledView
+                              className={`flex-row items-center gap-1 px-1.5 py-0.5 rounded ${
+                                supp.schedule && supp.schedule !== 'none'
+                                  ? 'bg-indigo-500/15'
+                                  : 'bg-zinc-800'
+                              }`}>
+                              <Calendar
+                                color={
+                                  supp.schedule && supp.schedule !== 'none'
+                                    ? '#818cf8'
+                                    : '#52525b'
+                                }
+                                size={8}
+                              />
+                              <StyledText
+                                className={`text-[9px] font-bold ${
+                                  supp.schedule && supp.schedule !== 'none'
+                                    ? 'text-indigo-400'
+                                    : 'text-zinc-600'
+                                }`}>
+                                {scheduleLabel}
+                              </StyledText>
+                            </StyledView>
+                          </StyledView>
+                        </StyledView>
+                        <StyledTouchableOpacity
+                          testID={`remove-manage-${supp.name}`}
+                          onPress={() => {
+                            handleRemoveSuggestion(supp.name)
+                          }}
+                          className="ml-3"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Trash2 color="#52525b" size={14} />
+                        </StyledTouchableOpacity>
+                      </StyledTouchableOpacity>
+
+                      {/* Expanded schedule config */}
+                      {isExpanded && (
+                        <StyledView className="bg-zinc-950 border border-zinc-800 border-t-0 rounded-b-2xl -mt-1 pt-3 px-3.5 pb-3">
+                          <StyledView className="gap-1.5 mb-3">
+                            {SCHEDULE_OPTIONS.map((opt) => {
+                              const isActive =
+                                (supp.schedule ?? 'none') === opt.value
+                              return (
+                                <StyledTouchableOpacity
+                                  key={opt.value}
+                                  testID={`schedule-option-${opt.value}`}
+                                  onPress={() =>
+                                    handleUpdateSchedule(
+                                      supp.name,
+                                      opt.value,
+                                      opt.value === 'specific_days'
+                                        ? supp.scheduleDays || []
+                                        : undefined,
+                                    )
+                                  }
+                                  activeOpacity={0.7}
+                                  className={`flex-row items-center justify-between py-2.5 px-3 rounded-xl border ${
+                                    isActive
+                                      ? 'bg-indigo-500/15 border-indigo-500/30'
+                                      : 'bg-zinc-900 border-zinc-800/50'
+                                  }`}>
+                                  <StyledText
+                                    className={`text-xs font-bold ${
+                                      isActive
+                                        ? 'text-indigo-400'
+                                        : 'text-zinc-400'
+                                    }`}>
+                                    {opt.label}
+                                  </StyledText>
+                                  {isActive && (
+                                    <Check color="#818cf8" size={14} />
+                                  )}
+                                </StyledTouchableOpacity>
+                              )
+                            })}
+                          </StyledView>
+
+                          {/* Day picker for specific_days */}
+                          {(supp.schedule ?? 'none') ===
+                            'specific_days' && (
+                            <StyledView>
+                              <StyledText className="text-zinc-500 text-[9px] font-black tracking-wider uppercase mb-2">
+                                Select Days
+                              </StyledText>
+                              <StyledView className="flex-row justify-between gap-1.5">
+                                {DAY_LABELS.map((label, dayIndex) => {
+                                  const isSelected = (
+                                    supp.scheduleDays || []
+                                  ).includes(dayIndex)
+                                  return (
+                                    <StyledTouchableOpacity
+                                      key={dayIndex}
+                                      testID={`schedule-day-${dayIndex}`}
+                                      onPress={() => {
+                                        const currentDays =
+                                          supp.scheduleDays || []
+                                        const newDays = isSelected
+                                          ? currentDays.filter(
+                                              (d) => d !== dayIndex,
+                                            )
+                                          : [
+                                              ...currentDays,
+                                              dayIndex,
+                                            ].sort()
+                                        setScheduleModalSupp({
+                                          ...supp,
+                                          scheduleDays: newDays,
+                                        })
+                                        handleUpdateSchedule(
+                                          supp.name,
+                                          'specific_days',
+                                          newDays,
+                                        )
+                                      }}
+                                      activeOpacity={0.7}
+                                      className={`flex-1 items-center py-2 rounded-lg border ${
+                                        isSelected
+                                          ? 'bg-indigo-500/20 border-indigo-500/30'
+                                          : 'bg-zinc-900 border-zinc-800'
+                                      }`}>
+                                      <StyledText
+                                        className={`text-xs font-black ${
+                                          isSelected
+                                            ? 'text-indigo-400'
+                                            : 'text-zinc-500'
+                                        }`}>
+                                        {label}
+                                      </StyledText>
+                                    </StyledTouchableOpacity>
+                                  )
+                                })}
+                              </StyledView>
+                            </StyledView>
+                          )}
+                        </StyledView>
+                      )}
+                    </StyledView>
+                  )
+                })}
+              </StyledScrollView>
+            </StyledView>
+          </StyledBlurView>
+        </Modal>
       </Modal>
+
     </StyledView>
   )
 }
