@@ -24,7 +24,6 @@ export async function setupReminders(
     finalStatus = status
   }
   if (finalStatus !== 'granted') {
-    console.log('Notification permissions not granted')
     return
   }
 
@@ -128,15 +127,12 @@ export async function setupReminders(
     offsetHours += 4
   }
 
-  console.log(`Successfully scheduled ${scheduledCount} stat reminders.`)
-
   // 7. Schedule bedtime supplement/journal reminders
-  const bedtimeCount = await scheduleBedtimeReminders(
+  await scheduleBedtimeReminders(
     sleepStart,
     settings.supplementSuggestions || [],
     journalEntries,
   )
-  console.log(`Successfully scheduled ${bedtimeCount} bedtime reminders.`)
 }
 
 /**
