@@ -439,7 +439,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                   {supp.name}
                 </StyledText>
                 {supp.dosage ? (
-                  <StyledText className="text-violet-500 text-[9px] font-medium ml-1">
+                  <StyledText className="text-violet-300 text-[9px] font-medium ml-1">
                     {supp.dosage}
                   </StyledText>
                 ) : null}
@@ -552,7 +552,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                   {supp.defaultDosage ? (
                     <StyledText
                       className={`text-[9px] font-medium ${
-                        isTaken ? 'text-emerald-600' : 'text-amber-600'
+                        isTaken ? 'text-emerald-300' : 'text-amber-300'
                       }`}>
                       {supp.defaultDosage}
                     </StyledText>
@@ -687,7 +687,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                           {item.name}
                         </StyledText>
                         {item.dosage ? (
-                          <StyledText className="text-violet-500 text-[9px] font-medium ml-1">
+                          <StyledText className="text-violet-300 text-[9px] font-medium ml-1">
                             ({item.dosage})
                           </StyledText>
                         ) : null}

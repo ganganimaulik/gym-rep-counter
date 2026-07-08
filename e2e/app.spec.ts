@@ -277,10 +277,7 @@ test.describe('Gym Rep Counter E2E Tests', () => {
 
     // Suggestions box fill test: Focus input first to show popular list
     await page.getByPlaceholder('Search/Add Supp...').click()
-    await page
-      .locator('text=Creatine')
-      .first()
-      .click()
+    await page.locator('text=Creatine').first().click()
     await page.locator('[data-testid="add-supplement-button"]').click()
 
     // Save note
@@ -528,28 +525,42 @@ test.describe('Gym Rep Counter E2E Tests', () => {
 
     // Focus the search input to show popular supplements
     await page.getByPlaceholder('Search/Add Supp...').click()
-    await expect(
-      page.locator('text=Popular Supplements').first(),
-    ).toBeVisible()
+    await expect(page.locator('text=Popular Supplements').first()).toBeVisible()
 
     // Tap "Manage" to open the Manage Supplements modal
-    await page.locator('[data-testid="manage-supplements-button"]').dispatchEvent('click')
+    await page
+      .locator('[data-testid="manage-supplements-button"]')
+      .dispatchEvent('click')
 
     // Manage modal should be visible
     await expect(page.getByText('Manage Supplements')).toBeVisible()
 
     // Tap Creatine to expand its schedule options
-    await page.locator('[data-testid="manage-supplement-Creatine"]').dispatchEvent('click')
-    await expect(page.locator('[data-testid="schedule-option-none"]')).toBeVisible()
-    await expect(page.locator('[data-testid="schedule-option-daily"]')).toBeVisible()
-    await expect(page.locator('[data-testid="schedule-option-specific_days"]')).toBeVisible()
-    await expect(page.locator('[data-testid="schedule-option-every_other_day"]')).toBeVisible()
+    await page
+      .locator('[data-testid="manage-supplement-Creatine"]')
+      .dispatchEvent('click')
+    await expect(
+      page.locator('[data-testid="schedule-option-none"]'),
+    ).toBeVisible()
+    await expect(
+      page.locator('[data-testid="schedule-option-daily"]'),
+    ).toBeVisible()
+    await expect(
+      page.locator('[data-testid="schedule-option-specific_days"]'),
+    ).toBeVisible()
+    await expect(
+      page.locator('[data-testid="schedule-option-every_other_day"]'),
+    ).toBeVisible()
 
     // Select "Daily" schedule
-    await page.locator('[data-testid="schedule-option-daily"]').dispatchEvent('click')
+    await page
+      .locator('[data-testid="schedule-option-daily"]')
+      .dispatchEvent('click')
 
     // Close the manage modal
-    await page.locator('[data-testid="close-manage-modal"]').dispatchEvent('click')
+    await page
+      .locator('[data-testid="close-manage-modal"]')
+      .dispatchEvent('click')
 
     // Close the note modal
     await page.getByText('Cancel').click()

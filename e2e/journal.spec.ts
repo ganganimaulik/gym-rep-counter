@@ -116,15 +116,24 @@ test.describe('Journal Screen', () => {
     ).toBeVisible()
 
     // Open manage modal
-    await page.locator('[data-testid="manage-supplements-button"]').first().dispatchEvent('click')
+    await page
+      .locator('[data-testid="manage-supplements-button"]')
+      .first()
+      .dispatchEvent('click')
     await expect(page.locator('text=Manage Supplements').first()).toBeVisible()
 
     // Configure Creatine to be Daily
-    await page.locator('[data-testid="manage-supplement-Creatine"]').dispatchEvent('click')
-    await page.locator('[data-testid="schedule-option-daily"]').dispatchEvent('click')
+    await page
+      .locator('[data-testid="manage-supplement-Creatine"]')
+      .dispatchEvent('click')
+    await page
+      .locator('[data-testid="schedule-option-daily"]')
+      .dispatchEvent('click')
 
     // Close manage modal
-    await page.locator('[data-testid="close-manage-modal"]').dispatchEvent('click')
+    await page
+      .locator('[data-testid="close-manage-modal"]')
+      .dispatchEvent('click')
 
     // Close journal note modal by clicking Cancel
     await page.locator('text=Cancel').first().dispatchEvent('click')
@@ -132,7 +141,9 @@ test.describe('Journal Screen', () => {
     // Today's Supplements panel should now be visible with Creatine as untaken
     const panel = page.locator('[data-testid="supplement-status-panel"]')
     await expect(panel).toBeVisible()
-    const creatineBadge = page.locator('[data-testid="supplement-status-creatine"]')
+    const creatineBadge = page.locator(
+      '[data-testid="supplement-status-creatine"]',
+    )
     await expect(creatineBadge).toBeVisible()
 
     // Click the badge to quickly add it as taken
