@@ -1,16 +1,16 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto'
 
 /**
  * Get the public-facing base URL from a request.
  */
 export function getBaseUrl(req: Request): string {
-  const forwardedHost = req.headers.get('x-forwarded-host');
-  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  const forwardedHost = req.headers.get('x-forwarded-host')
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https'
   if (forwardedHost) {
-    return `${forwardedProto}://${forwardedHost}`;
+    return `${forwardedProto}://${forwardedHost}`
   }
-  const url = new URL(req.url);
-  return url.origin;
+  const url = new URL(req.url)
+  return url.origin
 }
 
 /**
@@ -19,30 +19,30 @@ export function getBaseUrl(req: Request): string {
 export function createWrappedCode(
   googleCode: string,
   codeChallenge?: string,
-  codeChallengeMethod?: string
+  codeChallengeMethod?: string,
 ): string {
   const payload = JSON.stringify({
     gc: googleCode,
     cc: codeChallenge || '',
     cm: codeChallengeMethod || '',
-  });
-  return Buffer.from(payload).toString('base64url');
+  })
+  return Buffer.from(payload).toString('base64url')
 }
 
 /**
  * Unwrap our opaque code back into its components.
  */
 export function unwrapCode(wrappedCode: string): {
-  googleCode: string;
-  codeChallenge: string;
-  codeChallengeMethod: string;
+  googleCode: string
+  codeChallenge: string
+  codeChallengeMethod: string
 } {
-  const payload = JSON.parse(Buffer.from(wrappedCode, 'base64url').toString());
+  const payload = JSON.parse(Buffer.from(wrappedCode, 'base64url').toString())
   return {
     googleCode: payload.gc,
     codeChallenge: payload.cc || '',
     codeChallengeMethod: payload.cm || '',
-  };
+  }
 }
 
 /**
@@ -51,22 +51,22 @@ export function unwrapCode(wrappedCode: string): {
 export function validatePKCE(
   codeVerifier: string,
   codeChallenge: string,
-  method: string
+  method: string,
 ): boolean {
-  if (!codeChallenge) return true; // No challenge = no PKCE
+  if (!codeChallenge) return true // No challenge = no PKCE
   if (method === 'S256') {
-    const hash = createHash('sha256').update(codeVerifier).digest('base64url');
-    return hash === codeChallenge;
+    const hash = createHash('sha256').update(codeVerifier).digest('base64url')
+    return hash === codeChallenge
   }
   // plain
-  return codeVerifier === codeChallenge;
+  return codeVerifier === codeChallenge
 }
 
 /**
  * Generate a random client ID for dynamic client registration.
  */
 export function generateClientId(): string {
-  return `mcp-client-${randomBytes(16).toString('hex')}`;
+  return `mcp-client-${randomBytes(16).toString('hex')}`
 }
 
 /**
@@ -78,5 +78,5 @@ export function corsHeaders(): Record<string, string> {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Cache-Control': 'no-store',
-  };
+  }
 }

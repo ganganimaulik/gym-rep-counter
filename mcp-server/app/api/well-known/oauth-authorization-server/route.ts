@@ -1,7 +1,7 @@
-import { getBaseUrl, corsHeaders } from '@/lib/oauth';
+import { getBaseUrl, corsHeaders } from '@/lib/oauth'
 
 export async function GET(req: Request) {
-  const baseUrl = getBaseUrl(req);
+  const baseUrl = getBaseUrl(req)
 
   const metadata = {
     issuer: baseUrl,
@@ -13,16 +13,16 @@ export async function GET(req: Request) {
     code_challenge_methods_supported: ['S256', 'plain'],
     token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
     scopes_supported: ['openid', 'email', 'profile'],
-  };
+  }
 
   return new Response(JSON.stringify(metadata), {
     headers: {
       'Content-Type': 'application/json',
       ...corsHeaders(),
     },
-  });
+  })
 }
 
 export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders() });
+  return new Response(null, { status: 204, headers: corsHeaders() })
 }

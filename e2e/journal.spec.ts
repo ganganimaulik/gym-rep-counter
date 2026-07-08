@@ -100,4 +100,51 @@ test.describe('Journal Screen', () => {
     // Expect updated dosage (10g) in suggestion box for Creatine
     await expect(page.locator('text=(10g)').first()).toBeVisible()
   })
+
+  test("should quickly toggle supplement as taken from Today's Supplements panel", async ({
+    page,
+  }) => {
+    // Open add journal note modal
+    await page.locator('[data-testid="add-journal-note-button"]').click()
+    await expect(page.locator('text=Save').first()).toBeVisible()
+
+    // Click search input to show suggestions and "Manage" button
+    const searchInput = page.getByPlaceholder('Search/Add Supp...')
+    await searchInput.click()
+    await expect(
+      page.locator('[data-testid="manage-supplements-button"]').first(),
+    ).toBeVisible()
+
+    // Open manage modal
+    await page.locator('[data-testid="manage-supplements-button"]').first().dispatchEvent('click')
+    await expect(page.locator('text=Manage Supplements').first()).toBeVisible()
+
+    // Configure Creatine to be Daily
+    await page.locator('[data-testid="manage-supplement-Creatine"]').dispatchEvent('click')
+    await page.locator('[data-testid="schedule-option-daily"]').dispatchEvent('click')
+
+    // Close manage modal
+    await page.locator('[data-testid="close-manage-modal"]').dispatchEvent('click')
+
+    // Close journal note modal by clicking Cancel
+    await page.locator('text=Cancel').first().dispatchEvent('click')
+
+    // Today's Supplements panel should now be visible with Creatine as untaken
+    const panel = page.locator('[data-testid="supplement-status-panel"]')
+    await expect(panel).toBeVisible()
+    const creatineBadge = page.locator('[data-testid="supplement-status-creatine"]')
+    await expect(creatineBadge).toBeVisible()
+
+    // Click the badge to quickly add it as taken
+    await creatineBadge.dispatchEvent('click')
+
+    // Wait a brief moment and verify that a new journal entry with "Logged supplements" is created in the list
+    await expect(page.locator('text=Logged supplements').first()).toBeVisible()
+
+    // Click it again to toggle it off (untake it)
+    await creatineBadge.dispatchEvent('click')
+
+    // Let's verify that the list entry update propagates
+    await page.waitForTimeout(500)
+  })
 })

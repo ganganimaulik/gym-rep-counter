@@ -109,9 +109,9 @@ describe('supplementSchedule', () => {
         },
       ]
       // Taken yesterday (July 5), so NOT due today (July 6)
-      expect(
-        isSupplementDueOnDate(supp, new Date(2026, 6, 6), entries),
-      ).toBe(false)
+      expect(isSupplementDueOnDate(supp, new Date(2026, 6, 6), entries)).toBe(
+        false,
+      )
     })
 
     test('returns true for every_other_day if NOT taken yesterday (journal-based)', () => {
@@ -130,9 +130,9 @@ describe('supplementSchedule', () => {
         },
       ]
       // Taken on July 4, NOT taken on July 5 → due on July 6
-      expect(
-        isSupplementDueOnDate(supp, new Date(2026, 6, 6), entries),
-      ).toBe(true)
+      expect(isSupplementDueOnDate(supp, new Date(2026, 6, 6), entries)).toBe(
+        true,
+      )
     })
 
     test('returns true for every_other_day with no anchor and no entries (assume due)', () => {

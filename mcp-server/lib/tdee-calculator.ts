@@ -15,37 +15,37 @@
  * Column AV: core TDEE formula (raw + rolling average)
  */
 
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore'
 
 // ---------------------------------------------------------------------------
 // Constants (from spreadsheet cells AW12, AX12, AY12, AZ12, AW13, AX13…)
 // ---------------------------------------------------------------------------
 
 /** kcal per lb of body weight (AW12) */
-export const KCAL_PER_LB = 3500;
+export const KCAL_PER_LB = 3500
 /** kcal per kg of body weight (AX12 = 3500 × 2.20462) */
-export const KCAL_PER_KG = 7716.169999999999;
+export const KCAL_PER_KG = 7716.169999999999
 /** kJ per lb (AY12 = 3500 × 4.184) */
-export const KJ_PER_LB = 14644;
+export const KJ_PER_LB = 14644
 /** kJ per kg (AZ12 = AX12 × 4.184) */
-export const KJ_PER_KG = 32284.45528;
+export const KJ_PER_KG = 32284.45528
 
 /** Seed TDEE multiplier: cal/lb/day (AW13) */
-export const SEED_MULTIPLIER_KCAL_LB = 13;
+export const SEED_MULTIPLIER_KCAL_LB = 13
 /** Seed TDEE multiplier: cal/kg/day (AX13 = 13 × 2.20462) */
-export const SEED_MULTIPLIER_KCAL_KG = 28.660059999999998;
+export const SEED_MULTIPLIER_KCAL_KG = 28.660059999999998
 /** Seed TDEE multiplier: kJ/lb/day (AY13 = 13 × 4.184) */
-export const SEED_MULTIPLIER_KJ_LB = 54.392;
+export const SEED_MULTIPLIER_KJ_LB = 54.392
 /** Seed TDEE multiplier: kJ/kg/day (AZ13 = AX13 × 4.184) */
-export const SEED_MULTIPLIER_KJ_KG = 119.91369103999999;
+export const SEED_MULTIPLIER_KJ_KG = 119.91369103999999
 
 /** Default smoothing window in weeks (S8) */
-export const DEFAULT_SMOOTHING_WEEKS = 12;
+export const DEFAULT_SMOOTHING_WEEKS = 12
 
-export type WeightUnit = 'lb' | 'kg';
-export type EnergyUnit = 'cal' | 'kj';
-export type Gender = 'male' | 'female';
-export type MeasurementUnit = 'inch' | 'cm';
+export type WeightUnit = 'lb' | 'kg'
+export type EnergyUnit = 'cal' | 'kj'
+export type Gender = 'male' | 'female'
+export type MeasurementUnit = 'inch' | 'cm'
 
 // ---------------------------------------------------------------------------
 // Unit conversion lookup (matches AV6/AV7/AW7 logic)
@@ -61,10 +61,10 @@ export function getEnergyPerUnit(
   weightUnit: WeightUnit,
   energyUnit: EnergyUnit,
 ): number {
-  if (weightUnit === 'lb' && energyUnit === 'cal') return KCAL_PER_LB;
-  if (weightUnit === 'kg' && energyUnit === 'cal') return KCAL_PER_KG;
-  if (weightUnit === 'lb' && energyUnit === 'kj') return KJ_PER_LB;
-  return KJ_PER_KG; // kg + kj
+  if (weightUnit === 'lb' && energyUnit === 'cal') return KCAL_PER_LB
+  if (weightUnit === 'kg' && energyUnit === 'cal') return KCAL_PER_KG
+  if (weightUnit === 'lb' && energyUnit === 'kj') return KJ_PER_LB
+  return KJ_PER_KG // kg + kj
 }
 
 /**
@@ -76,11 +76,11 @@ export function getSeedMultiplier(
   energyUnit: EnergyUnit,
 ): number {
   if (weightUnit === 'lb' && energyUnit === 'cal')
-    return SEED_MULTIPLIER_KCAL_LB;
+    return SEED_MULTIPLIER_KCAL_LB
   if (weightUnit === 'kg' && energyUnit === 'cal')
-    return SEED_MULTIPLIER_KCAL_KG;
-  if (weightUnit === 'lb' && energyUnit === 'kj') return SEED_MULTIPLIER_KJ_LB;
-  return SEED_MULTIPLIER_KJ_KG; // kg + kj
+    return SEED_MULTIPLIER_KCAL_KG
+  if (weightUnit === 'lb' && energyUnit === 'kj') return SEED_MULTIPLIER_KJ_LB
+  return SEED_MULTIPLIER_KJ_KG // kg + kj
 }
 
 // ---------------------------------------------------------------------------
@@ -89,23 +89,23 @@ export function getSeedMultiplier(
 
 /** MROUND(value, multiple) — rounds to nearest multiple. */
 export function mround(value: number, multiple: number): number {
-  if (multiple === 0) return value;
-  return Math.round(value / multiple) * multiple;
+  if (multiple === 0) return value
+  return Math.round(value / multiple) * multiple
 }
 
 /** Round TDEE to nearest 5 (column AU). */
 export function roundTDEE(value: number): number {
-  return mround(value, 5);
+  return mround(value, 5)
 }
 
 /** Round display TDEE to nearest 25 (cell L6). */
 export function roundDisplayTDEE(value: number): number {
-  return mround(value, 25);
+  return mround(value, 25)
 }
 
 /** Round weight to nearest 0.5 (cell AI124). */
 export function roundWeight(value: number): number {
-  return mround(value, 0.5);
+  return mround(value, 0.5)
 }
 
 // ---------------------------------------------------------------------------
@@ -121,8 +121,8 @@ export function calculateSeedTDEE(
   weightUnit: WeightUnit,
   energyUnit: EnergyUnit,
 ): number {
-  const multiplier = getSeedMultiplier(weightUnit, energyUnit);
-  return mround(startingWeight * multiplier, 5);
+  const multiplier = getSeedMultiplier(weightUnit, energyUnit)
+  return mround(startingWeight * multiplier, 5)
 }
 
 // ---------------------------------------------------------------------------
@@ -147,20 +147,20 @@ export function gapFillWeek(
   previousAvg: number,
 ): number[] | null {
   // Spreadsheet: IF(COUNT(D:J) < 1, "", ...)
-  const hasAnyData = dailyValues.some((v) => v !== null && v !== undefined);
-  if (!hasAnyData) return null;
+  const hasAnyData = dailyValues.some((v) => v !== null && v !== undefined)
+  if (!hasAnyData) return null
 
-  const filled: number[] = new Array(7);
+  const filled: number[] = new Array(7)
 
   // AL: IF(D="", previousAvg, D)
-  filled[0] = dailyValues[0] ?? previousAvg;
+  filled[0] = dailyValues[0] ?? previousAvg
 
   // AM–AR: IF(next="", previous_filled, next)
   for (let i = 1; i < 7; i++) {
-    filled[i] = dailyValues[i] ?? filled[i - 1];
+    filled[i] = dailyValues[i] ?? filled[i - 1]
   }
 
-  return filled;
+  return filled
 }
 
 // ---------------------------------------------------------------------------
@@ -175,10 +175,10 @@ export function gapFillWeek(
  * this is simply the mean of the 7 values.
  */
 export function calculateWeeklyAverage(gapFilledValues: number[]): number {
-  const count = gapFilledValues.length;
-  if (count === 0) return 0;
-  const sum = gapFilledValues.reduce((a, b) => a + b, 0);
-  return sum / count;
+  const count = gapFilledValues.length
+  if (count === 0) return 0
+  const sum = gapFilledValues.reduce((a, b) => a + b, 0)
+  return sum / count
 }
 
 // ---------------------------------------------------------------------------
@@ -201,8 +201,8 @@ export function calculateRawTDEE(
   energyPerUnit: number,
   calorieDayCount: number,
 ): number {
-  if (calorieDayCount === 0) return avgCalories;
-  return avgCalories + (-weightDelta * energyPerUnit) / calorieDayCount;
+  if (calorieDayCount === 0) return avgCalories
+  return avgCalories + (-weightDelta * energyPerUnit) / calorieDayCount
 }
 
 // ---------------------------------------------------------------------------
@@ -229,11 +229,11 @@ export function calculateSmoothedTDEE(
   windowSize: number = DEFAULT_SMOOTHING_WEEKS,
 ): number {
   // Take up to (windowSize - 1) previous values
-  const prevWindow = previousSmoothedTDEEs.slice(-(windowSize - 1));
-  const allValues = [...prevWindow, rawTDEEThisWeek];
-  const divisor = Math.min(windowSize, allValues.length);
-  const sum = allValues.reduce((a, b) => a + b, 0);
-  return sum / divisor;
+  const prevWindow = previousSmoothedTDEEs.slice(-(windowSize - 1))
+  const allValues = [...prevWindow, rawTDEEThisWeek]
+  const divisor = Math.min(windowSize, allValues.length)
+  const sum = allValues.reduce((a, b) => a + b, 0)
+  return sum / divisor
 }
 
 // ---------------------------------------------------------------------------
@@ -263,27 +263,27 @@ export function calculateBodyFatPercent(
   hip?: number,
 ): number | null {
   // Convert cm to inches if needed (spreadsheet divides by 2.54 inline)
-  const toInch = (v: number) => (measurementUnit === 'cm' ? v / 2.54 : v);
+  const toInch = (v: number) => (measurementUnit === 'cm' ? v / 2.54 : v)
 
-  const w = toInch(waist);
-  const n = toInch(neck);
-  const h = toInch(height);
+  const w = toInch(waist)
+  const n = toInch(neck)
+  const h = toInch(height)
 
-  if (w <= 0 || n <= 0 || h <= 0) return null;
+  if (w <= 0 || n <= 0 || h <= 0) return null
 
   if (gender === 'male') {
-    const diff = w - n;
-    if (diff <= 0) return null;
-    const raw = 86.01 * Math.log10(diff) - 70.041 * Math.log10(h) + 36.76;
-    return Math.round(raw) / 100;
+    const diff = w - n
+    if (diff <= 0) return null
+    const raw = 86.01 * Math.log10(diff) - 70.041 * Math.log10(h) + 36.76
+    return Math.round(raw) / 100
   } else {
-    if (hip === undefined || hip === null) return null;
-    const hp = toInch(hip);
-    if (hp <= 0) return null;
-    const sum = w + hp - n;
-    if (sum <= 0) return null;
-    const raw = 163.205 * Math.log10(sum) - 97.684 * Math.log10(h) - 78.387;
-    return Math.round(raw) / 100;
+    if (hip === undefined || hip === null) return null
+    const hp = toInch(hip)
+    if (hp <= 0) return null
+    const sum = w + hp - n
+    if (sum <= 0) return null
+    const raw = 163.205 * Math.log10(sum) - 97.684 * Math.log10(h) - 78.387
+    return Math.round(raw) / 100
   }
 }
 
@@ -303,7 +303,7 @@ export function calculateDailyDeficit(
   weeklyRate: number,
   energyPerUnit: number,
 ): number {
-  return mround((weeklyRate * energyPerUnit) / 7, 5);
+  return mround((weeklyRate * energyPerUnit) / 7, 5)
 }
 
 /**
@@ -318,12 +318,12 @@ export function calculateGoalCalories(
 ): number {
   if (goalWeight > currentWeight) {
     // Bulking — eat above TDEE
-    return tdee + dailyDeficit;
+    return tdee + dailyDeficit
   } else if (goalWeight < currentWeight) {
     // Cutting — eat below TDEE
-    return tdee - dailyDeficit;
+    return tdee - dailyDeficit
   }
-  return tdee; // Maintain
+  return tdee // Maintain
 }
 
 /**
@@ -335,10 +335,10 @@ export function calculateWeeksToGoal(
   goalWeight: number,
   weeklyRate: number,
 ): number {
-  if (weeklyRate === 0 || currentWeight === goalWeight) return 0;
-  const raw = Math.abs(goalWeight - currentWeight) / weeklyRate;
+  if (weeklyRate === 0 || currentWeight === goalWeight) return 0
+  const raw = Math.abs(goalWeight - currentWeight) / weeklyRate
   // CEILING to nearest 0.5
-  return Math.ceil(raw / 0.5) * 0.5;
+  return Math.ceil(raw / 0.5) * 0.5
 }
 
 /**
@@ -349,9 +349,9 @@ export function calculateGoalDate(
   weeksToGoal: number,
   fromDate: Date = new Date(),
 ): Date {
-  const date = new Date(fromDate);
-  date.setDate(date.getDate() + Math.round(weeksToGoal * 7));
-  return date;
+  const date = new Date(fromDate)
+  date.setDate(date.getDate() + Math.round(weeksToGoal * 7))
+  return date
 }
 
 // ---------------------------------------------------------------------------
@@ -360,61 +360,61 @@ export function calculateGoalDate(
 
 export interface WeekInput {
   /** ISO date string for the Monday of this week */
-  weekStart: Date;
+  weekStart: Date
   /** 7 daily weight values (Mon–Sun), null for missing */
-  dailyWeights: (number | null)[];
+  dailyWeights: (number | null)[]
   /** 7 daily calorie values (Mon–Sun), null for missing */
-  dailyCalories: (number | null)[];
+  dailyCalories: (number | null)[]
   /** Optional body measurements for BF% */
-  waist?: number;
-  neck?: number;
-  hip?: number;
+  waist?: number
+  neck?: number
+  hip?: number
 }
 
 export interface WeekResult {
-  weekStart: Date;
-  weekEnd: Date;
-  dailyWeights: (number | null)[];
-  dailyCalories: (number | null)[];
-  gapFilledWeights: number[] | null;
-  gapFilledCalories: number[] | null;
-  avgWeight: number | null;
-  avgCalories: number | null;
-  weightDelta: number | null;
-  rawTDEE: number | null;
-  smoothedTDEE: number | null;
-  displayTDEE: number | null;
-  bodyFatPct: number | null;
-  weightDayCount: number;
-  calorieDayCount: number;
+  weekStart: Date
+  weekEnd: Date
+  dailyWeights: (number | null)[]
+  dailyCalories: (number | null)[]
+  gapFilledWeights: number[] | null
+  gapFilledCalories: number[] | null
+  avgWeight: number | null
+  avgCalories: number | null
+  weightDelta: number | null
+  rawTDEE: number | null
+  smoothedTDEE: number | null
+  displayTDEE: number | null
+  bodyFatPct: number | null
+  weightDayCount: number
+  calorieDayCount: number
 }
 
 export interface TDEEPipelineConfig {
-  startingWeight: number | null;
-  weightUnit: WeightUnit;
-  energyUnit: EnergyUnit;
-  smoothingWindowWeeks?: number;
+  startingWeight: number | null
+  weightUnit: WeightUnit
+  energyUnit: EnergyUnit
+  smoothingWindowWeeks?: number
   // Optional: for body fat calculation
-  gender?: Gender;
-  height?: number;
-  measurementUnit?: MeasurementUnit;
+  gender?: Gender
+  height?: number
+  measurementUnit?: MeasurementUnit
   // Optional: for goal projection
-  goalWeight?: number;
-  goalWeeklyRate?: number;
+  goalWeight?: number
+  goalWeeklyRate?: number
 }
 
 export interface TDEEPipelineResult {
-  weeks: WeekResult[];
-  currentTDEE: number | null;
-  displayTDEE: number | null;
-  seedTDEE: number;
-  currentWeight: number | null;
-  totalWeightChange: number | null;
+  weeks: WeekResult[]
+  currentTDEE: number | null
+  displayTDEE: number | null
+  seedTDEE: number
+  currentWeight: number | null
+  totalWeightChange: number | null
   // Goal projection
-  goalCalories: number | null;
-  dailyDeficit: number | null;
-  weeksToGoal: number | null;
-  goalDate: Date | null;
+  goalCalories: number | null
+  dailyDeficit: number | null
+  weeksToGoal: number | null
+  goalDate: Date | null
 }
 
 /**
@@ -442,98 +442,98 @@ export function calculateTDEEPipeline(
     measurementUnit,
     goalWeight,
     goalWeeklyRate,
-  } = config;
+  } = config
 
-  const energyPerUnit = getEnergyPerUnit(weightUnit, energyUnit);
+  const energyPerUnit = getEnergyPerUnit(weightUnit, energyUnit)
   const seedTDEE =
     startingWeight !== null
       ? calculateSeedTDEE(startingWeight, weightUnit, energyUnit)
-      : 0;
+      : 0
 
-  const weeks: WeekResult[] = [];
-  const smoothedTDEEHistory: number[] = [];
+  const weeks: WeekResult[] = []
+  const smoothedTDEEHistory: number[] = []
 
   // Previous week's average weight — starts with startingWeight (AM6 = F6)
-  let prevAvgWeight: number = startingWeight ?? 0;
+  let prevAvgWeight: number = startingWeight ?? 0
   // Previous week's average calories — starts with seed TDEE (AI5)
-  let prevAvgCalories: number = seedTDEE;
+  let prevAvgCalories: number = seedTDEE
   // Track the latest known weight (AI column)
-  let latestKnownWeight: number | null = startingWeight;
+  let latestKnownWeight: number | null = startingWeight
 
   // Track first week to prevent skewed initial deltas if startingWeight config is inaccurate
-  let isFirstWeekWithWeight = true;
+  let isFirstWeekWithWeight = true
 
   // Pre-calculate raw weight anchors for retroactive linear interpolation of missing weeks
   const rawAnchors: (number | null)[] = weekInputs.map((input) => {
     const validWeights = input.dailyWeights.filter(
       (w) => w !== null,
-    ) as number[];
-    if (validWeights.length === 0) return null;
-    return validWeights.reduce((a, b) => a + b, 0) / validWeights.length;
-  });
+    ) as number[]
+    if (validWeights.length === 0) return null
+    return validWeights.reduce((a, b) => a + b, 0) / validWeights.length
+  })
 
   for (let i = 0; i < weekInputs.length; i++) {
-    const input = weekInputs[i];
-    const weekEnd = new Date(input.weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+    const input = weekInputs[i]
+    const weekEnd = new Date(input.weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 6)
 
     // Count actual data entries
     const weightDayCount = input.dailyWeights.filter(
       (v) => v !== null && v !== undefined,
-    ).length;
+    ).length
     const calorieDayCount = input.dailyCalories.filter(
       (v) => v !== null && v !== undefined,
-    ).length;
+    ).length
 
     // Gap-fill
-    const gapFilledWeights = gapFillWeek(input.dailyWeights, prevAvgWeight);
-    const gapFilledCalories = gapFillWeek(input.dailyCalories, prevAvgCalories);
+    const gapFilledWeights = gapFillWeek(input.dailyWeights, prevAvgWeight)
+    const gapFilledCalories = gapFillWeek(input.dailyCalories, prevAvgCalories)
 
     // Weekly averages
-    let avgWeight: number | null = null;
+    let avgWeight: number | null = null
 
     if (gapFilledWeights !== null) {
-      avgWeight = calculateWeeklyAverage(gapFilledWeights);
+      avgWeight = calculateWeeklyAverage(gapFilledWeights)
     } else {
       // Retroactive Linear Interpolation for missing weeks
-      let nextAnchor: number | null = null;
-      let missingCount = 0;
+      let nextAnchor: number | null = null
+      let missingCount = 0
 
       for (let j = i + 1; j < rawAnchors.length; j++) {
         if (rawAnchors[j] !== null) {
-          nextAnchor = rawAnchors[j];
-          missingCount = j - i;
-          break;
+          nextAnchor = rawAnchors[j]
+          missingCount = j - i
+          break
         }
       }
 
       if (nextAnchor !== null && prevAvgWeight !== null) {
-        const stepSize = (nextAnchor - prevAvgWeight) / (missingCount + 1);
-        avgWeight = prevAvgWeight + stepSize;
+        const stepSize = (nextAnchor - prevAvgWeight) / (missingCount + 1)
+        avgWeight = prevAvgWeight + stepSize
       }
     }
     const avgCalories = gapFilledCalories
       ? calculateWeeklyAverage(gapFilledCalories)
-      : null;
+      : null
 
     // Auto-detect starting weight to prevent massive delta spikes
     if (avgWeight !== null && isFirstWeekWithWeight) {
-      prevAvgWeight = avgWeight;
-      isFirstWeekWithWeight = false;
+      prevAvgWeight = avgWeight
+      isFirstWeekWithWeight = false
     }
 
     // Weight delta (AT column: this week - previous week)
-    const weightDelta = avgWeight !== null ? avgWeight - prevAvgWeight : null;
+    const weightDelta = avgWeight !== null ? avgWeight - prevAvgWeight : null
 
     // Update latest known weight (AI column)
     if (avgWeight !== null) {
-      latestKnownWeight = avgWeight;
+      latestKnownWeight = avgWeight
     }
 
     // TDEE calculation
-    let rawTDEE: number | null = null;
-    let smoothedTDEE: number | null = null;
-    let displayTDEE: number | null = null;
+    let rawTDEE: number | null = null
+    let smoothedTDEE: number | null = null
+    let displayTDEE: number | null = null
 
     if (i === 0) {
       // Week 1 (row 12): AV12 = AS13 + ((-AT12 × AV7) / AH13)
@@ -543,10 +543,10 @@ export function calculateTDEEPipeline(
           weightDelta!,
           energyPerUnit,
           gapFilledCalories!.length,
-        );
-        smoothedTDEE = rawTDEE;
-        displayTDEE = roundTDEE(smoothedTDEE);
-        smoothedTDEEHistory.push(displayTDEE);
+        )
+        smoothedTDEE = rawTDEE
+        displayTDEE = roundTDEE(smoothedTDEE)
+        smoothedTDEEHistory.push(displayTDEE)
       }
     } else {
       // Subsequent weeks: need both weight + calorie data with 7 gap-filled values
@@ -563,26 +563,26 @@ export function calculateTDEEPipeline(
           weightDelta,
           energyPerUnit,
           gapFilledCalories.length,
-        );
+        )
 
         // Rolling average with previous smoothed TDEE values
         smoothedTDEE = calculateSmoothedTDEE(
           rawTDEE,
           smoothedTDEEHistory,
           smoothingWindowWeeks,
-        );
-        displayTDEE = roundTDEE(smoothedTDEE);
-        smoothedTDEEHistory.push(displayTDEE);
+        )
+        displayTDEE = roundTDEE(smoothedTDEE)
+        smoothedTDEEHistory.push(displayTDEE)
       } else if (smoothedTDEEHistory.length > 0) {
         // Carry forward previous TDEE (matching AV[n] = AV[n-2] when data insufficient)
-        displayTDEE = smoothedTDEEHistory[smoothedTDEEHistory.length - 1];
-        smoothedTDEE = displayTDEE;
-        smoothedTDEEHistory.push(displayTDEE); // Also push to history to maintain rolling window
+        displayTDEE = smoothedTDEEHistory[smoothedTDEEHistory.length - 1]
+        smoothedTDEE = displayTDEE
+        smoothedTDEEHistory.push(displayTDEE) // Also push to history to maintain rolling window
       }
     }
 
     // Body fat calculation (optional)
-    let bodyFatPct: number | null = null;
+    let bodyFatPct: number | null = null
     if (
       gender &&
       height &&
@@ -597,7 +597,7 @@ export function calculateTDEEPipeline(
         height,
         measurementUnit,
         input.hip,
-      );
+      )
     }
 
     weeks.push({
@@ -616,33 +616,33 @@ export function calculateTDEEPipeline(
       bodyFatPct,
       weightDayCount,
       calorieDayCount,
-    });
+    })
 
     // Update previous averages for next iteration
-    if (avgWeight !== null) prevAvgWeight = avgWeight;
-    if (avgCalories !== null) prevAvgCalories = avgCalories;
+    if (avgWeight !== null) prevAvgWeight = avgWeight
+    if (avgCalories !== null) prevAvgCalories = avgCalories
   }
 
   // Current values (matching row 124)
   const lastWeekWithTDEE = [...weeks]
     .reverse()
-    .find((w) => w.displayTDEE !== null);
-  const currentTDEE = lastWeekWithTDEE?.smoothedTDEE ?? null;
-  const currentDisplayTDEE = lastWeekWithTDEE?.displayTDEE ?? null;
+    .find((w) => w.displayTDEE !== null)
+  const currentTDEE = lastWeekWithTDEE?.smoothedTDEE ?? null
+  const currentDisplayTDEE = lastWeekWithTDEE?.displayTDEE ?? null
   const currentWeight =
-    latestKnownWeight !== null ? roundWeight(latestKnownWeight) : null;
+    latestKnownWeight !== null ? roundWeight(latestKnownWeight) : null
   const totalWeightChange =
     currentWeight !== null && startingWeight !== null
       ? currentWeight - startingWeight
-      : null;
+      : null
 
   // Goal projection
-  let goalCalories: number | null = null;
-  let dailyDeficit: number | null = null;
-  let weeksToGoal: number | null = null;
-  let goalDate: Date | null = null;
+  let goalCalories: number | null = null
+  let dailyDeficit: number | null = null
+  let weeksToGoal: number | null = null
+  let goalDate: Date | null = null
 
-  const tdeeForGoal = currentDisplayTDEE ?? seedTDEE;
+  const tdeeForGoal = currentDisplayTDEE ?? seedTDEE
 
   if (
     goalWeight !== undefined &&
@@ -651,19 +651,19 @@ export function calculateTDEEPipeline(
     currentDisplayTDEE !== null &&
     currentWeight !== null
   ) {
-    dailyDeficit = calculateDailyDeficit(goalWeeklyRate, energyPerUnit);
+    dailyDeficit = calculateDailyDeficit(goalWeeklyRate, energyPerUnit)
     goalCalories = calculateGoalCalories(
       tdeeForGoal,
       currentWeight,
       goalWeight,
       dailyDeficit,
-    );
+    )
     weeksToGoal = calculateWeeksToGoal(
       currentWeight,
       goalWeight,
       goalWeeklyRate,
-    );
-    goalDate = calculateGoalDate(weeksToGoal);
+    )
+    goalDate = calculateGoalDate(weeksToGoal)
   }
 
   return {
@@ -680,7 +680,7 @@ export function calculateTDEEPipeline(
     dailyDeficit,
     weeksToGoal,
     goalDate,
-  };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -693,67 +693,67 @@ export function calculateTDEEPipeline(
  * firebase-admin SDK's DocumentData.
  */
 interface FirestoreTimestampData {
-  _seconds: number;
-  _nanoseconds: number;
+  _seconds: number
+  _nanoseconds: number
 }
 
 /** Raw weight log document data from Firestore */
 export interface RawWeightLog {
-  id?: string;
-  weight: number;
-  date: Timestamp | FirestoreTimestampData;
+  id?: string
+  weight: number
+  date: Timestamp | FirestoreTimestampData
 }
 
 /** Raw calorie log document data from Firestore */
 export interface RawCalorieLog {
-  id?: string;
-  calories: number;
-  date: Timestamp | FirestoreTimestampData;
+  id?: string
+  calories: number
+  date: Timestamp | FirestoreTimestampData
 }
 
 /** TDEE config as stored in Firestore */
 export interface TDEEConfigData {
-  weightUnit: WeightUnit;
-  energyUnit: EnergyUnit;
-  smoothingWindowWeeks?: number;
-  goalWeight?: number;
-  goalWeeklyRate?: number;
-  gender?: Gender;
-  heightValue?: number;
-  measurementUnit?: MeasurementUnit;
-  waistValue?: number;
-  neckValue?: number;
-  hipValue?: number;
+  weightUnit: WeightUnit
+  energyUnit: EnergyUnit
+  smoothingWindowWeeks?: number
+  goalWeight?: number
+  goalWeeklyRate?: number
+  gender?: Gender
+  heightValue?: number
+  measurementUnit?: MeasurementUnit
+  waistValue?: number
+  neckValue?: number
+  hipValue?: number
 }
 
 /** Result format for the MCP tool response */
 export interface TDEEAnalysisResult {
-  displayTDEE: number | null;
-  currentTDEE: number | null;
-  seedTDEE: number;
-  currentWeight: number | null;
-  totalWeightChange: number | null;
-  hasEnoughData: boolean;
-  weeksWithData: number;
-  weekUnit: WeightUnit;
-  energyUnit: EnergyUnit;
+  displayTDEE: number | null
+  currentTDEE: number | null
+  seedTDEE: number
+  currentWeight: number | null
+  totalWeightChange: number | null
+  hasEnoughData: boolean
+  weeksWithData: number
+  weekUnit: WeightUnit
+  energyUnit: EnergyUnit
   // Goal projection
-  goalCalories: number | null;
-  dailyDeficit: number | null;
-  weeksToGoal: number | null;
-  goalDate: string | null;
+  goalCalories: number | null
+  dailyDeficit: number | null
+  weeksToGoal: number | null
+  goalDate: string | null
   // Weekly breakdown (recent weeks only)
   recentWeeks: {
-    weekStart: string;
-    weekEnd: string;
-    avgWeight: number | null;
-    avgCalories: number | null;
-    weightDelta: number | null;
-    displayTDEE: number | null;
-    bodyFatPct: number | null;
-    weightDayCount: number;
-    calorieDayCount: number;
-  }[];
+    weekStart: string
+    weekEnd: string
+    avgWeight: number | null
+    avgCalories: number | null
+    weightDelta: number | null
+    displayTDEE: number | null
+    bodyFatPct: number | null
+    weightDayCount: number
+    calorieDayCount: number
+  }[]
 }
 
 /**
@@ -762,10 +762,10 @@ export interface TDEEAnalysisResult {
  */
 function toDate(ts: Timestamp | FirestoreTimestampData): Date {
   if (ts instanceof Timestamp) {
-    return ts.toDate();
+    return ts.toDate()
   }
   // Raw serialized format: { _seconds, _nanoseconds }
-  return new Date(ts._seconds * 1000 + ts._nanoseconds / 1_000_000);
+  return new Date(ts._seconds * 1000 + ts._nanoseconds / 1_000_000)
 }
 
 /**
@@ -773,9 +773,9 @@ function toDate(ts: Timestamp | FirestoreTimestampData): Date {
  */
 function toMillis(ts: Timestamp | FirestoreTimestampData): number {
   if (ts instanceof Timestamp) {
-    return ts.toMillis();
+    return ts.toMillis()
   }
-  return ts._seconds * 1000 + Math.floor(ts._nanoseconds / 1_000_000);
+  return ts._seconds * 1000 + Math.floor(ts._nanoseconds / 1_000_000)
 }
 
 /**
@@ -786,65 +786,65 @@ function groupLogsByWeek(
   weightLogs: RawWeightLog[],
   calorieLogs: RawCalorieLog[],
 ): WeekInput[] {
-  if (weightLogs.length === 0 && calorieLogs.length === 0) return [];
+  if (weightLogs.length === 0 && calorieLogs.length === 0) return []
 
   // Find the earliest log date to determine start
   const allDates: Date[] = [
     ...weightLogs.map((l) => toDate(l.date)),
     ...calorieLogs.map((l) => toDate(l.date)),
-  ];
+  ]
 
-  if (allDates.length === 0) return [];
+  if (allDates.length === 0) return []
 
-  const earliest = new Date(Math.min(...allDates.map((d) => d.getTime())));
-  const latest = new Date(Math.max(...allDates.map((d) => d.getTime())));
+  const earliest = new Date(Math.min(...allDates.map((d) => d.getTime())))
+  const latest = new Date(Math.max(...allDates.map((d) => d.getTime())))
 
   // Find the Monday of the earliest date's week
-  const startMonday = new Date(earliest);
-  const day = startMonday.getDay();
+  const startMonday = new Date(earliest)
+  const day = startMonday.getDay()
   // getDay(): 0=Sun, 1=Mon, ..., 6=Sat
   // Shift to Monday: if Sunday (0), go back 6 days; otherwise go back (day-1) days
-  const daysToMonday = day === 0 ? 6 : day - 1;
-  startMonday.setDate(startMonday.getDate() - daysToMonday);
-  startMonday.setHours(0, 0, 0, 0);
+  const daysToMonday = day === 0 ? 6 : day - 1
+  startMonday.setDate(startMonday.getDate() - daysToMonday)
+  startMonday.setHours(0, 0, 0, 0)
 
   // Build a map for quick lookup: dateStr -> value
-  const weightMap = new Map<string, number>();
+  const weightMap = new Map<string, number>()
   weightLogs.forEach((log) => {
-    const d = toDate(log.date);
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    weightMap.set(key, log.weight);
-  });
+    const d = toDate(log.date)
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    weightMap.set(key, log.weight)
+  })
 
-  const calorieMap = new Map<string, number>();
+  const calorieMap = new Map<string, number>()
   calorieLogs.forEach((log) => {
-    const d = toDate(log.date);
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    calorieMap.set(key, log.calories);
-  });
+    const d = toDate(log.date)
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+    calorieMap.set(key, log.calories)
+  })
 
-  const weeks: WeekInput[] = [];
-  const currentMonday = new Date(startMonday);
-  let hasStarted = false;
+  const weeks: WeekInput[] = []
+  const currentMonday = new Date(startMonday)
+  let hasStarted = false
 
   while (currentMonday <= latest) {
-    const dailyWeights: (number | null)[] = [];
-    const dailyCalories: (number | null)[] = [];
+    const dailyWeights: (number | null)[] = []
+    const dailyCalories: (number | null)[] = []
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      const date = new Date(currentMonday);
-      date.setDate(date.getDate() + dayOffset);
-      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      const date = new Date(currentMonday)
+      date.setDate(date.getDate() + dayOffset)
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 
-      dailyWeights.push(weightMap.get(key) ?? null);
-      dailyCalories.push(calorieMap.get(key) ?? null);
+      dailyWeights.push(weightMap.get(key) ?? null)
+      dailyCalories.push(calorieMap.get(key) ?? null)
     }
 
-    const hasWeightData = dailyWeights.some((v) => v !== null);
-    const hasCalorieData = dailyCalories.some((v) => v !== null);
+    const hasWeightData = dailyWeights.some((v) => v !== null)
+    const hasCalorieData = dailyCalories.some((v) => v !== null)
 
     if (hasWeightData || hasCalorieData) {
-      hasStarted = true;
+      hasStarted = true
     }
 
     if (hasStarted) {
@@ -852,13 +852,13 @@ function groupLogsByWeek(
         weekStart: new Date(currentMonday),
         dailyWeights,
         dailyCalories,
-      });
+      })
     }
 
-    currentMonday.setDate(currentMonday.getDate() + 7);
+    currentMonday.setDate(currentMonday.getDate() + 7)
   }
 
-  return weeks;
+  return weeks
 }
 
 /**
@@ -879,15 +879,15 @@ export function analyzeTDEE(
   // Determine dynamic starting weight from the oldest logged weight
   // Weight logs are expected newest-first from Firestore orderBy('date', 'desc')
   const startingWeight =
-    weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight : null;
+    weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight : null
 
-  const weightUnit: WeightUnit = tdeeConfig?.weightUnit ?? 'kg';
-  const energyUnit: EnergyUnit = tdeeConfig?.energyUnit ?? 'cal';
+  const weightUnit: WeightUnit = tdeeConfig?.weightUnit ?? 'kg'
+  const energyUnit: EnergyUnit = tdeeConfig?.energyUnit ?? 'cal'
 
   if (!tdeeConfig) {
     const fallbackSeed = startingWeight
       ? calculateSeedTDEE(startingWeight, 'kg', 'cal')
-      : 0;
+      : 0
     return {
       displayTDEE: fallbackSeed ? roundDisplayTDEE(fallbackSeed) : null,
       currentTDEE: null,
@@ -903,23 +903,23 @@ export function analyzeTDEE(
       weeksToGoal: null,
       goalDate: null,
       recentWeeks: [],
-    };
+    }
   }
 
   // Cap TDEE processing to 1 year of data for performance
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  const oneYearAgoMillis = oneYearAgo.getTime();
+  const oneYearAgo = new Date()
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+  const oneYearAgoMillis = oneYearAgo.getTime()
 
   const recentWeightLogs = weightLogs.filter(
     (l) => toMillis(l.date) >= oneYearAgoMillis,
-  );
+  )
   const recentCalorieLogs = calorieLogs.filter(
     (l) => toMillis(l.date) >= oneYearAgoMillis,
-  );
+  )
 
   // Group logs into weekly buckets
-  let weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs);
+  let weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)
 
   // Attach body fat measurements to each week input
   weekInputs = weekInputs.map((week) => ({
@@ -927,7 +927,7 @@ export function analyzeTDEE(
     waist: tdeeConfig.waistValue,
     neck: tdeeConfig.neckValue,
     hip: tdeeConfig.hipValue,
-  }));
+  }))
 
   // Build pipeline config
   const pipelineConfig: TDEEPipelineConfig = {
@@ -940,44 +940,38 @@ export function analyzeTDEE(
     gender: tdeeConfig.gender,
     height: tdeeConfig.heightValue,
     measurementUnit: tdeeConfig.measurementUnit,
-  };
+  }
 
   // Run the pipeline
-  const result = calculateTDEEPipeline(weekInputs, pipelineConfig);
+  const result = calculateTDEEPipeline(weekInputs, pipelineConfig)
 
   // Count weeks that have a calculated TDEE
   const weeksWithData = result.weeks.filter(
     (w) => w.displayTDEE !== null,
-  ).length;
+  ).length
 
   // Need at least 2 weeks of data for meaningful TDEE
-  const hasEnoughData = weeksWithData >= 2;
+  const hasEnoughData = weeksWithData >= 2
 
   // Return recent weeks (last 12) for the response
   const recentWeeks = result.weeks.slice(-12).map((w) => ({
     weekStart: w.weekStart.toISOString().split('T')[0],
     weekEnd: w.weekEnd.toISOString().split('T')[0],
-    avgWeight: w.avgWeight !== null ? Math.round(w.avgWeight * 100) / 100 : null,
-    avgCalories:
-      w.avgCalories !== null ? Math.round(w.avgCalories) : null,
+    avgWeight:
+      w.avgWeight !== null ? Math.round(w.avgWeight * 100) / 100 : null,
+    avgCalories: w.avgCalories !== null ? Math.round(w.avgCalories) : null,
     weightDelta:
-      w.weightDelta !== null
-        ? Math.round(w.weightDelta * 100) / 100
-        : null,
+      w.weightDelta !== null ? Math.round(w.weightDelta * 100) / 100 : null,
     displayTDEE: w.displayTDEE,
     bodyFatPct:
-      w.bodyFatPct !== null
-        ? Math.round(w.bodyFatPct * 10000) / 100
-        : null, // Convert decimal to percentage
+      w.bodyFatPct !== null ? Math.round(w.bodyFatPct * 10000) / 100 : null, // Convert decimal to percentage
     weightDayCount: w.weightDayCount,
     calorieDayCount: w.calorieDayCount,
-  }));
+  }))
 
   return {
     displayTDEE: result.displayTDEE,
-    currentTDEE: result.currentTDEE
-      ? Math.round(result.currentTDEE)
-      : null,
+    currentTDEE: result.currentTDEE ? Math.round(result.currentTDEE) : null,
     seedTDEE: result.seedTDEE,
     currentWeight: result.currentWeight,
     totalWeightChange:
@@ -993,5 +987,5 @@ export function analyzeTDEE(
     weeksToGoal: result.weeksToGoal,
     goalDate: result.goalDate?.toISOString().split('T')[0] ?? null,
     recentWeeks,
-  };
+  }
 }

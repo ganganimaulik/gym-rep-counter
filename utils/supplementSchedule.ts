@@ -104,9 +104,7 @@ export function isSupplementDueOnDate(
         date.getDate(),
       ).getTime()
 
-      const daysDiff = Math.round(
-        (targetMidnight - anchorMidnight) / msPerDay,
-      )
+      const daysDiff = Math.round((targetMidnight - anchorMidnight) / msPerDay)
       return daysDiff >= 0 && daysDiff % 2 === 0
     }
 

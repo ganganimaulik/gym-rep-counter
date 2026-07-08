@@ -4,9 +4,7 @@ import { setupReminders, cancelAllReminders } from '../notifications'
 // Mock expo-notifications
 const mockScheduleNotification = jest.fn().mockResolvedValue('notification-id')
 const mockCancelAll = jest.fn().mockResolvedValue(undefined)
-const mockGetPermissions = jest
-  .fn()
-  .mockResolvedValue({ status: 'granted' })
+const mockGetPermissions = jest.fn().mockResolvedValue({ status: 'granted' })
 const mockRequestPermissions = jest
   .fn()
   .mockResolvedValue({ status: 'granted' })

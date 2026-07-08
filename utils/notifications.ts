@@ -150,7 +150,7 @@ async function scheduleBedtimeReminders(
   journalEntries: JournalEntry[],
 ): Promise<number> {
   // If no supplements have schedules set, we still remind about journal entries
-  const reminderHour = ((sleepStartHour - 4) + 24) % 24
+  const reminderHour = (sleepStartHour - 4 + 24) % 24
 
   const now = new Date()
   let scheduledCount = 0

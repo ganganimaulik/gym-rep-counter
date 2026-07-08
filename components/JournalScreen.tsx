@@ -119,6 +119,55 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     [journalEntries, today],
   )
 
+  const handleToggleSupplementToday = useCallback(
+    async (suppName: string, defaultDosage?: string) => {
+      const todayDate = new Date()
+      const dateKey = getLocalDateKey(todayDate)
+
+      // Find if there is an existing journal entry for today
+      const existingEntry = journalEntries.find((entry) => {
+        if (!entry.date || typeof entry.date.toDate !== 'function') return false
+        return getLocalDateKey(entry.date.toDate()) === dateKey
+      })
+
+      const nameLower = suppName.toLowerCase()
+
+      if (existingEntry) {
+        const isAlreadyTaken = (existingEntry.supplements || []).some(
+          (s) => s.name.toLowerCase() === nameLower,
+        )
+
+        let updatedSupplements: SupplementLog[]
+        if (isAlreadyTaken) {
+          // Remove it (toggle off)
+          updatedSupplements = (existingEntry.supplements || []).filter(
+            (s) => s.name.toLowerCase() !== nameLower,
+          )
+        } else {
+          // Add it
+          updatedSupplements = [
+            ...(existingEntry.supplements || []),
+            { name: suppName, dosage: defaultDosage || '' },
+          ]
+        }
+
+        await updateJournalEntry(
+          existingEntry.id,
+          existingEntry.note,
+          existingEntry.date.toDate(),
+          user,
+          updatedSupplements,
+        )
+      } else {
+        // Create new entry
+        await addJournalEntry('Logged supplements', todayDate, user, [
+          { name: suppName, dosage: defaultDosage || '' },
+        ])
+      }
+    },
+    [journalEntries, user, addJournalEntry, updateJournalEntry],
+  )
+
   const handleUpdateSchedule = useCallback(
     async (
       suppName: string,
@@ -461,7 +510,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           className="bg-zinc-900 border border-zinc-800/85 rounded-2xl p-4 mb-4">
           <StyledView className="flex-row justify-between items-center mb-3">
             <StyledText className="text-zinc-400 text-[10px] font-black tracking-[0.15em] uppercase">
-              Today's Supplements
+              {"Today's Supplements"}
             </StyledText>
             {!hasJournalToday && (
               <StyledView
@@ -475,13 +524,15 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           </StyledView>
           <StyledView className="flex-row flex-wrap gap-2">
             {supplementsDueToday.map((supp) => {
-              const isTaken = takenNamesToday.includes(
-                supp.name.toLowerCase(),
-              )
+              const isTaken = takenNamesToday.includes(supp.name.toLowerCase())
               return (
-                <StyledView
+                <StyledTouchableOpacity
                   key={supp.name}
                   testID={`supplement-status-${supp.name.replace(/\s+/g, '-').toLowerCase()}`}
+                  onPress={() =>
+                    handleToggleSupplementToday(supp.name, supp.defaultDosage)
+                  }
+                  activeOpacity={0.7}
                   className={`px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5 border ${
                     isTaken
                       ? 'bg-emerald-500/10 border-emerald-500/20'
@@ -506,13 +557,12 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       {supp.defaultDosage}
                     </StyledText>
                   ) : null}
-                </StyledView>
+                </StyledTouchableOpacity>
               )
             })}
           </StyledView>
         </StyledView>
       )}
-
 
       <SectionList
         sections={sections}
@@ -938,22 +988,27 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                 </StyledTouchableOpacity>
               </StyledView>
               <StyledText className="text-zinc-500 text-[10px] font-semibold px-6 mb-4">
-                Set a schedule to track daily intake. Tap a supplement to configure.
+                Set a schedule to track daily intake. Tap a supplement to
+                configure.
               </StyledText>
               <StyledScrollView
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 24,
+                  paddingBottom: 32,
+                }}
                 showsVerticalScrollIndicator={true}
                 keyboardShouldPersistTaps="handled">
                 {suggestions.map((supp, idx) => {
-                  const isExpanded =
-                    scheduleModalSupp?.name === supp.name
+                  const isExpanded = scheduleModalSupp?.name === supp.name
                   const scheduleLabel =
                     !supp.schedule || supp.schedule === 'none'
                       ? 'Not scheduled'
                       : supp.schedule === 'daily'
                         ? 'Daily'
                         : supp.schedule === 'specific_days'
-                          ? (supp.scheduleDays || []).map((d) => DAY_LABELS[d]).join(', ')
+                          ? (supp.scheduleDays || [])
+                              .map((d) => DAY_LABELS[d])
+                              .join(', ')
                           : 'Every other day'
 
                   return (
@@ -961,9 +1016,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       <StyledTouchableOpacity
                         testID={`manage-supplement-${supp.name}`}
                         onPress={() =>
-                          setScheduleModalSupp(
-                            isExpanded ? null : supp,
-                          )
+                          setScheduleModalSupp(isExpanded ? null : supp)
                         }
                         activeOpacity={0.7}
                         className={`flex-row items-center justify-between p-3.5 rounded-2xl border ${
@@ -1060,8 +1113,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                           </StyledView>
 
                           {/* Day picker for specific_days */}
-                          {(supp.schedule ?? 'none') ===
-                            'specific_days' && (
+                          {(supp.schedule ?? 'none') === 'specific_days' && (
                             <StyledView>
                               <StyledText className="text-zinc-500 text-[9px] font-black tracking-wider uppercase mb-2">
                                 Select Days
@@ -1082,10 +1134,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                                           ? currentDays.filter(
                                               (d) => d !== dayIndex,
                                             )
-                                          : [
-                                              ...currentDays,
-                                              dayIndex,
-                                            ].sort()
+                                          : [...currentDays, dayIndex].sort()
                                         setScheduleModalSupp({
                                           ...supp,
                                           scheduleDays: newDays,
@@ -1126,7 +1175,6 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           </StyledBlurView>
         </Modal>
       </Modal>
-
     </StyledView>
   )
 }

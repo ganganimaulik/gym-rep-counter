@@ -1,11 +1,11 @@
-import { corsHeaders } from '@/lib/oauth';
+import { corsHeaders } from '@/lib/oauth'
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = await req.json()
 
     // Accept any client registration - return stable credentials
-    const clientId = `mcp-client-${Date.now()}`;
+    const clientId = `mcp-client-${Date.now()}`
 
     return new Response(
       JSON.stringify({
@@ -23,16 +23,16 @@ export async function POST(req: Request) {
           'Content-Type': 'application/json',
           ...corsHeaders(),
         },
-      }
-    );
+      },
+    )
   } catch {
     return new Response(JSON.stringify({ error: 'invalid_request' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
-    });
+    })
   }
 }
 
 export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders() });
+  return new Response(null, { status: 204, headers: corsHeaders() })
 }

@@ -10,7 +10,7 @@ const nextConfig = {
         source: '/.well-known/oauth-authorization-server',
         destination: '/api/well-known/oauth-authorization-server',
       },
-    ];
+    ]
   },
-};
-module.exports = nextConfig;
+}
+module.exports = nextConfig

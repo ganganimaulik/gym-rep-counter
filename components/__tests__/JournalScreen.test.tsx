@@ -230,7 +230,7 @@ describe('JournalScreen', () => {
       ],
     }
 
-    const { getByTestId, queryByTestId } = render(
+    const { getByTestId } = render(
       <JournalScreen
         user={null}
         visible={true}
@@ -289,5 +289,127 @@ describe('JournalScreen', () => {
     })
 
     expect(getByTestId('journal-reminder-badge')).toBeTruthy()
+  })
+
+  test('toggles supplement as taken (creates entry) when not taken and no entry exists', async () => {
+    const mockAddJournalEntry = jest.fn().mockResolvedValue(undefined)
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+        ],
+      },
+      journalEntries: [],
+      addJournalEntry: mockAddJournalEntry,
+    }
+
+    const { getByTestId } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const badge = getByTestId('supplement-status-creatine')
+    fireEvent.press(badge)
+
+    expect(mockAddJournalEntry).toHaveBeenCalledWith(
+      'Logged supplements',
+      expect.any(Date),
+      null,
+      [{ name: 'Creatine', dosage: '5g' }],
+    )
+  })
+
+  test('toggles supplement as taken (updates entry) when not taken and entry exists', async () => {
+    const mockUpdateJournalEntry = jest.fn().mockResolvedValue(undefined)
+    const today = new Date()
+    const mockTimestamp: any = {
+      toDate: () => today,
+      toMillis: () => today.getTime(),
+    }
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+        ],
+      },
+      journalEntries: [
+        {
+          id: 'existing-entry-id',
+          note: 'My morning notes',
+          date: mockTimestamp,
+          supplements: [],
+        },
+      ],
+      updateJournalEntry: mockUpdateJournalEntry,
+    }
+
+    const { getByTestId } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const badge = getByTestId('supplement-status-creatine')
+    fireEvent.press(badge)
+
+    expect(mockUpdateJournalEntry).toHaveBeenCalledWith(
+      'existing-entry-id',
+      'My morning notes',
+      expect.any(Date),
+      null,
+      [{ name: 'Creatine', dosage: '5g' }],
+    )
+  })
+
+  test('toggles supplement as untaken (removes from entry) when already taken', async () => {
+    const mockUpdateJournalEntry = jest.fn().mockResolvedValue(undefined)
+    const today = new Date()
+    const mockTimestamp: any = {
+      toDate: () => today,
+      toMillis: () => today.getTime(),
+    }
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+        ],
+      },
+      journalEntries: [
+        {
+          id: 'existing-entry-id',
+          note: 'My morning notes',
+          date: mockTimestamp,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        },
+      ],
+      updateJournalEntry: mockUpdateJournalEntry,
+    }
+
+    const { getByTestId } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const badge = getByTestId('supplement-status-creatine')
+    fireEvent.press(badge)
+
+    expect(mockUpdateJournalEntry).toHaveBeenCalledWith(
+      'existing-entry-id',
+      'My morning notes',
+      expect.any(Date),
+      null,
+      [],
+    )
   })
 })
