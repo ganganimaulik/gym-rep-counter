@@ -49,6 +49,7 @@ describe('useAnalytics Hook', () => {
     settings: {} as Settings,
     workouts: [],
     todaysCompletions: [],
+    historyVersion: 0,
     offlineQueue: [],
     weightLogs: [],
     calorieLogs: [],

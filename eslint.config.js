@@ -6,6 +6,18 @@ const globals = require('globals')
 
 module.exports = tseslint.config(
   {
+    ignores: [
+      '**/node_modules/**',
+      '**/.expo/**',
+      '**/.next/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/coverage/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
+    ],
+  },
+  {
     // All files in the project
     files: ['**/*.{js,jsx,ts,tsx}'],
     // Plugins
