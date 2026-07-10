@@ -94,6 +94,7 @@ export interface Settings {
   statRemindersUseAutoSleep?: boolean
   statRemindersSleepStart?: number
   statRemindersSleepEnd?: number
+  mcpServerUrl?: string
 }
 
 export interface Exercise {
@@ -242,6 +243,7 @@ const defaultSettings: Settings = {
   statRemindersUseAutoSleep: true,
   statRemindersSleepStart: 23,
   statRemindersSleepEnd: 7,
+  mcpServerUrl: '',
   supplementSuggestions: [
     { name: 'Creatine', defaultDosage: '5g' },
     { name: 'Whey Protein', defaultDosage: '1 scoop' },

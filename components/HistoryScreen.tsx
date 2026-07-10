@@ -45,7 +45,12 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   user,
   dataHook,
 }) => {
-  const { fetchHistory, updateHistoryEntry, deleteHistoryEntry, historyVersion } = dataHook
+  const {
+    fetchHistory,
+    updateHistoryEntry,
+    deleteHistoryEntry,
+    historyVersion,
+  } = dataHook
   const [history, setHistory] = useState<WorkoutSet[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)

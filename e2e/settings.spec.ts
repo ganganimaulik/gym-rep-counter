@@ -12,6 +12,10 @@ test.describe('Settings Screen', () => {
     await expect(page.locator('text=Sync Account').first()).toBeVisible()
     await expect(page.locator('text=Sign in with Google').first()).toBeVisible()
     await expect(page.locator('text=Timer Intervals').first()).toBeVisible()
+    await expect(page.locator('text=MCP Server Settings').first()).toBeVisible()
+    await expect(
+      page.locator('[data-testid="setting-mcp-server-url"]'),
+    ).toBeVisible()
     await expect(page.locator('text=Save Changes').first()).toBeVisible()
   })
 
@@ -29,6 +33,9 @@ test.describe('Settings Screen', () => {
     await page.locator('[data-testid="setting-max-sets"]').fill('8')
     await page.locator('[data-testid="setting-concentric"]').fill('2.5')
     await page.locator('[data-testid="setting-eccentric"]').fill('4.5')
+    await page
+      .locator('[data-testid="setting-mcp-server-url"]')
+      .fill('http://localhost:4000')
 
     // 2. Toggle off stat reminders
     await page.locator('[data-testid="toggle-stat-reminders"]').click()
@@ -64,6 +71,9 @@ test.describe('Settings Screen', () => {
     await expect(page.locator('[data-testid="setting-eccentric"]')).toHaveValue(
       '4.5',
     )
+    await expect(
+      page.locator('[data-testid="setting-mcp-server-url"]'),
+    ).toHaveValue('http://localhost:4000')
 
     // Verify stat reminders toggle state is persisted (auto-sleep remains hidden)
     await expect(

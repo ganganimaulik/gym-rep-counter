@@ -57,7 +57,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     onSave(localSettings)
   }
 
-  const handleValueChange = (key: keyof Settings, value: number | boolean) => {
+  const handleValueChange = (
+    key: keyof Settings,
+    value: number | boolean | string,
+  ) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -134,7 +137,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             'test@example.com',
                             'password123',
                           )
-                        } catch (err) {
+                        } catch {
                           try {
                             await createUserWithEmailAndPassword(
                               auth,
@@ -483,6 +486,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </StyledView>
                 </StyledView>
               )}
+          </StyledView>
+
+          {/* MCP Server Settings Card */}
+          <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
+            <StyledText className="text-xs font-black text-zinc-400 tracking-widest uppercase mb-4">
+              MCP Server Settings
+            </StyledText>
+            <StyledView>
+              <StyledText className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                Server URL
+              </StyledText>
+              <StyledTextInput
+                testID="setting-mcp-server-url"
+                className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
+                keyboardType="url"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                value={localSettings.mcpServerUrl || ''}
+                onChangeText={(text) => handleValueChange('mcpServerUrl', text)}
+                placeholder="http://localhost:3000"
+                placeholderTextColor="#71717a"
+              />
+            </StyledView>
           </StyledView>
 
           {/* Action Save Button */}
