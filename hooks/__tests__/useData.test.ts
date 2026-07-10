@@ -98,7 +98,6 @@ describe('useData Hook', () => {
     statRemindersUseAutoSleep: true,
     statRemindersSleepStart: 23,
     statRemindersSleepEnd: 7,
-    mcpServerUrl: '',
     supplementSuggestions: [
       { name: 'Creatine', defaultDosage: '5g' },
       { name: 'Whey Protein', defaultDosage: '1 scoop' },
