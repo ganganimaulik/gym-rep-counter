@@ -13,6 +13,24 @@ test.describe('Settings Screen', () => {
     await expect(page.locator('text=Sign in with Google').first()).toBeVisible()
     await expect(page.locator('text=Timer Intervals').first()).toBeVisible()
     await expect(page.locator('text=MCP Server Settings').first()).toBeVisible()
+    await expect(page.locator('text=Vercel MCP Server URL').first()).toBeVisible()
+    await expect(page.locator('[data-testid="vercel-mcp-url-text"]')).toHaveText(
+      'https://mcp-server-alpha-blush.vercel.app/api',
+    )
+    await expect(
+      page.locator('[data-testid="copy-vercel-mcp-url"]'),
+    ).toHaveText('Copy')
+
+    // Test copying action and state change
+    await page.locator('[data-testid="copy-vercel-mcp-url"]').click()
+    await expect(
+      page.locator('[data-testid="copy-vercel-mcp-url"]'),
+    ).toHaveText('Copied')
+    await page.waitForTimeout(2200)
+    await expect(
+      page.locator('[data-testid="copy-vercel-mcp-url"]'),
+    ).toHaveText('Copy')
+
     await expect(
       page.locator('[data-testid="setting-mcp-server-url"]'),
     ).toBeVisible()
