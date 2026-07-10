@@ -85,7 +85,7 @@ export function registerNutritionTools(server: McpServer) {
     'Log a body weight measurement for today or a specific date.',
     {
       weight: z.number().positive().describe('Body weight value'),
-      date: z
+      date: z 
         .string()
         .optional()
         .describe('Date in YYYY-MM-DD format. Defaults to today.'),

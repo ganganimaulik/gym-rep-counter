@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "firebase-admin": "^13.4.0",
     "google-auth-library": "^9.15.1",
     "mcp-handler": "^1.1.0",
