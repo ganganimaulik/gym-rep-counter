@@ -23,11 +23,14 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
 }) => {
   const [reps, setReps] = useState(initialReps.toString())
   const [weight, setWeight] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = () => {
+    if (isSubmitting) return
     const repsNum = parseInt(reps, 10)
     const weightNum = parseInt(weight, 10) || 0 // Default to 0 if weight is not entered
     if (!isNaN(repsNum)) {
+      setIsSubmitting(true)
       onSubmit(repsNum, weightNum)
       setWeight('') // Reset for next time
       onClose()
@@ -38,6 +41,13 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
   React.useEffect(() => {
     setReps(initialReps.toString())
   }, [initialReps])
+
+  // Reset isSubmitting when modal opens
+  React.useEffect(() => {
+    if (visible) {
+      setIsSubmitting(false)
+    }
+  }, [visible])
 
   return (
     <Modal
@@ -70,11 +80,16 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
             value={weight}
             onChangeText={setWeight}
             returnKeyType="done"
-            onSubmitEditing={handleSubmit}
+            onSubmitEditing={Keyboard.dismiss}
             autoFocus={true}
             testID="weight-input"
           />
-          <Button title="Save" onPress={handleSubmit} color="#4F46E5" />
+          <Button
+            title={isSubmitting ? 'Saving...' : 'Save'}
+            onPress={handleSubmit}
+            color="#4F46E5"
+            disabled={isSubmitting}
+          />
         </StyledView>
       </StyledBlurView>
     </Modal>

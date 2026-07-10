@@ -1,5 +1,6 @@
 import {
   useState,
+  useRef,
   Dispatch,
   SetStateAction,
   useCallback,
@@ -112,6 +113,7 @@ export interface DataHook {
   settings: Settings
   workouts: Workout[]
   todaysCompletions: WorkoutSet[]
+  historyVersion: number
   offlineQueue: WorkoutSet[]
   weightLogs: WeightLog[]
   calorieLogs: CalorieLog[]
@@ -266,6 +268,8 @@ export const useData = (): DataHook => {
   )
   const [todaysCompletions, setTodaysCompletions] = useState<WorkoutSet[]>([])
   const [offlineQueue, setOfflineQueue] = useState<WorkoutSet[]>([])
+  const [historyVersion, setHistoryVersion] = useState(0)
+  const submittedKeysRef = useRef<Set<string>>(new Set())
 
   const loadOfflineQueue = useCallback(async () => {
     try {
@@ -411,10 +415,17 @@ export const useData = (): DataHook => {
       endTime: number, // When set ended (rest timer started) - used for date field
       user: FirebaseUser | null,
     ) => {
+      // Dedup guard: prevent duplicate writes if called twice for the same set
+      const dedupeKey = `${entry.exerciseId}-${set}-${endTime}`
+      if (submittedKeysRef.current.has(dedupeKey)) {
+        return
+      }
+      submittedKeysRef.current.add(dedupeKey)
+
       const newEntryBase = {
         ...entry,
         set,
-        startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : undefined,
+        startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : null,
         date: endTime > 0 ? Timestamp.fromMillis(endTime) : Timestamp.now(),
       }
 
@@ -431,6 +442,7 @@ export const useData = (): DataHook => {
             ...prev,
             { ...newEntryBase, id: docRef.id },
           ])
+          setHistoryVersion((v) => v + 1)
         } catch (e) {
           console.error('Failed to save history entry, queuing offline.', e)
           const offlineEntry: WorkoutSet = {
@@ -438,6 +450,7 @@ export const useData = (): DataHook => {
             id: `${Date.now()}-${entry.exerciseId}-${set}`,
           }
           setTodaysCompletions((prev) => [...prev, offlineEntry])
+          setHistoryVersion((v) => v + 1)
           setOfflineQueue((prev) => {
             const updatedQueue = [...prev, offlineEntry]
             AsyncStorage.setItem('offlineQueue', JSON.stringify(updatedQueue))
@@ -474,6 +487,7 @@ export const useData = (): DataHook => {
           await AsyncStorage.setItem(historyKey, JSON.stringify(updatedHistory))
 
           setTodaysCompletions((prev) => [...prev, newEntry])
+          setHistoryVersion((v) => v + 1)
         } catch (e) {
           console.error('Failed to save guest history entry', e)
         }
@@ -1045,8 +1059,12 @@ export const useData = (): DataHook => {
       offlineQueue.forEach((entry) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...dataToUpload } = entry
+        // Strip undefined values — Firestore rejects them
+        const sanitized = Object.fromEntries(
+          Object.entries(dataToUpload).filter(([, v]) => v !== undefined),
+        )
         const docRef = doc(historyCollectionRef) // Create a new doc with a new ID
-        batch.set(docRef, dataToUpload)
+        batch.set(docRef, sanitized)
       })
 
       try {
@@ -1909,6 +1927,7 @@ export const useData = (): DataHook => {
       settings,
       workouts,
       todaysCompletions,
+      historyVersion,
       offlineQueue,
       weightLogs,
       calorieLogs,
@@ -1958,6 +1977,7 @@ export const useData = (): DataHook => {
       settings,
       workouts,
       todaysCompletions,
+      historyVersion,
       offlineQueue,
       weightLogs,
       calorieLogs,

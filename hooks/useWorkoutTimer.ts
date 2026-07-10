@@ -307,13 +307,17 @@ export function useWorkoutTimer(
       return
     }
 
+    // Guard: prevent duplicate calls (e.g., auto-complete + user tap race)
+    if (wState.current.phase === PHASES.STOPPED) {
+      return
+    }
+
     // Capture the end time at the moment the set ends
     const endTime = Date.now()
 
     // If the user ends the set during the countdown, we need to stop the timer.
     if (wState.current.phase === PHASES.COUNTDOWN) {
       clearTimer()
-      wState.current.phase = PHASES.STOPPED
       updateUI({
         isRunning: false,
         isPaused: false,
@@ -322,6 +326,11 @@ export function useWorkoutTimer(
     } else {
       clearTimer(false)
     }
+
+    // Mark phase as STOPPED before calling onSetComplete to prevent
+    // duplicate calls if endSet fires again (e.g., auto-complete + user tap race)
+    wState.current.phase = PHASES.STOPPED
+
     if (activeExercise) {
       onSetComplete({
         exerciseId: activeExercise.id,

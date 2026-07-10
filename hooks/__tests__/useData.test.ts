@@ -478,7 +478,7 @@ describe('useData Hook', () => {
       ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const now = Date.now()
 
-      // Case 1: 0 startTime
+      // Case 1: 0 startTime — should be saved as null (Firestore rejects undefined)
       await act(async () => {
         await result.current.addHistoryEntry(
           {
@@ -495,18 +495,13 @@ describe('useData Hook', () => {
         )
       })
 
-      // Verify handled (e.g., set to undefined or excluded if logic dictates, or saved as 0 if allowed)
-      // Based on fix in previous task, 0 might be converted to undefined or treated specifically.
-      // The requirement was: "startTime: startTime > 0 ? Timestamp.fromMillis(startTime) : undefined"
-      // So checking that we don't crash and arguments are correct.
       expect(addDoc).toHaveBeenNthCalledWith(
         1,
         undefined, // first arg is collection ref (mocked or ignored usually)
-        expect.objectContaining({ startTime: undefined }),
+        expect.objectContaining({ startTime: null }),
       )
 
-      // Case 2: Undefined startTime (simulated by passing 0 and checking argument logic inside if accessible, or just no crash)
-      // Since the function signature expects number, we pass 0 or a negative number.
+      // Case 2: Negative startTime — should also be saved as null
       await act(async () => {
         await result.current.addHistoryEntry(
           {
@@ -526,8 +521,103 @@ describe('useData Hook', () => {
       expect(addDoc).toHaveBeenNthCalledWith(
         2,
         undefined,
-        expect.objectContaining({ startTime: undefined }),
+        expect.objectContaining({ startTime: null }),
       )
+    })
+
+    it('should prevent duplicate addHistoryEntry calls with same dedup key', async () => {
+      const { result } = renderHook(() => useData())
+      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc-1' })
+      const startTime = Date.now()
+      const endTime = startTime + 1000
+
+      // First call should succeed
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          endTime,
+          mockUser,
+        )
+      })
+
+      expect(addDoc).toHaveBeenCalledTimes(1)
+      expect(result.current.todaysCompletions).toHaveLength(1)
+
+      // Second call with same exerciseId, set, and endTime should be blocked
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          endTime,
+          mockUser,
+        )
+      })
+
+      // addDoc should still have been called only once
+      expect(addDoc).toHaveBeenCalledTimes(1)
+      // todaysCompletions should still have only one entry
+      expect(result.current.todaysCompletions).toHaveLength(1)
+    })
+
+    it('should allow different sets with same endTime (no false dedup)', async () => {
+      const { result } = renderHook(() => useData())
+      ;(addDoc as jest.Mock)
+        .mockResolvedValueOnce({ id: 'doc-1' })
+        .mockResolvedValueOnce({ id: 'doc-2' })
+      const startTime = Date.now()
+      const endTime = startTime + 1000
+
+      // Set 1
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          endTime,
+          mockUser,
+        )
+      })
+
+      // Set 2 (different set number, same endTime — should NOT be blocked)
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          2,
+          startTime,
+          endTime,
+          mockUser,
+        )
+      })
+
+      expect(addDoc).toHaveBeenCalledTimes(2)
+      expect(result.current.todaysCompletions).toHaveLength(2)
     })
 
     it('should allow saving history without a workoutId', async () => {

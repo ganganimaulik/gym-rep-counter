@@ -143,7 +143,7 @@ describe('AddSetDetailsModal', () => {
     expect(getByTestId('reps-input').props.value).toBe('15')
   })
 
-  it('calls handleSubmit when onSubmitEditing is triggered on weight input', () => {
+  it('does not call onSubmit when onSubmitEditing is triggered on weight input (dismisses keyboard instead)', () => {
     const { getByTestId } = render(
       <AddSetDetailsModal
         visible={true}
@@ -157,7 +157,33 @@ describe('AddSetDetailsModal', () => {
     fireEvent.changeText(weightInput, '20')
     fireEvent(weightInput, 'onSubmitEditing')
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(5, 20)
-    expect(mockOnClose).toHaveBeenCalled()
+    // onSubmitEditing should dismiss keyboard, not submit the form
+    expect(mockOnSubmit).not.toHaveBeenCalled()
+    expect(mockOnClose).not.toHaveBeenCalled()
+  })
+
+  it('prevents double-submit by disabling Save after first press', () => {
+    const { getByTestId, getByText } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+      />,
+    )
+
+    const weightInput = getByTestId('weight-input')
+    fireEvent.changeText(weightInput, '60')
+
+    const saveButton = getByText('Save')
+
+    // First press should submit
+    fireEvent.press(saveButton)
+    expect(mockOnSubmit).toHaveBeenCalledTimes(1)
+    expect(mockOnSubmit).toHaveBeenCalledWith(10, 60)
+
+    // Second press should be blocked by isSubmitting guard
+    fireEvent.press(getByText('Saving...'))
+    expect(mockOnSubmit).toHaveBeenCalledTimes(1) // Still only 1
   })
 })

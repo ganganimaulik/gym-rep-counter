@@ -267,6 +267,42 @@ describe('useWorkoutTimer', () => {
       })
     })
 
+    it('should only call onSetComplete once when endSet is called twice rapidly', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      // Start workout and advance past countdown into counting phase
+      act(() => result.current.startWorkout())
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000),
+      )
+
+      // Advance through at least one rep
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.concentricSeconds * 1000),
+      )
+
+      mockOnSetComplete.mockClear()
+
+      // Call endSet twice rapidly (simulating race between auto-complete and user tap)
+      act(() => {
+        result.current.endSet()
+        result.current.endSet()
+      })
+
+      await waitFor(() => {
+        // onSetComplete should only be called once despite two endSet calls
+        expect(mockOnSetComplete).toHaveBeenCalledTimes(1)
+      })
+    })
+
     it('Countdown announces remaining time only when countdown <= countdownAnnouncementThreshold', async () => {
       const longCountdownSettings = {
         ...defaultSettings,

@@ -83,7 +83,6 @@ const App: React.FC = () => {
   const [addSetModalVisible, setAddSetModalVisible] = useState<boolean>(false)
   const [completedSetData, setCompletedSetData] =
     useState<CompletedSetData | null>(null)
-  const lastSubmittedSetRef = useRef<string | null>(null)
 
   // Workout State
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
@@ -395,20 +394,10 @@ const App: React.FC = () => {
   const handleAddSetDetails = useCallback(
     async (reps: number, weight: number) => {
       if (completedSetData && currentWorkout) {
-        const setKey = `${completedSetData.exerciseId}-${completedSetData.set}`
-        if (lastSubmittedSetRef.current === setKey) {
-          return
-        }
-        lastSubmittedSetRef.current = setKey
-
-        const currentCompletedSetData = completedSetData
-        setCompletedSetData(null)
-        setAddSetModalVisible(false)
-
         // Find the exercise that was just completed, instead of relying on activeExercise
         // which might have advanced to the next one already.
         const completedExercise = currentWorkout.exercises.find(
-          (e) => e.id === currentCompletedSetData.exerciseId,
+          (e) => e.id === completedSetData.exerciseId,
         )
 
         if (completedExercise) {
@@ -420,16 +409,18 @@ const App: React.FC = () => {
               reps,
               weight,
             },
-            currentCompletedSetData.set,
-            currentCompletedSetData.startTime,
-            currentCompletedSetData.endTime, // Use endTime for date field (when rest started)
+            completedSetData.set,
+            completedSetData.startTime,
+            completedSetData.endTime, // Use endTime for date field (when rest started)
             user,
           )
         }
-      } else {
-        setCompletedSetData(null)
-        setAddSetModalVisible(false)
       }
+      // This part should run whether the user is logged in or not,
+      // and even if the data saving fails, to not block the UI flow.
+      setAddSetModalVisible(false)
+      setCompletedSetData(null)
+      // Rest timer already started in handleSetComplete, no need to call continueToNextPhase here
     },
     [completedSetData, currentWorkout, addHistoryEntry, user],
   )

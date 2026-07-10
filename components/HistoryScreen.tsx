@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Modal,
   View,
@@ -45,7 +45,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   user,
   dataHook,
 }) => {
-  const { fetchHistory, updateHistoryEntry, deleteHistoryEntry } = dataHook
+  const { fetchHistory, updateHistoryEntry, deleteHistoryEntry, historyVersion } = dataHook
   const [history, setHistory] = useState<WorkoutSet[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -59,6 +59,9 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   })
   const [editReps, setEditReps] = useState('')
   const [editWeight, setEditWeight] = useState('')
+
+  // Track the historyVersion we last loaded for, so we know when to refresh
+  const lastLoadedVersionRef = useRef(-1)
 
   const loadHistory = useCallback(async () => {
     // The user check is removed as fetchHistory now supports guest users
@@ -79,22 +82,37 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     setIsLoading(false)
   }, [user, isLoading, hasMore, lastVisible, fetchHistory, isInitialLoad])
 
-  // Effect to reset state when the modal opens
-  useEffect(() => {
-    if (visible) {
-      setHistory([])
-      setLastVisible(undefined)
-      setHasMore(true)
-      setIsInitialLoad(true)
-    }
-  }, [visible])
+  // Force-refresh: bypasses the isLoading/hasMore guards entirely.
+  // This is used when switching to the History tab or when new data is available.
+  const forceRefresh = useCallback(async () => {
+    setIsLoading(true)
+    setHistory([])
+    setLastVisible(undefined)
+    setHasMore(true)
+    setIsInitialLoad(true)
+    lastLoadedVersionRef.current = historyVersion
 
-  // Effect to trigger the initial data load after state has been reset
-  useEffect(() => {
-    if (visible && isInitialLoad) {
-      loadHistory()
+    try {
+      const newHistory = await fetchHistory(user as FirebaseUser, undefined)
+      if (newHistory.length > 0) {
+        setLastVisible(newHistory[newHistory.length - 1])
+        setHistory(newHistory)
+      } else {
+        setHasMore(false)
+      }
+    } catch (e) {
+      console.error('[HistoryScreen] forceRefresh failed:', e)
     }
-  }, [visible, isInitialLoad, loadHistory])
+    setIsInitialLoad(false)
+    setIsLoading(false)
+  }, [fetchHistory, user, historyVersion])
+
+  // Refresh when the tab becomes visible AND data has changed since our last load
+  useEffect(() => {
+    if (visible && historyVersion !== lastLoadedVersionRef.current) {
+      forceRefresh()
+    }
+  }, [visible, historyVersion, forceRefresh])
 
   const formatDuration = (milliseconds: number): string => {
     const totalSeconds = Math.floor(milliseconds / 1000)
