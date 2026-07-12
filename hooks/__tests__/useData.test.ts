@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore'
 import { useData, Settings, Workout } from '../useData'
 import { getDefaultWorkouts } from '../../utils/defaultWorkouts'
+import getLocalDateString from '../../utils/getLocalDateString'
 
 // Mock Firestore
 jest.mock('firebase/firestore', () => ({
@@ -1111,6 +1112,163 @@ describe('useData Hook', () => {
         'guestHistory',
         expect.any(String),
       )
+    })
+
+    it('should reflect entry updates in todaysCompletions for authenticated user', async () => {
+      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
+      })
+
+      await act(async () => {
+        await result.current.updateHistoryEntry(
+          'doc1',
+          { reps: 15, weight: 60 },
+          mockUser,
+        )
+      })
+
+      expect(result.current.todaysCompletions).toHaveLength(1)
+      expect(result.current.todaysCompletions[0].reps).toBe(15)
+      expect(result.current.todaysCompletions[0].weight).toBe(60)
+    })
+
+    it('should remove a deleted entry from todaysCompletions for authenticated user', async () => {
+      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
+      })
+      expect(result.current.isSetCompleted('ex1', 1)).toBe(true)
+
+      await act(async () => {
+        await result.current.deleteHistoryEntry('doc1', mockUser)
+      })
+
+      expect(result.current.todaysCompletions).toHaveLength(0)
+      expect(result.current.isSetCompleted('ex1', 1)).toBe(false)
+    })
+  })
+
+  describe('resetSetsFrom (guest)', () => {
+    it("should only delete today's entries, preserving previous days' history", async () => {
+      const baseEntry = { exerciseId: 'ex1', reps: 10, weight: 50 }
+      const oldEntry = {
+        ...baseEntry,
+        id: 'old-day-set2',
+        set: 2,
+        date: { seconds: 1672531200, nanoseconds: 0 },
+      }
+      const todaySet1 = {
+        ...baseEntry,
+        id: 'today-set1',
+        set: 1,
+        date: { seconds: 1672617600, nanoseconds: 0 },
+      }
+      const todaySet2 = {
+        ...baseEntry,
+        id: 'today-set2',
+        set: 2,
+        date: { seconds: 1672617700, nanoseconds: 0 },
+      }
+      const todayKey = `todaysCompletions-${getLocalDateString()}`
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === todayKey)
+          return Promise.resolve(JSON.stringify([todaySet1, todaySet2]))
+        if (key === 'guestHistory')
+          return Promise.resolve(
+            JSON.stringify([oldEntry, todaySet1, todaySet2]),
+          )
+        return Promise.resolve(null)
+      })
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.resetSetsFrom('ex1', 2, null)
+      })
+
+      const historyWrite = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+        ([key]) => key === 'guestHistory',
+      )
+      expect(historyWrite).toBeDefined()
+      const savedHistory = JSON.parse(historyWrite![1])
+      expect(savedHistory.map((e: { id: string }) => e.id).sort()).toEqual([
+        'old-day-set2',
+        'today-set1',
+      ])
+
+      const todayWrite = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+        ([key]) => key === todayKey,
+      )
+      expect(todayWrite).toBeDefined()
+      expect(JSON.parse(todayWrite![1]).map((e: { id: string }) => e.id)).toEqual(
+        ['today-set1'],
+      )
+
+      // History screen refreshes on version change
+      expect(result.current.historyVersion).toBe(1)
+    })
+  })
+
+  describe('resetSetsFrom (authenticated)', () => {
+    it('should bump historyVersion so the history screen refreshes', async () => {
+      // An earlier test leaves commit mocked as rejected; restore success
+      mockBatch.commit.mockResolvedValue(undefined)
+      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
+      })
+      const versionBefore = result.current.historyVersion
+
+      await act(async () => {
+        await result.current.resetSetsFrom('ex1', 1, mockUser)
+      })
+
+      expect(result.current.historyVersion).toBe(versionBefore + 1)
     })
   })
 

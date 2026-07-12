@@ -502,10 +502,20 @@ export const useData = (): DataHook => {
       updates: { reps?: number; weight?: number },
       user: FirebaseUser | null,
     ) => {
+      // Keep today's completions in sync so the workout screen reflects
+      // edits made from the history screen.
+      const syncTodaysCompletions = () =>
+        setTodaysCompletions((prev) =>
+          prev.map((item) =>
+            item.id === entryId ? { ...item, ...updates } : item,
+          ),
+        )
+
       if (user) {
         try {
           const docRef = doc(db, 'users', user.uid, 'history', entryId)
           await updateDoc(docRef, updates)
+          syncTodaysCompletions()
         } catch (e) {
           console.error('Failed to update history entry', e)
         }
@@ -539,6 +549,8 @@ export const useData = (): DataHook => {
               JSON.stringify(updatedCompletions),
             )
           }
+
+          syncTodaysCompletions()
         } catch (e) {
           console.error('Failed to update guest history entry', e)
         }
@@ -549,10 +561,18 @@ export const useData = (): DataHook => {
 
   const deleteHistoryEntry = useCallback(
     async (entryId: string, user: FirebaseUser | null) => {
+      // Keep today's completions in sync so a set deleted from the history
+      // screen is no longer marked as completed on the workout screen.
+      const syncTodaysCompletions = () =>
+        setTodaysCompletions((prev) =>
+          prev.filter((item) => item.id !== entryId),
+        )
+
       if (user) {
         try {
           const docRef = doc(db, 'users', user.uid, 'history', entryId)
           await deleteDoc(docRef)
+          syncTodaysCompletions()
         } catch (e) {
           console.error('Failed to delete history entry', e)
         }
@@ -586,6 +606,8 @@ export const useData = (): DataHook => {
               JSON.stringify(updatedCompletions),
             )
           }
+
+          syncTodaysCompletions()
         } catch (e) {
           console.error('Failed to delete guest history entry', e)
         }
@@ -789,25 +811,36 @@ export const useData = (): DataHook => {
           setTodaysCompletions((prev) =>
             prev.filter((c) => !setsToRemove.some((r) => r.id === c.id)),
           )
+          setHistoryVersion((v) => v + 1)
         } catch (e) {
           console.error('Failed to reset sets', e)
         }
       } else {
         // Guest user
-        const setsToKeep = todaysCompletions.filter(
-          (c) => c.exerciseId !== exerciseId || c.set < setNumber,
-        )
-        setTodaysCompletions(setsToKeep)
-
         try {
-          // Update today's completions in AsyncStorage
+          // Collect the ids of today's matching entries so the full-history
+          // filter below only removes today's sets, never entries with the
+          // same exercise/set number from previous days.
           const todayKey = `todaysCompletions-${getLocalDateString()}`
           const savedCompletionsRaw = await AsyncStorage.getItem(todayKey)
+          const savedCompletions: WorkoutSet[] = savedCompletionsRaw
+            ? JSON.parse(savedCompletionsRaw)
+            : []
+          const removedIds = new Set(
+            [...savedCompletions, ...todaysCompletions]
+              .filter((c) => c.exerciseId === exerciseId && c.set >= setNumber)
+              .map((c) => c.id),
+          )
+          if (removedIds.size === 0) return
+
+          setTodaysCompletions((prev) =>
+            prev.filter((c) => !removedIds.has(c.id)),
+          )
+
+          // Update today's completions in AsyncStorage
           if (savedCompletionsRaw) {
-            const allCompletions = JSON.parse(savedCompletionsRaw)
-            const updatedCompletions = allCompletions.filter(
-              (c: WorkoutSet) =>
-                c.exerciseId !== exerciseId || c.set < setNumber,
+            const updatedCompletions = savedCompletions.filter(
+              (c) => !removedIds.has(c.id),
             )
             await AsyncStorage.setItem(
               todayKey,
@@ -821,14 +854,14 @@ export const useData = (): DataHook => {
           if (savedHistoryRaw) {
             const allHistory = JSON.parse(savedHistoryRaw)
             const updatedHistory = allHistory.filter(
-              (c: WorkoutSet) =>
-                c.exerciseId !== exerciseId || c.set < setNumber,
+              (c: WorkoutSet) => !removedIds.has(c.id),
             )
             await AsyncStorage.setItem(
               historyKey,
               JSON.stringify(updatedHistory),
             )
           }
+          setHistoryVersion((v) => v + 1)
         } catch (e) {
           console.error('Failed to reset guest sets', e)
         }
