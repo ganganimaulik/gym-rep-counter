@@ -318,6 +318,12 @@ export function useWorkoutTimer(
     // If the user ends the set during the countdown, we need to stop the timer.
     if (wState.current.phase === PHASES.COUNTDOWN) {
       clearTimer()
+      // The set was ended before the countdown finished, so setStartTime was
+      // never recorded (it is only set when the countdown reaches 0). Use
+      // endTime as the start time so history can still compute/display the
+      // rest time leading up to this set (otherwise startTime is saved as
+      // null and the rest badge is hidden).
+      wState.current.setStartTime = endTime
       updateUI({
         isRunning: false,
         isPaused: false,

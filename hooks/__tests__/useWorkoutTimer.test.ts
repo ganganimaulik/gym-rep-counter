@@ -546,7 +546,7 @@ describe('useWorkoutTimer', () => {
           exerciseId: activeExercise.id,
           reps: 0, // Reps should be 0 as the set was ended during countdown
           set: 1,
-          startTime: 0, // startTime is 0 during countdown
+          startTime: expect.any(Number), // startTime is updated to endTime during countdown
           endTime: expect.any(Number),
         })
       })
