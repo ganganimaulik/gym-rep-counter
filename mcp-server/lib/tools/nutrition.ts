@@ -2,7 +2,15 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getMcpUser } from '../auth'
 import { getUserContext } from '../user-context'
-import { getFirebaseAdmin } from '../firebase-admin'
+import { getFirebaseClient } from '../firebase-client'
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  addDoc,
+} from 'firebase/firestore'
 import { getDaysBackRange, getDayRange, getTodayString } from '../date-utils'
 import {
   formatDate,
@@ -30,17 +38,19 @@ export function registerNutritionTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const daysBack = args.days_back ?? 30
       const { start, end } = getDaysBackRange(daysBack, tz)
 
-      const snap = await db
-        .collection(`users/${user.uid}/weightLogs`)
-        .where('date', '>=', start)
-        .where('date', '<', end)
-        .orderBy('date', 'desc')
-        .get()
+      const snap = await getDocs(
+        query(
+          collection(db, `users/${user.uid}/weightLogs`),
+          where('date', '>=', start),
+          where('date', '<', end),
+          orderBy('date', 'desc'),
+        ),
+      )
 
       const logs = snap.docs.map((d) => d.data())
 
@@ -97,14 +107,14 @@ export function registerNutritionTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const dateStr = args.date || getTodayString(tz)
 
       // Create a Timestamp for noon on the target date in user's timezone
       const { start } = getDayRange(dateStr, tz)
 
-      await db.collection(`users/${user.uid}/weightLogs`).add({
+      await addDoc(collection(db, `users/${user.uid}/weightLogs`), {
         weight: args.weight,
         date: start,
       })
@@ -139,17 +149,19 @@ export function registerNutritionTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const daysBack = args.days_back ?? 30
       const { start, end } = getDaysBackRange(daysBack, tz)
 
-      const snap = await db
-        .collection(`users/${user.uid}/calorieLogs`)
-        .where('date', '>=', start)
-        .where('date', '<', end)
-        .orderBy('date', 'desc')
-        .get()
+      const snap = await getDocs(
+        query(
+          collection(db, `users/${user.uid}/calorieLogs`),
+          where('date', '>=', start),
+          where('date', '<', end),
+          orderBy('date', 'desc'),
+        ),
+      )
 
       const logs = snap.docs.map((d) => d.data())
 
@@ -202,13 +214,13 @@ export function registerNutritionTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const dateStr = args.date || getTodayString(tz)
 
       const { start } = getDayRange(dateStr, tz)
 
-      await db.collection(`users/${user.uid}/calorieLogs`).add({
+      await addDoc(collection(db, `users/${user.uid}/calorieLogs`), {
         calories: args.calories,
         date: start,
       })

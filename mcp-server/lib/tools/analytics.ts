@@ -2,7 +2,17 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getMcpUser } from '../auth'
 import { getUserContext } from '../user-context'
-import { getFirebaseAdmin } from '../firebase-admin'
+import { getFirebaseClient } from '../firebase-client'
+import {
+  collection,
+  doc,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  getDoc,
+  Timestamp,
+} from 'firebase/firestore'
 import { getDaysBackRange, getDateStringFromTimestamp } from '../date-utils'
 import { formatWeight, formatCalories, formatShortDate } from '../formatters'
 import {
@@ -27,11 +37,11 @@ export function registerAnalyticsTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
 
       // Fetch user doc for TDEE config
-      const userDoc = await db.doc(`users/${user.uid}`).get()
+      const userDoc = await getDoc(doc(db, `users/${user.uid}`))
       const userData = userDoc.data() || {}
       const tdeeConfig = userData.tdeeConfig as
         | {
@@ -63,22 +73,25 @@ export function registerAnalyticsTools(server: McpServer) {
       // Fetch weight and calorie logs (cap to 1 year)
       const oneYearAgo = new Date()
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-      const { Timestamp } = await import('firebase-admin/firestore')
       const cutoff = Timestamp.fromDate(oneYearAgo)
 
       // Fetch newest-first: analyzeTDEE expects descending order and derives
       // the starting weight (F6) from the oldest log in the window.
       const [weightSnap, calorieSnap] = await Promise.all([
-        db
-          .collection(`users/${user.uid}/weightLogs`)
-          .where('date', '>=', cutoff)
-          .orderBy('date', 'desc')
-          .get(),
-        db
-          .collection(`users/${user.uid}/calorieLogs`)
-          .where('date', '>=', cutoff)
-          .orderBy('date', 'desc')
-          .get(),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/weightLogs`),
+            where('date', '>=', cutoff),
+            orderBy('date', 'desc'),
+          ),
+        ),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/calorieLogs`),
+            where('date', '>=', cutoff),
+            orderBy('date', 'desc'),
+          ),
+        ),
       ])
 
       const weightLogs = weightSnap.docs.map((d) =>
@@ -233,16 +246,18 @@ export function registerAnalyticsTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const { start, end } = getDaysBackRange(90, tz)
 
-      const snap = await db
-        .collection(`users/${user.uid}/history`)
-        .where('date', '>=', start)
-        .where('date', '<', end)
-        .orderBy('date', 'asc')
-        .get()
+      const snap = await getDocs(
+        query(
+          collection(db, `users/${user.uid}/history`),
+          where('date', '>=', start),
+          where('date', '<', end),
+          orderBy('date', 'asc'),
+        ),
+      )
 
       const filterName = args.exercise_name.toLowerCase()
       const filtered = snap.docs
@@ -269,7 +284,7 @@ export function registerAnalyticsTools(server: McpServer) {
       >()
       for (const s of filtered) {
         const dateStr = getDateStringFromTimestamp(
-          s.date as FirebaseFirestore.Timestamp,
+          s.date as Timestamp,
           tz,
         )
         const existing = sessionMap.get(dateStr) || {

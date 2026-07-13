@@ -1,4 +1,4 @@
-import { getFirebaseAdmin } from './firebase-admin'
+import { authenticateUser } from './firebase-client'
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
 
 export interface McpUser {
@@ -16,45 +16,20 @@ export async function resolveUser(
   }
 
   try {
-    // Use the access token to get user info from Google
-    const response = await fetch(
-      'https://www.googleapis.com/oauth2/v3/userinfo',
-      {
-        headers: { Authorization: `Bearer ${bearerToken}` },
+    // Authenticate directly with Firebase using the Google OAuth access token.
+    // This replaces the previous two-step flow (Google userinfo → admin getUserByEmail)
+    // and also authenticates the Firestore instance so security rules are enforced.
+    const firebaseUser = await authenticateUser(bearerToken)
+
+    return {
+      token: bearerToken,
+      clientId: 'chatgpt-mcp',
+      scopes: ['read', 'write'],
+      extra: {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName || '',
       },
-    )
-
-    if (!response.ok) {
-      console.error('Failed to validate Google token:', response.status)
-      return undefined
-    }
-
-    const userInfo = await response.json()
-    const email = userInfo.email as string | undefined
-
-    if (!email) {
-      console.error('No email in Google user info')
-      return undefined
-    }
-
-    // Look up Firebase user by email
-    const { auth } = getFirebaseAdmin()
-    try {
-      const firebaseUser = await auth.getUserByEmail(email)
-      return {
-        token: bearerToken,
-        clientId: 'chatgpt-mcp',
-        scopes: ['read', 'write'],
-        extra: {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || email,
-          displayName: firebaseUser.displayName || userInfo.name,
-        },
-      }
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code
-      console.error('User not found in Firebase Auth:', email, code)
-      return undefined
     }
   } catch (error) {
     console.error('Auth resolution error:', error)

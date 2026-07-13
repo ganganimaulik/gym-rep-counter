@@ -6,24 +6,6 @@ import type {
   TrendData,
 } from '../declarations'
 
-// Plain-data types for cross-platform sharing (app + MCP server)
-export interface PlainWorkoutSet {
-  exerciseId: string
-  exerciseName: string
-  reps: number
-  weight: number
-  set: number
-  dateStr: string // YYYY-MM-DD or ISO string
-}
-
-export interface PlainPRRecord {
-  exerciseId: string
-  exerciseName: string
-  maxWeight: number
-  repsAtMax: number
-  dateStr: string
-}
-
 /**
  * Calculate Personal Records (PRs) - max weight lifted per exercise
  */
@@ -64,7 +46,7 @@ export function calculatePRs(
 /**
  * Get the start of a week (Monday) for a given date
  */
-export function getWeekStart(date: Date): Date {
+function getWeekStart(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay()
   // getDay returns 0 for Sunday, 1 for Monday, etc.
@@ -78,7 +60,7 @@ export function getWeekStart(date: Date): Date {
 /**
  * Get a unique week key string for grouping
  */
-export function getWeekKey(date: Date): string {
+function getWeekKey(date: Date): string {
   const weekStart = getWeekStart(date)
   return weekStart.toISOString().split('T')[0]
 }
@@ -409,225 +391,4 @@ export function getUniqueExercises(
     id,
     name,
   }))
-}
-
-/**
- * Calculate streak using weekly-based approach from plain date strings.
- * Portable version that works without Firestore Timestamp dependencies.
- * A week must have minDaysPerWeek+ workout days to count toward the streak.
- */
-export function calculateStreakFromDates(
-  workoutDateStrings: string[],
-  minDaysPerWeek: number = 5,
-): StreakInfo {
-  if (workoutDateStrings.length === 0) {
-    return {
-      currentStreak: 0,
-      longestStreak: 0,
-      lastWorkoutDate: null,
-      currentWeekWorkouts: 0,
-    }
-  }
-
-  // Deduplicate
-  const workoutDates = new Set<string>(workoutDateStrings)
-
-  // Group dates by week
-  const weekWorkouts = new Map<string, Set<string>>()
-  for (const dateStr of workoutDates) {
-    const date = new Date(dateStr)
-    const weekKey = getWeekKey(date)
-    if (!weekWorkouts.has(weekKey)) {
-      weekWorkouts.set(weekKey, new Set())
-    }
-    weekWorkouts.get(weekKey)!.add(dateStr)
-  }
-
-  // Get sorted week keys
-  const sortedWeeks = Array.from(weekWorkouts.keys()).sort().reverse()
-
-  // Current week info
-  const now = new Date()
-  const currentWeekKey = getWeekKey(now)
-  const currentWeekDates = weekWorkouts.get(currentWeekKey) || new Set()
-  const currentWeekWorkouts = currentWeekDates.size
-
-  // Find last workout date
-  const allDates = Array.from(workoutDates).sort().reverse()
-  const lastWorkoutDate = allDates.length > 0 ? new Date(allDates[0]) : null
-
-  // Calculate streak (consecutive weeks with 5+ workouts)
-  let currentStreak = 0
-  let longestStreak = 0
-  let tempStreak = 0
-
-  for (let i = 0; i < sortedWeeks.length; i++) {
-    const weekKey = sortedWeeks[i]
-    const weekDays = weekWorkouts.get(weekKey)!.size
-
-    const isCurrentWeek = weekKey === currentWeekKey
-    const qualifies = isCurrentWeek
-      ? weekDays > 0
-      : weekDays >= minDaysPerWeek
-
-    if (qualifies) {
-      if (i === 0) {
-        tempStreak = 1
-      } else {
-        const prevWeekKey = sortedWeeks[i - 1]
-        const prevWeekStart = new Date(prevWeekKey)
-        const thisWeekStart = new Date(weekKey)
-        const diffDays = Math.round(
-          (prevWeekStart.getTime() - thisWeekStart.getTime()) /
-            (1000 * 60 * 60 * 24),
-        )
-
-        if (diffDays === 7) {
-          tempStreak++
-        } else {
-          if (tempStreak > longestStreak) {
-            longestStreak = tempStreak
-          }
-          tempStreak = 1
-        }
-      }
-    } else {
-      if (tempStreak > longestStreak) {
-        longestStreak = tempStreak
-      }
-      tempStreak = 0
-    }
-  }
-
-  if (tempStreak > longestStreak) {
-    longestStreak = tempStreak
-  }
-
-  currentStreak = 0
-  if (sortedWeeks.length > 0) {
-    const firstWeekKey = sortedWeeks[0]
-    const firstWeekDate = new Date(firstWeekKey)
-    const currentWeekDate = getWeekStart(now)
-
-    const diffFromCurrent = Math.round(
-      (currentWeekDate.getTime() - firstWeekDate.getTime()) /
-        (7 * 24 * 60 * 60 * 1000),
-    )
-
-    if (diffFromCurrent <= 1) {
-      let continuous = 0
-      for (let i = 0; i < sortedWeeks.length; i++) {
-        const wKey = sortedWeeks[i]
-        const wDays = weekWorkouts.get(wKey)!.size
-        const wDate = new Date(wKey)
-
-        const expectedDiff = diffFromCurrent + i
-        const actualDiff = Math.round(
-          (currentWeekDate.getTime() - wDate.getTime()) /
-            (7 * 24 * 60 * 60 * 1000),
-        )
-
-        if (actualDiff !== expectedDiff) break
-
-        if (actualDiff === 0) {
-          if (wDays > 0) continuous++
-          else break
-        } else {
-          if (wDays >= minDaysPerWeek) continuous++
-          else break
-        }
-      }
-      currentStreak = continuous
-    }
-  }
-
-  return {
-    currentStreak,
-    longestStreak,
-    lastWorkoutDate,
-    currentWeekWorkouts,
-  }
-}
-
-/**
- * Calculate Personal Records from plain data (no Firestore dependency).
- * Portable version for use in both app and MCP server.
- */
-export function calculatePRsFromPlainData(
-  sets: PlainWorkoutSet[],
-  exerciseId?: string,
-): PlainPRRecord[] {
-  const filtered = exerciseId
-    ? sets.filter((s) => s.exerciseId === exerciseId)
-    : sets
-
-  const exerciseMap = new Map<
-    string,
-    { set: PlainWorkoutSet; maxWeight: number }
-  >()
-
-  for (const set of filtered) {
-    const existing = exerciseMap.get(set.exerciseId)
-    if (!existing || set.weight > existing.maxWeight) {
-      exerciseMap.set(set.exerciseId, { set, maxWeight: set.weight })
-    }
-  }
-
-  const prs: PlainPRRecord[] = []
-  for (const [, { set }] of exerciseMap) {
-    prs.push({
-      exerciseId: set.exerciseId,
-      exerciseName: set.exerciseName,
-      maxWeight: set.weight,
-      repsAtMax: set.reps,
-      dateStr: set.dateStr,
-    })
-  }
-
-  return prs.sort((a, b) => b.maxWeight - a.maxWeight)
-}
-
-/**
- * Calculate trends from plain data (no Firestore dependency).
- * Portable version for use in both app and MCP server.
- */
-export function calculateTrendsFromPlainData(
-  sets: PlainWorkoutSet[],
-  exerciseId: string,
-): TrendData[] {
-  const filtered = sets.filter((s) => s.exerciseId === exerciseId)
-
-  if (filtered.length === 0) {
-    return []
-  }
-
-  const dateMap = new Map<
-    string,
-    { totalWeight: number; totalReps: number; count: number }
-  >()
-
-  for (const set of filtered) {
-    const dateStr = set.dateStr.split('T')[0] // Normalize to YYYY-MM-DD
-    const existing = dateMap.get(dateStr) || {
-      totalWeight: 0,
-      totalReps: 0,
-      count: 0,
-    }
-    existing.totalWeight += set.weight
-    existing.totalReps += set.reps
-    existing.count++
-    dateMap.set(dateStr, existing)
-  }
-
-  const trends: TrendData[] = []
-  for (const [dateStr, data] of dateMap) {
-    trends.push({
-      date: new Date(dateStr),
-      avgWeight: Math.round((data.totalWeight / data.count) * 10) / 10,
-      avgReps: Math.round((data.totalReps / data.count) * 10) / 10,
-      setCount: data.count,
-    })
-  }
-
-  return trends.sort((a, b) => a.date.getTime() - b.date.getTime())
 }

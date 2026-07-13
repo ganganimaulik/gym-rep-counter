@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "firebase-admin": "^13.4.0",
+    "firebase": "^11.0.0",
     "google-auth-library": "^9.15.1",
     "googleapis": "^173.0.0",
     "mcp-handler": "^1.1.0",

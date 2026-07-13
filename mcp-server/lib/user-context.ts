@@ -1,4 +1,5 @@
-import { getFirebaseAdmin } from './firebase-admin'
+import { getFirebaseClient } from './firebase-client'
+import { doc, getDoc } from 'firebase/firestore'
 
 export interface UserContext {
   weightUnit: 'kg' | 'lb'
@@ -7,8 +8,8 @@ export interface UserContext {
 }
 
 export async function getUserContext(uid: string): Promise<UserContext> {
-  const { db } = getFirebaseAdmin()
-  const userDoc = await db.doc(`users/${uid}`).get()
+  const { db } = getFirebaseClient()
+  const userDoc = await getDoc(doc(db, `users/${uid}`))
   const data = userDoc.data() || {}
 
   const tdeeConfig = data.tdeeConfig || {}

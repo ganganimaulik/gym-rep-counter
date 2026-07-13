@@ -2,7 +2,15 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getMcpUser } from '../auth'
 import { getUserContext } from '../user-context'
-import { getFirebaseAdmin } from '../firebase-admin'
+import { getFirebaseClient } from '../firebase-client'
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  addDoc,
+} from 'firebase/firestore'
 import {
   getDaysBackRange,
   getDayRange,
@@ -30,29 +38,35 @@ export function registerJournalTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const daysBack = args.days_back ?? 14
       const { start, end } = getDaysBackRange(daysBack, tz)
 
       // Fetch journal entries, weight logs, and calorie logs in parallel
       const [journalSnap, weightSnap, calorieSnap] = await Promise.all([
-        db
-          .collection(`users/${user.uid}/journalEntries`)
-          .where('date', '>=', start)
-          .where('date', '<', end)
-          .orderBy('date', 'desc')
-          .get(),
-        db
-          .collection(`users/${user.uid}/weightLogs`)
-          .where('date', '>=', start)
-          .where('date', '<', end)
-          .get(),
-        db
-          .collection(`users/${user.uid}/calorieLogs`)
-          .where('date', '>=', start)
-          .where('date', '<', end)
-          .get(),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/journalEntries`),
+            where('date', '>=', start),
+            where('date', '<', end),
+            orderBy('date', 'desc'),
+          ),
+        ),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/weightLogs`),
+            where('date', '>=', start),
+            where('date', '<', end),
+          ),
+        ),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/calorieLogs`),
+            where('date', '>=', start),
+            where('date', '<', end),
+          ),
+        ),
       ])
 
       if (journalSnap.empty) {
@@ -164,7 +178,7 @@ export function registerJournalTools(server: McpServer) {
     },
     async (args, extra) => {
       const user = getMcpUser(extra)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const dateStr = args.date || getTodayString(tz)
 
@@ -176,7 +190,7 @@ export function registerJournalTools(server: McpServer) {
         supplements: args.supplements || [],
       }
 
-      await db.collection(`users/${user.uid}/journalEntries`).add(entryData)
+      await addDoc(collection(db, `users/${user.uid}/journalEntries`), entryData)
 
       const displayDate = formatDate(start, tz)
       let confirmation = `✅ Journal entry saved for ${displayDate}`

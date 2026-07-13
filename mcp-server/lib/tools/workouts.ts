@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getMcpUser } from '../auth'
 import { getUserContext } from '../user-context'
-import { getFirebaseAdmin } from '../firebase-admin'
+import { getFirebaseClient } from '../firebase-client'
 import {
   getDaysBackRange,
   getDateStringFromTimestamp,
@@ -15,11 +15,22 @@ import {
   formatWeight,
   formatShortDate,
 } from '../formatters'
-import { Timestamp } from 'firebase-admin/firestore'
 import {
-  calculateStreakFromDates,
-  calculatePRsFromPlainData,
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  getDoc,
+  doc,
+  addDoc,
+  Timestamp,
+} from 'firebase/firestore'
+import {
+  calculateStreak,
+  calculatePRs,
 } from '../../../utils/analyticsUtils'
+import type { WorkoutSet } from '../../../declarations'
 
 export function registerWorkoutTools(server: McpServer) {
   server.tool(
@@ -44,18 +55,19 @@ export function registerWorkoutTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const daysBack = args.days_back ?? 7
       const { start, end } = getDaysBackRange(daysBack, tz)
 
-      const query = db
-        .collection(`users/${user.uid}/history`)
-        .where('date', '>=', start)
-        .where('date', '<', end)
-        .orderBy('date', 'desc')
+      const q = query(
+        collection(db, `users/${user.uid}/history`),
+        where('date', '>=', start),
+        where('date', '<', end),
+        orderBy('date', 'desc'),
+      )
 
-      const snap = await query.get()
+      const snap = await getDocs(q)
       let sets = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Array<
         Record<string, unknown>
       >
@@ -83,7 +95,7 @@ export function registerWorkoutTools(server: McpServer) {
       const grouped: Record<string, Array<Record<string, unknown>>> = {}
       for (const s of sets) {
         const dateKey = getDateStringFromTimestamp(
-          s.date as FirebaseFirestore.Timestamp,
+          s.date as Timestamp,
           tz,
         )
         if (!grouped[dateKey]) grouped[dateKey] = []
@@ -184,7 +196,7 @@ export function registerWorkoutTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
 
       // Find workout and exercise IDs
@@ -192,7 +204,7 @@ export function registerWorkoutTools(server: McpServer) {
       let exerciseId = `manual-${args.exercise_name.toLowerCase().replace(/\s+/g, '-')}`
 
       if (args.workout_name) {
-        const userDoc = await db.doc(`users/${user.uid}`).get()
+        const userDoc = await getDoc(doc(db, `users/${user.uid}`))
         const userData = userDoc.data()
         if (userData?.workouts) {
           const workouts = userData.workouts as Array<{
@@ -220,17 +232,19 @@ export function registerWorkoutTools(server: McpServer) {
       if (!setNumber) {
         // Count today's sets for this exercise
         const { start, end } = getDaysBackRange(0, tz)
-        const todaySets = await db
-          .collection(`users/${user.uid}/history`)
-          .where('exerciseId', '==', exerciseId)
-          .where('date', '>=', start)
-          .where('date', '<', end)
-          .get()
+        const todaySets = await getDocs(
+          query(
+            collection(db, `users/${user.uid}/history`),
+            where('exerciseId', '==', exerciseId),
+            where('date', '>=', start),
+            where('date', '<', end),
+          ),
+        )
         setNumber = todaySets.size + 1
       }
 
       const now = Timestamp.now()
-      await db.collection(`users/${user.uid}/history`).add({
+      await addDoc(collection(db, `users/${user.uid}/history`), {
         workoutId,
         exerciseId,
         exerciseName: args.exercise_name,
@@ -257,9 +271,9 @@ export function registerWorkoutTools(server: McpServer) {
     {},
     async (_args, extra) => {
       const user = getMcpUser(extra)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
 
-      const userDoc = await db.doc(`users/${user.uid}`).get()
+      const userDoc = await getDoc(doc(db, `users/${user.uid}`))
       const userData = userDoc.data()
       const workouts = (userData?.workouts || []) as Array<{
         id: string
@@ -318,20 +332,23 @@ export function registerWorkoutTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const { start, end } = getDaysBackRange(90, tz)
 
-      const snap = await db
-        .collection(`users/${user.uid}/history`)
-        .where('date', '>=', start)
-        .where('date', '<', end)
-        .orderBy('date', 'desc')
-        .get()
+      const snap = await getDocs(
+        query(
+          collection(db, `users/${user.uid}/history`),
+          where('date', '>=', start),
+          where('date', '<', end),
+          orderBy('date', 'desc'),
+        ),
+      )
 
-      const allSets = snap.docs.map((d) => d.data()) as Array<
-        Record<string, unknown>
-      >
+      const allSets = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as unknown as WorkoutSet[]
 
       if (allSets.length === 0) {
         return {
@@ -347,37 +364,17 @@ export function registerWorkoutTools(server: McpServer) {
       // Filter by exercise name if provided
       const filteredSets = args.exercise_name
         ? allSets.filter((s) =>
-            (s.exerciseName as string)
+            s.exerciseName
               .toLowerCase()
               .includes(args.exercise_name!.toLowerCase()),
           )
         : allSets
 
-      // Calculate PRs using shared analytics utility
-      const plainSets = filteredSets.map((s) => ({
-        exerciseId: s.exerciseId as string,
-        exerciseName: s.exerciseName as string,
-        reps: s.reps as number,
-        weight: s.weight as number,
-        set: (s.set as number) || 1,
-        dateStr: getDateStringFromTimestamp(
-          s.date as FirebaseFirestore.Timestamp,
-          tz,
-        ),
-      }))
-      const prs = calculatePRsFromPlainData(plainSets)
+      // Calculate PRs using shared analytics utility (now uses Timestamp directly)
+      const prs = calculatePRs(filteredSets)
 
       // Calculate streak using shared analytics utility
-      const workoutDateStrings: string[] = []
-      for (const s of allSets) {
-        workoutDateStrings.push(
-          getDateStringFromTimestamp(
-            s.date as FirebaseFirestore.Timestamp,
-            tz,
-          ),
-        )
-      }
-      const streakInfo = calculateStreakFromDates(workoutDateStrings)
+      const streakInfo = calculateStreak(allSets)
       const { currentStreak, longestStreak, currentWeekWorkouts: currentWeekDays } = streakInfo
 
       const lines: string[] = []
@@ -389,8 +386,7 @@ export function registerWorkoutTools(server: McpServer) {
       } else {
         for (let i = 0; i < Math.min(prs.length, 10); i++) {
           const pr = prs[i]
-          const [py, pm, pd] = pr.dateStr.split('-').map(Number)
-          const dateStr = formatShortDate(new Date(py, pm - 1, pd), tz, true)
+          const dateStr = formatShortDate(pr.date, tz, true)
           lines.push(
             `${i + 1}. ${pr.exerciseName}: ${formatWeight(pr.maxWeight, ctx.weightUnit)} × ${pr.repsAtMax} reps (${dateStr})`,
           )

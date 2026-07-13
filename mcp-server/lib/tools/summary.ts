@@ -2,7 +2,14 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getMcpUser } from '../auth'
 import { getUserContext } from '../user-context'
-import { getFirebaseAdmin } from '../firebase-admin'
+import { getFirebaseClient } from '../firebase-client'
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+} from 'firebase/firestore'
 import {
   getDayRange,
   getTodayString,
@@ -36,7 +43,7 @@ export function registerSummaryTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
       const dateStr = args.date || getTodayString(tz)
       const { start, end } = getDayRange(dateStr, tz)
@@ -44,27 +51,35 @@ export function registerSummaryTools(server: McpServer) {
       // Fetch all data for the day in parallel
       const [historySnap, weightSnap, calorieSnap, journalSnap] =
         await Promise.all([
-          db
-            .collection(`users/${user.uid}/history`)
-            .where('date', '>=', start)
-            .where('date', '<', end)
-            .orderBy('date', 'asc')
-            .get(),
-          db
-            .collection(`users/${user.uid}/weightLogs`)
-            .where('date', '>=', start)
-            .where('date', '<', end)
-            .get(),
-          db
-            .collection(`users/${user.uid}/calorieLogs`)
-            .where('date', '>=', start)
-            .where('date', '<', end)
-            .get(),
-          db
-            .collection(`users/${user.uid}/journalEntries`)
-            .where('date', '>=', start)
-            .where('date', '<', end)
-            .get(),
+          getDocs(
+            query(
+              collection(db, `users/${user.uid}/history`),
+              where('date', '>=', start),
+              where('date', '<', end),
+              orderBy('date', 'asc'),
+            ),
+          ),
+          getDocs(
+            query(
+              collection(db, `users/${user.uid}/weightLogs`),
+              where('date', '>=', start),
+              where('date', '<', end),
+            ),
+          ),
+          getDocs(
+            query(
+              collection(db, `users/${user.uid}/calorieLogs`),
+              where('date', '>=', start),
+              where('date', '<', end),
+            ),
+          ),
+          getDocs(
+            query(
+              collection(db, `users/${user.uid}/journalEntries`),
+              where('date', '>=', start),
+              where('date', '<', end),
+            ),
+          ),
         ])
 
       const lines: string[] = []
@@ -192,7 +207,7 @@ export function registerSummaryTools(server: McpServer) {
     async (args, extra) => {
       const user = getMcpUser(extra)
       const ctx = await getUserContext(user.uid)
-      const { db } = getFirebaseAdmin()
+      const { db } = getFirebaseClient()
       const tz = args.timezone || 'UTC'
 
       const offset = args.week_offset ?? 0
@@ -219,24 +234,30 @@ export function registerSummaryTools(server: McpServer) {
       const { start: end } = getDayRange(nextMondayStr, tz)
 
       const [historySnap, weightSnap, calorieSnap] = await Promise.all([
-        db
-          .collection(`users/${user.uid}/history`)
-          .where('date', '>=', start)
-          .where('date', '<', end)
-          .orderBy('date', 'asc')
-          .get(),
-        db
-          .collection(`users/${user.uid}/weightLogs`)
-          .where('date', '>=', start)
-          .where('date', '<', end)
-          .orderBy('date', 'asc')
-          .get(),
-        db
-          .collection(`users/${user.uid}/calorieLogs`)
-          .where('date', '>=', start)
-          .where('date', '<', end)
-          .orderBy('date', 'asc')
-          .get(),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/history`),
+            where('date', '>=', start),
+            where('date', '<', end),
+            orderBy('date', 'asc'),
+          ),
+        ),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/weightLogs`),
+            where('date', '>=', start),
+            where('date', '<', end),
+            orderBy('date', 'asc'),
+          ),
+        ),
+        getDocs(
+          query(
+            collection(db, `users/${user.uid}/calorieLogs`),
+            where('date', '>=', start),
+            where('date', '<', end),
+            orderBy('date', 'asc'),
+          ),
+        ),
       ])
 
       const lines: string[] = []

@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase-admin/firestore'
+import { Timestamp } from 'firebase/firestore'
 
 /**
  * Get the timezone offset in milliseconds for a given date and timezone.
@@ -129,7 +129,7 @@ export function getWeekRange(
  * Get a YYYY-MM-DD string from a Firestore Timestamp in a timezone.
  */
 export function getDateStringFromTimestamp(
-  ts: FirebaseFirestore.Timestamp | { _seconds: number; _nanoseconds: number },
+  ts: Timestamp | { _seconds: number; _nanoseconds: number },
   timezone: string,
 ): string {
   const date = toDate(ts)
