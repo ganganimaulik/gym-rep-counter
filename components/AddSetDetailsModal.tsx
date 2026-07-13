@@ -13,6 +13,7 @@ interface AddSetDetailsModalProps {
   onClose: () => void
   onSubmit: (reps: number, weight: number) => void
   initialReps: number
+  exerciseName?: string
 }
 
 const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
@@ -20,6 +21,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
   onClose,
   onSubmit,
   initialReps,
+  exerciseName,
 }) => {
   const [reps, setReps] = useState(initialReps.toString())
   const [weight, setWeight] = useState('')
@@ -28,12 +30,13 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
   const handleSubmit = () => {
     if (isSubmitting) return
     const repsNum = parseInt(reps, 10)
-    const weightNum = parseInt(weight, 10) || 0 // Default to 0 if weight is not entered
+    const weightNum = parseFloat(weight) || 0 // Default to 0 if weight is not entered
     if (!isNaN(repsNum)) {
       setIsSubmitting(true)
+      // The parent hides the modal once the set is saved; calling onClose here
+      // as well would trigger the dismiss path and log the set twice.
       onSubmit(repsNum, weightNum)
       setWeight('') // Reset for next time
-      onClose()
     }
   }
 
@@ -42,10 +45,11 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
     setReps(initialReps.toString())
   }, [initialReps])
 
-  // Reset isSubmitting when modal opens
+  // Reset isSubmitting and any leftover weight input when modal opens
   React.useEffect(() => {
     if (visible) {
       setIsSubmitting(false)
+      setWeight('')
     }
   }, [visible])
 
@@ -60,9 +64,17 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
         tint="dark"
         className="flex-1 justify-center items-center">
         <StyledView className="bg-gray-800 p-6 rounded-lg w-11/12">
-          <StyledText className="text-white text-2xl font-bold mb-4 text-center">
+          <StyledText
+            className={`text-white text-2xl font-bold text-center ${exerciseName ? 'mb-1' : 'mb-4'}`}>
             Set Complete
           </StyledText>
+          {exerciseName ? (
+            <StyledText
+              className="text-indigo-400 text-lg font-semibold mb-4 text-center"
+              testID="set-complete-exercise-name">
+              {exerciseName}
+            </StyledText>
+          ) : null}
           <StyledText className="text-gray-300 mb-2">Reps</StyledText>
           <StyledTextInput
             className="bg-gray-700 text-white p-3 rounded-lg mb-4 text-lg"
@@ -76,7 +88,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
           <StyledText className="text-gray-300 mb-2">Weight (kg)</StyledText>
           <StyledTextInput
             className="bg-gray-700 text-white p-3 rounded-lg mb-4 text-lg"
-            keyboardType="number-pad"
+            keyboardType="decimal-pad"
             value={weight}
             onChangeText={setWeight}
             returnKeyType="done"

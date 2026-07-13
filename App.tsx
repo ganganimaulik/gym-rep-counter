@@ -391,38 +391,45 @@ const App: React.FC = () => {
     [saveWorkouts, user],
   )
 
+  // The exercise the pending "Set Complete" modal refers to. Looked up from
+  // completedSetData instead of activeExercise, which might have advanced to
+  // the next exercise already.
+  const completedExercise = useMemo(
+    () =>
+      completedSetData && currentWorkout
+        ? currentWorkout.exercises.find(
+            (e) => e.id === completedSetData.exerciseId,
+          )
+        : undefined,
+    [completedSetData, currentWorkout],
+  )
+
   const handleAddSetDetails = useCallback(
     async (reps: number, weight: number) => {
-      if (completedSetData && currentWorkout) {
-        // Find the exercise that was just completed, instead of relying on activeExercise
-        // which might have advanced to the next one already.
-        const completedExercise = currentWorkout.exercises.find(
-          (e) => e.id === completedSetData.exerciseId,
-        )
-
-        if (completedExercise) {
-          await addHistoryEntry(
-            {
-              workoutId: currentWorkout.id,
-              exerciseId: completedExercise.id,
-              exerciseName: completedExercise.name,
-              reps,
-              weight,
-            },
-            completedSetData.set,
-            completedSetData.startTime,
-            completedSetData.endTime, // Use endTime for date field (when rest started)
-            user,
-          )
-        }
-      }
-      // This part should run whether the user is logged in or not,
+      const setData = completedSetData
+      // Hide the modal immediately, whether the user is logged in or not,
       // and even if the data saving fails, to not block the UI flow.
       setAddSetModalVisible(false)
       setCompletedSetData(null)
+
+      if (setData && currentWorkout && completedExercise) {
+        await addHistoryEntry(
+          {
+            workoutId: currentWorkout.id,
+            exerciseId: completedExercise.id,
+            exerciseName: completedExercise.name,
+            reps,
+            weight,
+          },
+          setData.set,
+          setData.startTime,
+          setData.endTime, // Use endTime for date field (when rest started)
+          user,
+        )
+      }
       // Rest timer already started in handleSetComplete, no need to call continueToNextPhase here
     },
-    [completedSetData, currentWorkout, addHistoryEntry, user],
+    [completedSetData, completedExercise, currentWorkout, addHistoryEntry, user],
   )
 
   const handleOpenRoutines = useCallback((visible: boolean) => {
@@ -480,8 +487,14 @@ const App: React.FC = () => {
   }, [activeExercise, isSetCompleted, currentSet, runNextSet])
 
   const handleCloseAddSetModal = useCallback(() => {
-    setAddSetModalVisible(false)
-  }, [])
+    // Dismissing the modal (Android back / onRequestClose) must not silently
+    // drop the completed set — log it with the recorded rep count and no weight.
+    if (completedSetData) {
+      handleAddSetDetails(completedSetData.reps, 0)
+    } else {
+      setAddSetModalVisible(false)
+    }
+  }, [completedSetData, handleAddSetDetails])
 
   if (initializing) {
     return <SplashScreen />
@@ -695,6 +708,7 @@ const App: React.FC = () => {
         onClose={handleCloseAddSetModal}
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
+        exerciseName={completedExercise?.name ?? ''}
       />
       <Toast topOffset={60} />
     </StyledSafeAreaView>

@@ -139,7 +139,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     if (!editModal.item) return
 
     const repsNum = parseInt(editReps, 10)
-    const weightNum = parseInt(editWeight, 10) || 0
+    const weightNum = parseFloat(editWeight) || 0
 
     if (!isNaN(repsNum)) {
       await updateHistoryEntry(
@@ -372,7 +372,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
               <StyledTextInput
                 testID="edit-log-weight"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
-                keyboardType="number-pad"
+                keyboardType="decimal-pad"
                 value={editWeight}
                 onChangeText={setEditWeight}
                 returnKeyType="done"

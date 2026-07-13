@@ -31,6 +31,7 @@ jest.mock('firebase/firestore', () => ({
   orderBy: jest.fn(),
   limit: jest.fn(),
   startAfter: jest.fn(),
+  documentId: jest.fn(),
   Timestamp: class {
     seconds: number
     nanoseconds: number

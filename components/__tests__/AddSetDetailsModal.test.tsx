@@ -36,6 +36,31 @@ describe('AddSetDetailsModal', () => {
     expect(getByTestId('reps-input').props.value).toBe('10')
   })
 
+  it('displays the exercise name when provided', () => {
+    const { getByText, queryByTestId, rerender } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+        exerciseName="Bench Press"
+      />,
+    )
+
+    expect(getByText('Bench Press')).toBeTruthy()
+
+    rerender(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+      />,
+    )
+
+    expect(queryByTestId('set-complete-exercise-name')).toBeNull()
+  })
+
   it('calls onClose when onRequestClose is triggered on Modal', () => {
     const { UNSAFE_getByType } = render(
       <AddSetDetailsModal
@@ -57,7 +82,7 @@ describe('AddSetDetailsModal', () => {
     expect(mockOnClose).toHaveBeenCalled()
   })
 
-  it('calls onSubmit with correctly parsed values and closes modal', () => {
+  it('calls onSubmit with correctly parsed values and lets the parent close the modal', () => {
     const { getByText, getByTestId } = render(
       <AddSetDetailsModal
         visible={true}
@@ -76,8 +101,41 @@ describe('AddSetDetailsModal', () => {
     fireEvent.press(saveButton)
 
     expect(mockOnSubmit).toHaveBeenCalledWith(12, 50)
-    expect(mockOnClose).toHaveBeenCalled()
-    // Weight should be reset for next time, but we might not easily verify this without re-rendering or accessing state.
+    // The parent hides the modal after saving; the dismiss handler must not
+    // fire on save or the set would be logged twice.
+    expect(mockOnClose).not.toHaveBeenCalled()
+  })
+
+  it('preserves fractional weight values instead of truncating them', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+      />,
+    )
+
+    const weightInput = getByTestId('weight-input')
+    const saveButton = getByText('Save')
+
+    fireEvent.changeText(weightInput, '22.5')
+    fireEvent.press(saveButton)
+
+    expect(mockOnSubmit).toHaveBeenCalledWith(10, 22.5)
+  })
+
+  it('uses a decimal keyboard so fractional weights can be entered', () => {
+    const { getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+      />,
+    )
+
+    expect(getByTestId('weight-input').props.keyboardType).toBe('decimal-pad')
   })
 
   it('handles empty weight by defaulting to 0', () => {
@@ -96,7 +154,7 @@ describe('AddSetDetailsModal', () => {
     fireEvent.press(saveButton)
 
     expect(mockOnSubmit).toHaveBeenCalledWith(8, 0)
-    expect(mockOnClose).toHaveBeenCalled()
+    expect(mockOnClose).not.toHaveBeenCalled()
   })
 
   it('does not call onSubmit if reps is not a valid number', () => {

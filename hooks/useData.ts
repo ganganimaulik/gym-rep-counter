@@ -23,6 +23,7 @@ import {
   limit,
   getDocs,
   startAfter,
+  documentId,
   Timestamp,
   writeBatch,
   deleteField,
@@ -626,11 +627,16 @@ export const useData = (): DataHook => {
             user.uid,
             'history',
           )
+          // Order by document ID as a tiebreaker so entries sharing the
+          // exact same date timestamp aren't skipped across page boundaries.
           const q = query(
             historyCollectionRef,
             orderBy('date', 'desc'),
+            orderBy(documentId(), 'desc'),
             limit(20),
-            ...(lastVisible ? [startAfter(lastVisible.date)] : []),
+            ...(lastVisible
+              ? [startAfter(lastVisible.date, lastVisible.id)]
+              : []),
           )
 
           const querySnapshot = await getDocs(q)

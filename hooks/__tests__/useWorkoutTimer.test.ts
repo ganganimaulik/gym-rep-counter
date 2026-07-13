@@ -245,6 +245,54 @@ describe('useWorkoutTimer', () => {
       })
     })
 
+    it('announces rest target even when a tick lands past the target second (timer throttling)', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.continueToNextPhase()
+      })
+
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Rest')
+      })
+
+      // Let one tick run normally, well before the 5s target
+      act(() => jest.advanceTimersByTime(1000))
+      expect(result.current.isRestComplete).toBe(false)
+
+      // Simulate a throttled/backgrounded JS timer: the clock jumps well past
+      // the target without any ticks firing, then a single delayed tick runs.
+      act(() => {
+        jest.setSystemTime(Date.now() + 10000)
+      })
+      act(() => jest.advanceTimersByTime(1000))
+
+      await waitFor(() => {
+        expect(result.current.isRestComplete).toBe(true)
+      })
+      expect(mockQueueSpeak).toHaveBeenCalledWith(
+        'Rest target reached.',
+        expect.any(Object),
+      )
+
+      // The announcement must fire only once even though subsequent ticks
+      // also satisfy elapsed >= restSeconds
+      mockQueueSpeak.mockClear()
+      act(() => jest.advanceTimersByTime(3000))
+      expect(mockQueueSpeak).not.toHaveBeenCalledWith(
+        'Rest target reached.',
+        expect.any(Object),
+      )
+    })
+
     it('should complete the exercise after the last set', async () => {
       const { result } = renderHook(() =>
         useWorkoutTimer(
@@ -459,6 +507,72 @@ describe('useWorkoutTimer', () => {
         expect(result.current.phase).toBe('Get Ready')
       })
       expect(mockQueueSpeak).toHaveBeenCalledWith('Set 2.', { priority: true })
+    })
+
+    it('should record a fresh setStartTime when jumping to a rep from idle', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      const jumpTime = Date.now()
+      act(() => {
+        result.current.jumpToRep(2)
+      })
+
+      // Let some workout time elapse, then end the set
+      act(() => jest.advanceTimersByTime(3000))
+      act(() => result.current.endSet())
+
+      await waitFor(() => {
+        expect(mockOnSetComplete).toHaveBeenCalledTimes(1)
+      })
+
+      // Without the fix, startTime would be the stale value (0) from before the jump
+      const details = mockOnSetComplete.mock.calls[0][0]
+      expect(details.startTime).toBe(jumpTime)
+    })
+
+    it('should keep the original setStartTime when jumping to a rep mid-set', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      act(() =>
+        jest.advanceTimersByTime(defaultSettings.countdownSeconds * 1000),
+      )
+
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Concentric')
+      })
+      const afterCountdown = Date.now()
+
+      // Jump mid-set to correct the rep count — the set start must not move
+      act(() => jest.advanceTimersByTime(500))
+      const jumpTime = Date.now()
+      act(() => result.current.jumpToRep(2))
+      act(() => result.current.endSet())
+
+      await waitFor(() => {
+        expect(mockOnSetComplete).toHaveBeenCalledTimes(1)
+      })
+
+      const details = mockOnSetComplete.mock.calls[0][0]
+      expect(details.startTime).toBeGreaterThan(0)
+      expect(details.startTime).toBeLessThanOrEqual(afterCountdown)
+      expect(details.startTime).toBeLessThan(jumpTime)
     })
 
     it('should handle jumpToRep 0 correctly', async () => {

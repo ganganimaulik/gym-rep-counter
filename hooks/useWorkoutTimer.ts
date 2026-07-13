@@ -50,6 +50,7 @@ interface WorkoutState {
   lastSpokenSecond: number
   isJumping: boolean
   setStartTime: number // Timestamp when the current set started (after countdown)
+  restTargetAnnounced: boolean // "Rest target reached" fired for the current rest period
 }
 
 export interface WorkoutTimerHook {
@@ -123,6 +124,7 @@ export function useWorkoutTimer(
     lastSpokenSecond: -1,
     isJumping: false,
     setStartTime: 0,
+    restTargetAnnounced: false,
   })
 
   const timeoutRef = useRef<number | null>(null)
@@ -192,6 +194,12 @@ export function useWorkoutTimer(
       wState.current.remainingTime > 0 ? wState.current.remainingTime / 1000 : 0
     wState.current.remainingTime = 0 // Reset this as we are consuming it.
 
+    // A fresh rest period (not a resume from pause) resets the announcement
+    // guard so the target can fire again for this rest.
+    if (initialElapsed === 0) {
+      wState.current.restTargetAnnounced = false
+    }
+
     wState.current.phase = PHASES.REST
     // Adjust phaseStart so that (Date.now() - phaseStart) equals initialElapsed
     wState.current.phaseStart = Date.now() - initialElapsed * 1000
@@ -207,11 +215,13 @@ export function useWorkoutTimer(
       const remaining = Math.max(0, settings.restSeconds - whole)
       statusText.value = `Rest: ${remaining}s`
 
+      // Use >= (not ===): if the JS timer is throttled (e.g. app backgrounded)
+      // a tick can land past the target second and the exact match never fires.
       if (
-        whole === settings.restSeconds &&
-        whole !== wState.current.lastSpokenSecond
+        whole >= settings.restSeconds &&
+        !wState.current.restTargetAnnounced
       ) {
-        wState.current.lastSpokenSecond = whole
+        wState.current.restTargetAnnounced = true
         updateUI({ isRestComplete: true })
         queueSpeak(`Rest target reached.`, {
           priority: true,
@@ -235,6 +245,7 @@ export function useWorkoutTimer(
       lastSpokenSecond: -1,
       isJumping: false,
       setStartTime: 0,
+      restTargetAnnounced: false,
     }
     displayRep.value = 0
     displaySet.value = 1
@@ -513,6 +524,7 @@ export function useWorkoutTimer(
         lastSpokenSecond: -1,
         isJumping: false,
         setStartTime: 0,
+        restTargetAnnounced: false,
       }
       displayRep.value = 0
       displaySet.value = newStartingSet
@@ -617,6 +629,16 @@ export function useWorkoutTimer(
   const jumpToRep = useCallback(
     (rep: number) => {
       clearTimer()
+      // Jumping from an idle/rest/countdown state starts the set immediately,
+      // skipping the countdown that normally records setStartTime — record it
+      // here so history doesn't get a stale start time from the previous set.
+      // Mid-set jumps (concentric/eccentric) keep the original start time.
+      if (
+        wState.current.phase !== PHASES.CONCENTRIC &&
+        wState.current.phase !== PHASES.ECCENTRIC
+      ) {
+        wState.current.setStartTime = Date.now()
+      }
       wState.current.rep = rep
       wState.current.isJumping = true
       wState.current.remainingTime = 0
