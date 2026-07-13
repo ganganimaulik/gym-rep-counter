@@ -12,7 +12,7 @@ import {
   type TDEEConfigData,
   type WeightUnit,
   type EnergyUnit,
-} from '../tdee-calculator'
+} from '../tdee-adapter'
 
 export function registerAnalyticsTools(server: McpServer) {
   server.tool(

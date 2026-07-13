@@ -7,7 +7,6 @@ import {
   getDaysBackRange,
   getDateStringFromTimestamp,
   toDate,
-  getWeekStart,
 } from '../date-utils'
 import {
   formatDate,
@@ -17,6 +16,10 @@ import {
   formatShortDate,
 } from '../formatters'
 import { Timestamp } from 'firebase-admin/firestore'
+import {
+  calculateStreakFromDates,
+  calculatePRsFromPlainData,
+} from '../../../utils/analyticsUtils'
 
 export function registerWorkoutTools(server: McpServer) {
   server.tool(
@@ -341,118 +344,41 @@ export function registerWorkoutTools(server: McpServer) {
         }
       }
 
-      // Calculate PRs - max weight per exercise
-      const prMap: Record<
-        string,
-        { name: string; maxWeight: number; repsAtMax: number; date: unknown }
-      > = {}
-      for (const s of allSets) {
-        const exerciseId = s.exerciseId as string
-        const exerciseName = s.exerciseName as string
-        const weight = s.weight as number
-        const reps = s.reps as number
+      // Filter by exercise name if provided
+      const filteredSets = args.exercise_name
+        ? allSets.filter((s) =>
+            (s.exerciseName as string)
+              .toLowerCase()
+              .includes(args.exercise_name!.toLowerCase()),
+          )
+        : allSets
 
-        if (
-          args.exercise_name &&
-          !exerciseName.toLowerCase().includes(args.exercise_name.toLowerCase())
-        ) {
-          continue
-        }
-
-        if (!prMap[exerciseId] || weight > prMap[exerciseId].maxWeight) {
-          prMap[exerciseId] = {
-            name: exerciseName,
-            maxWeight: weight,
-            repsAtMax: reps,
-            date: s.date,
-          }
-        }
-      }
-
-      const prs = Object.values(prMap).sort((a, b) => b.maxWeight - a.maxWeight)
-
-      // Calculate streak (weekly-based, 5+ workout days)
-      const workoutDates = new Set<string>()
-      for (const s of allSets) {
-        const dateStr = getDateStringFromTimestamp(
+      // Calculate PRs using shared analytics utility
+      const plainSets = filteredSets.map((s) => ({
+        exerciseId: s.exerciseId as string,
+        exerciseName: s.exerciseName as string,
+        reps: s.reps as number,
+        weight: s.weight as number,
+        set: (s.set as number) || 1,
+        dateStr: getDateStringFromTimestamp(
           s.date as FirebaseFirestore.Timestamp,
           tz,
+        ),
+      }))
+      const prs = calculatePRsFromPlainData(plainSets)
+
+      // Calculate streak using shared analytics utility
+      const workoutDateStrings: string[] = []
+      for (const s of allSets) {
+        workoutDateStrings.push(
+          getDateStringFromTimestamp(
+            s.date as FirebaseFirestore.Timestamp,
+            tz,
+          ),
         )
-        workoutDates.add(dateStr)
       }
-
-      const weekWorkouts = new Map<string, Set<string>>()
-      for (const dateStr of workoutDates) {
-        const date = new Date(dateStr)
-        const weekStart = getWeekStart(date)
-        const weekKey = weekStart.toISOString().split('T')[0]
-        if (!weekWorkouts.has(weekKey)) weekWorkouts.set(weekKey, new Set())
-        weekWorkouts.get(weekKey)!.add(dateStr)
-      }
-
-      const sortedWeeks = Array.from(weekWorkouts.keys()).sort().reverse()
-      const now = new Date()
-      const currentWeekKey = getWeekStart(now).toISOString().split('T')[0]
-      const currentWeekDays = weekWorkouts.get(currentWeekKey)?.size || 0
-
-      let currentStreak = 0
-      let longestStreak = 0
-      let tempStreak = 0
-
-      for (let i = 0; i < sortedWeeks.length; i++) {
-        const weekKey = sortedWeeks[i]
-        const weekDays = weekWorkouts.get(weekKey)!.size
-        const isCurrentWeek = weekKey === currentWeekKey
-        const qualifies = isCurrentWeek ? weekDays > 0 : weekDays >= 5
-
-        if (qualifies) {
-          if (i === 0) {
-            tempStreak = 1
-          } else {
-            const prevWeek = new Date(sortedWeeks[i - 1])
-            const thisWeek = new Date(weekKey)
-            const diffDays = Math.round(
-              (prevWeek.getTime() - thisWeek.getTime()) / (1000 * 60 * 60 * 24),
-            )
-            tempStreak = diffDays === 7 ? tempStreak + 1 : 1
-          }
-        } else {
-          if (tempStreak > longestStreak) longestStreak = tempStreak
-          tempStreak = 0
-        }
-      }
-      if (tempStreak > longestStreak) longestStreak = tempStreak
-
-      // Recalculate current streak from most recent
-      currentStreak = 0
-      if (sortedWeeks.length > 0) {
-        const firstWeekDate = new Date(sortedWeeks[0])
-        const currentWeekDate = getWeekStart(now)
-        const diffFromCurrent = Math.round(
-          (currentWeekDate.getTime() - firstWeekDate.getTime()) /
-            (7 * 24 * 60 * 60 * 1000),
-        )
-        if (diffFromCurrent <= 1) {
-          for (let i = 0; i < sortedWeeks.length; i++) {
-            const wKey = sortedWeeks[i]
-            const wDays = weekWorkouts.get(wKey)!.size
-            const wDate = new Date(wKey)
-            const expectedDiff = diffFromCurrent + i
-            const actualDiff = Math.round(
-              (currentWeekDate.getTime() - wDate.getTime()) /
-                (7 * 24 * 60 * 60 * 1000),
-            )
-            if (actualDiff !== expectedDiff) break
-            if (actualDiff === 0) {
-              if (wDays > 0) currentStreak++
-              else break
-            } else {
-              if (wDays >= 5) currentStreak++
-              else break
-            }
-          }
-        }
-      }
+      const streakInfo = calculateStreakFromDates(workoutDateStrings)
+      const { currentStreak, longestStreak, currentWeekWorkouts: currentWeekDays } = streakInfo
 
       const lines: string[] = []
       lines.push('🏆 Personal Records')
@@ -463,9 +389,10 @@ export function registerWorkoutTools(server: McpServer) {
       } else {
         for (let i = 0; i < Math.min(prs.length, 10); i++) {
           const pr = prs[i]
-          const dateStr = formatShortDate(pr.date, tz, true)
+          const [py, pm, pd] = pr.dateStr.split('-').map(Number)
+          const dateStr = formatShortDate(new Date(py, pm - 1, pd), tz, true)
           lines.push(
-            `${i + 1}. ${pr.name}: ${formatWeight(pr.maxWeight, ctx.weightUnit)} × ${pr.repsAtMax} reps (${dateStr})`,
+            `${i + 1}. ${pr.exerciseName}: ${formatWeight(pr.maxWeight, ctx.weightUnit)} × ${pr.repsAtMax} reps (${dateStr})`,
           )
         }
       }
