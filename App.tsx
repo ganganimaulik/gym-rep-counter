@@ -429,7 +429,13 @@ const App: React.FC = () => {
       }
       // Rest timer already started in handleSetComplete, no need to call continueToNextPhase here
     },
-    [completedSetData, completedExercise, currentWorkout, addHistoryEntry, user],
+    [
+      completedSetData,
+      completedExercise,
+      currentWorkout,
+      addHistoryEntry,
+      user,
+    ],
   )
 
   const handleOpenRoutines = useCallback((visible: boolean) => {

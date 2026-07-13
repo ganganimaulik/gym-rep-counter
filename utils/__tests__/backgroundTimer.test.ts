@@ -16,7 +16,7 @@ jest.mock('expo-background-timer', () => ({
 describe('backgroundTimer (native)', () => {
   it('correctly re-exports native functions from expo-background-timer', () => {
     const expoTimer = require('expo-background-timer')
-    
+
     bgSetTimeout(() => {}, 1000)
     expect(expoTimer.bgSetTimeout).toHaveBeenCalled()
 

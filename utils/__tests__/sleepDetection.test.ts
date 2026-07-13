@@ -133,7 +133,16 @@ describe('detectSleepWindow', () => {
       // 1. JS Date
       { id: 'w1', weight: 70, date: new Date('2026-07-13T08:00:00Z') },
       // 2. Serialized Timestamp object
-      { id: 'w2', weight: 70.2, date: { seconds: Math.floor(new Date('2026-07-13T08:00:00Z').getTime() / 1000), nanoseconds: 0 } as any },
+      {
+        id: 'w2',
+        weight: 70.2,
+        date: {
+          seconds: Math.floor(
+            new Date('2026-07-13T08:00:00Z').getTime() / 1000,
+          ),
+          nanoseconds: 0,
+        } as any,
+      },
       // 3. ISO String
       { id: 'w3', weight: 70.1, date: '2026-07-13T08:00:00.000Z' as any },
       // 4. Invalid date string (should be ignored)
@@ -141,15 +150,14 @@ describe('detectSleepWindow', () => {
       // 5. Null date (should be ignored)
       { id: 'w5', weight: 70.4, date: null as any },
       // 6. Firestore Timestamp with toDate()
-      { id: 'w6', weight: 70.5, date: { toDate: () => new Date('2026-07-13T08:00:00Z') } as any },
+      {
+        id: 'w6',
+        weight: 70.5,
+        date: { toDate: () => new Date('2026-07-13T08:00:00Z') } as any,
+      },
     ]
 
-    const result = detectSleepWindow(
-      weightLogs,
-      [],
-      [],
-      [],
-    )
+    const result = detectSleepWindow(weightLogs, [], [], [])
 
     // With 4 valid logs (which is less than 5 timestamps), it should fallback to default (23 to 7)
     expect(result.isDefault).toBe(true)

@@ -3,13 +3,16 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getMcpUser } from '../auth'
 import { getUserContext } from '../user-context'
 import { getFirebaseAdmin } from '../firebase-admin'
-import {
-  getDaysBackRange,
-  getDateStringFromTimestamp,
-  toDate,
-  getWeekStart,
-} from '../date-utils'
+import { getDaysBackRange, getDateStringFromTimestamp } from '../date-utils'
 import { formatWeight, formatCalories, formatShortDate } from '../formatters'
+import {
+  analyzeTDEE,
+  type RawWeightLog,
+  type RawCalorieLog,
+  type TDEEConfigData,
+  type WeightUnit,
+  type EnergyUnit,
+} from '../tdee-calculator'
 
 export function registerAnalyticsTools(server: McpServer) {
   server.tool(
@@ -63,21 +66,27 @@ export function registerAnalyticsTools(server: McpServer) {
       const { Timestamp } = await import('firebase-admin/firestore')
       const cutoff = Timestamp.fromDate(oneYearAgo)
 
+      // Fetch newest-first: analyzeTDEE expects descending order and derives
+      // the starting weight (F6) from the oldest log in the window.
       const [weightSnap, calorieSnap] = await Promise.all([
         db
           .collection(`users/${user.uid}/weightLogs`)
           .where('date', '>=', cutoff)
-          .orderBy('date', 'asc')
+          .orderBy('date', 'desc')
           .get(),
         db
           .collection(`users/${user.uid}/calorieLogs`)
           .where('date', '>=', cutoff)
-          .orderBy('date', 'asc')
+          .orderBy('date', 'desc')
           .get(),
       ])
 
-      const weightLogs = weightSnap.docs.map((d) => d.data())
-      const calorieLogs = calorieSnap.docs.map((d) => d.data())
+      const weightLogs = weightSnap.docs.map((d) =>
+        d.data(),
+      ) as unknown as RawWeightLog[]
+      const calorieLogs = calorieSnap.docs.map((d) =>
+        d.data(),
+      ) as unknown as RawCalorieLog[]
 
       if (weightLogs.length === 0 && calorieLogs.length === 0) {
         return {
@@ -90,162 +99,47 @@ export function registerAnalyticsTools(server: McpServer) {
         }
       }
 
-      // Group logs into weekly buckets (Mon-Sun)
-      const allDates: Date[] = [
-        ...weightLogs.map((l) => toDate(l.date)),
-        ...calorieLogs.map((l) => toDate(l.date)),
-      ]
-
-      const earliest = new Date(Math.min(...allDates.map((d) => d.getTime())))
-      const latest = new Date(Math.max(...allDates.map((d) => d.getTime())))
-
-      // Build weight/calorie maps
-      const weightMap = new Map<string, number>()
-      for (const log of weightLogs) {
-        const d = toDate(log.date)
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-        weightMap.set(key, log.weight as number)
+      // Run the spreadsheet-faithful TDEE pipeline (shared with the app)
+      const configData: TDEEConfigData = {
+        weightUnit: (tdeeConfig.weightUnit as WeightUnit) || 'kg',
+        energyUnit: (tdeeConfig.energyUnit as EnergyUnit) || 'cal',
+        smoothingWindowWeeks: tdeeConfig.smoothingWindowWeeks,
+        goalWeight: tdeeConfig.goalWeight,
+        goalWeeklyRate: tdeeConfig.goalWeeklyRate,
+        gender: tdeeConfig.gender as TDEEConfigData['gender'],
+        heightValue: tdeeConfig.heightValue,
+        measurementUnit:
+          tdeeConfig.measurementUnit as TDEEConfigData['measurementUnit'],
+        waistValue: tdeeConfig.waistValue,
+        neckValue: tdeeConfig.neckValue,
+        hipValue: tdeeConfig.hipValue,
       }
 
-      const calorieMap = new Map<string, number>()
-      for (const log of calorieLogs) {
-        const d = toDate(log.date)
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-        calorieMap.set(key, log.calories as number)
-      }
-
-      // Group into weeks
-      const startMonday = getWeekStart(earliest)
-
-      interface WeekSummary {
-        start: Date
-        end: Date
-        avgWeight: number | null
-        avgCalories: number | null
-        weightDays: number
-        calorieDays: number
-      }
-
-      const weeks: WeekSummary[] = []
-      const currentMonday = new Date(startMonday)
-
-      while (currentMonday <= latest) {
-        let weightSum = 0,
-          weightCount = 0
-        let calorieSum = 0,
-          calorieCount = 0
-
-        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-          const date = new Date(currentMonday)
-          date.setDate(date.getDate() + dayOffset)
-          const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-
-          const w = weightMap.get(key)
-          if (w !== undefined) {
-            weightSum += w
-            weightCount++
-          }
-
-          const c = calorieMap.get(key)
-          if (c !== undefined) {
-            calorieSum += c
-            calorieCount++
-          }
-        }
-
-        if (weightCount > 0 || calorieCount > 0) {
-          const weekEnd = new Date(currentMonday)
-          weekEnd.setDate(weekEnd.getDate() + 6)
-          weeks.push({
-            start: new Date(currentMonday),
-            end: weekEnd,
-            avgWeight: weightCount > 0 ? weightSum / weightCount : null,
-            avgCalories:
-              calorieCount > 0 ? Math.round(calorieSum / calorieCount) : null,
-            weightDays: weightCount,
-            calorieDays: calorieCount,
-          })
-        }
-
-        currentMonday.setDate(currentMonday.getDate() + 7)
-      }
-
-      // Calculate basic TDEE estimates
-      const weeksWithBoth = weeks.filter(
-        (w) => w.avgWeight !== null && w.avgCalories !== null,
-      )
-      const energyPerUnit = ctx.weightUnit === 'kg' ? 7716.17 : 3500 // kcal per unit of body weight
-
-      let currentTDEE: number | null = null
-      let totalWeightChange: number | null = null
-      const currentWeight =
-        weightLogs.length > 0
-          ? (weightLogs[weightLogs.length - 1].weight as number)
-          : null
-      const startingWeight =
-        weightLogs.length > 0 ? (weightLogs[0].weight as number) : null
-
-      if (startingWeight !== null && currentWeight !== null) {
-        totalWeightChange = currentWeight - startingWeight
-      }
-
-      // Calculate raw TDEE for weeks with both weight and calorie data
-      const rawTDEEs: number[] = []
-      for (let i = 1; i < weeksWithBoth.length; i++) {
-        const prev = weeksWithBoth[i - 1]
-        const curr = weeksWithBoth[i]
-        if (
-          prev.avgWeight !== null &&
-          curr.avgWeight !== null &&
-          curr.avgCalories !== null
-        ) {
-          const weightDelta = curr.avgWeight - prev.avgWeight
-          const rawTDEE = curr.avgCalories - (weightDelta * energyPerUnit) / 7
-          rawTDEEs.push(rawTDEE)
-        }
-      }
-
-      if (rawTDEEs.length > 0) {
-        // Simple smoothed average (last N weeks)
-        const smoothingWindow = tdeeConfig.smoothingWindowWeeks || 12
-        const recentTDEEs = rawTDEEs.slice(-smoothingWindow)
-        currentTDEE = Math.round(
-          recentTDEEs.reduce((a, b) => a + b, 0) / recentTDEEs.length,
-        )
-      } else if (currentWeight !== null) {
-        // Seed TDEE
-        const seedMultiplier = ctx.weightUnit === 'kg' ? 28.66 : 13
-        currentTDEE = Math.round(currentWeight * seedMultiplier)
-      }
-
-      // Round to nearest 25
-      const displayTDEE =
-        currentTDEE !== null ? Math.round(currentTDEE / 25) * 25 : null
+      const analysis = analyzeTDEE(weightLogs, calorieLogs, configData)
 
       const lines: string[] = []
       lines.push('📈 TDEE Analysis')
       lines.push('')
 
-      if (displayTDEE !== null) {
+      if (analysis.displayTDEE !== null) {
         lines.push(
-          `Current TDEE: ${formatCalories(displayTDEE, ctx.energyUnit)}/day`,
+          `Current TDEE: ${formatCalories(analysis.displayTDEE, ctx.energyUnit)}/day`,
         )
       }
-      if (currentWeight !== null) {
+      if (analysis.currentWeight !== null) {
         lines.push(
-          `Current Weight: ${formatWeight(currentWeight, ctx.weightUnit)}`,
+          `Current Weight: ${formatWeight(analysis.currentWeight, ctx.weightUnit)}`,
         )
       }
-      if (totalWeightChange !== null) {
-        const sign = totalWeightChange >= 0 ? '+' : ''
+      if (analysis.totalWeightChange !== null) {
+        const sign = analysis.totalWeightChange >= 0 ? '+' : ''
         lines.push(
-          `Weight Change: ${sign}${totalWeightChange.toFixed(1)} ${ctx.weightUnit} (since tracking began)`,
+          `Weight Change: ${sign}${analysis.totalWeightChange.toFixed(1)} ${ctx.weightUnit} (since tracking began)`,
         )
       }
-      lines.push(`Weeks of Data: ${weeks.length}`)
+      lines.push(`Weeks of Data: ${analysis.weeksWithData}`)
 
-      const hasEnoughData = weeksWithBoth.length >= 2
-      if (!hasEnoughData) {
+      if (!analysis.hasEnoughData) {
         lines.push('')
         lines.push(
           'ℹ️ Need at least 2 weeks of weight + calorie data for accurate TDEE calculation.',
@@ -253,49 +147,52 @@ export function registerAnalyticsTools(server: McpServer) {
       }
 
       // Goal tracking
-      if (tdeeConfig.goalWeight !== undefined && displayTDEE !== null) {
+      if (
+        tdeeConfig.goalWeight !== undefined &&
+        analysis.displayTDEE !== null
+      ) {
         lines.push('')
         lines.push('🎯 Goal:')
         lines.push(
           `  Target Weight: ${formatWeight(tdeeConfig.goalWeight, ctx.weightUnit)}`,
         )
 
-        if (tdeeConfig.goalWeeklyRate && currentWeight !== null) {
-          const weeklyRate = tdeeConfig.goalWeeklyRate
-          const dailyCalorieAdjustment = (weeklyRate * energyPerUnit) / 7
-          const isLosing = tdeeConfig.goalWeight < currentWeight
-          const goalCalories = Math.round(
-            displayTDEE +
-              (isLosing ? -dailyCalorieAdjustment : dailyCalorieAdjustment),
-          )
-          const dailyDeficit = Math.abs(Math.round(dailyCalorieAdjustment))
-          const weightToChange = Math.abs(tdeeConfig.goalWeight - currentWeight)
-          const weeksToGoal = Math.ceil(weightToChange / weeklyRate)
-          const goalDate = new Date()
-          goalDate.setDate(goalDate.getDate() + weeksToGoal * 7)
-
+        if (
+          analysis.goalCalories !== null &&
+          analysis.dailyDeficit !== null &&
+          analysis.weeksToGoal !== null &&
+          analysis.currentWeight !== null
+        ) {
+          const isLosing = tdeeConfig.goalWeight < analysis.currentWeight
           lines.push(
-            `  Goal Calories: ${formatCalories(goalCalories, ctx.energyUnit)}/day`,
+            `  Goal Calories: ${formatCalories(analysis.goalCalories, ctx.energyUnit)}/day`,
           )
           lines.push(
-            `  Daily ${isLosing ? 'Deficit' : 'Surplus'}: ${formatCalories(dailyDeficit, ctx.energyUnit)}`,
+            `  Daily ${isLosing ? 'Deficit' : 'Surplus'}: ${formatCalories(analysis.dailyDeficit, ctx.energyUnit)}`,
           )
-          lines.push(`  Weeks to Goal: ${weeksToGoal}`)
-          lines.push(`  Estimated Date: ${formatShortDate(goalDate, tz, true)}`)
+          lines.push(`  Weeks to Goal: ${analysis.weeksToGoal}`)
+          if (analysis.goalDate !== null) {
+            const [gy, gm, gd] = analysis.goalDate.split('-').map(Number)
+            lines.push(
+              `  Estimated Date: ${formatShortDate(new Date(gy, gm - 1, gd), tz, true)}`,
+            )
+          }
         }
       }
 
       // Weekly breakdown (last 4 weeks)
-      if (weeks.length > 0) {
+      if (analysis.recentWeeks.length > 0) {
         lines.push('')
         lines.push('📊 Weekly Breakdown (Recent):')
-        const recentWeeks = weeks.slice(-4)
+        const recentWeeks = analysis.recentWeeks.slice(-4)
         for (const week of recentWeeks) {
-          const startStr = week.start.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-          })
-          const endStr = week.end.toLocaleDateString('en-US', {
+          const [sy, sm, sd] = week.weekStart.split('-').map(Number)
+          const [ey, em, ed] = week.weekEnd.split('-').map(Number)
+          const startStr = new Date(sy, sm - 1, sd).toLocaleDateString(
+            'en-US',
+            { month: 'short', day: 'numeric' },
+          )
+          const endStr = new Date(ey, em - 1, ed).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
           })
@@ -308,6 +205,11 @@ export function registerAnalyticsTools(server: McpServer) {
           if (week.avgCalories !== null) {
             parts.push(
               `Avg Calories ${formatCalories(week.avgCalories, ctx.energyUnit)}`,
+            )
+          }
+          if (week.displayTDEE !== null) {
+            parts.push(
+              `TDEE ${formatCalories(week.displayTDEE, ctx.energyUnit)}`,
             )
           }
           lines.push(`  ${parts.join(' | ')}`)

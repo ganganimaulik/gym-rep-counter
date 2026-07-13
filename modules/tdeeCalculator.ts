@@ -345,7 +345,8 @@ export function calculateGoalDate(
   fromDate: Date = new Date(),
 ): Date {
   const date = new Date(fromDate)
-  date.setDate(date.getDate() + Math.round(weeksToGoal * 7))
+  // Excel renders TODAY() + n×7 with the fractional day truncated
+  date.setDate(date.getDate() + Math.floor(weeksToGoal * 7))
   return date
 }
 
@@ -637,7 +638,8 @@ export function calculateTDEEPipeline(
   let weeksToGoal: number | null = null
   let goalDate: Date | null = null
 
-  const tdeeForGoal = currentDisplayTDEE ?? seedTDEE
+  // L8 derives from L6 (TDEE rounded to nearest 25), not the 5-rounded weekly value
+  const tdeeForGoal = roundDisplayTDEE(currentDisplayTDEE ?? seedTDEE)
 
   if (
     goalWeight !== undefined &&

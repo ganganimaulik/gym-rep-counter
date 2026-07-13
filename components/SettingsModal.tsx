@@ -158,8 +158,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="bg-zinc-950 border border-indigo-900 rounded-xl px-6 py-3 flex-row items-center justify-center w-[220px]"
                       onPress={async () => {
                         if (process.env.EXPO_PUBLIC_PLAYWRIGHT === '1') {
-                          if (typeof window !== 'undefined' && (window as any).setMockUser) {
-                            (window as any).setMockUser({
+                          if (
+                            typeof window !== 'undefined' &&
+                            (window as any).setMockUser
+                          ) {
+                            ;(window as any).setMockUser({
                               uid: 'test-user',
                               email: 'test@example.com',
                               displayName: 'Test User',

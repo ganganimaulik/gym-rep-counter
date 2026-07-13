@@ -4,9 +4,12 @@ import TDEEScreen from '../TDEEScreen'
 
 // Mock dependencies
 jest.mock('lucide-react-native', () => {
-  return new Proxy({}, {
-    get: () => () => null,
-  })
+  return new Proxy(
+    {},
+    {
+      get: () => () => null,
+    },
+  )
 })
 
 jest.mock('expo-blur', () => ({
@@ -64,10 +67,18 @@ describe('TDEEScreen', () => {
     jest.clearAllMocks()
     mockDataHook = {
       weightLogs: [
-        { id: 'w1', weight: 75.5, date: createMockTimestamp(new Date('2026-07-13T10:00:00')) },
+        {
+          id: 'w1',
+          weight: 75.5,
+          date: createMockTimestamp(new Date('2026-07-13T10:00:00')),
+        },
       ],
       calorieLogs: [
-        { id: 'c1', calories: 2500, date: createMockTimestamp(new Date('2026-07-13T10:00:00')) },
+        {
+          id: 'c1',
+          calories: 2500,
+          date: createMockTimestamp(new Date('2026-07-13T10:00:00')),
+        },
       ],
       tdeeConfig: {
         weightUnit: 'kg',
@@ -82,10 +93,7 @@ describe('TDEEScreen', () => {
 
   it('renders pre-filled TDEE card values and logs', async () => {
     const { getByText, getAllByText } = render(
-      <TDEEScreen
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <TDEEScreen user={mockUser} dataHook={mockDataHook} />,
     )
 
     await waitFor(() => {
@@ -102,10 +110,7 @@ describe('TDEEScreen', () => {
 
   it('updates goal weight and rate and calls saveTDEEConfig', async () => {
     const { getByTestId } = render(
-      <TDEEScreen
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <TDEEScreen user={mockUser} dataHook={mockDataHook} />,
     )
 
     const goalWeightInput = getByTestId('goal-weight-input')

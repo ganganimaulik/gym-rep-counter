@@ -4,9 +4,12 @@ import WorkoutSelector from '../WorkoutSelector'
 
 // Mock dependencies
 jest.mock('lucide-react-native', () => {
-  return new Proxy({}, {
-    get: () => () => null,
-  })
+  return new Proxy(
+    {},
+    {
+      get: () => () => null,
+    },
+  )
 })
 
 jest.mock('../../WorkoutPicker', () => {

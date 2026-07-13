@@ -4,9 +4,12 @@ import Controls from '../Controls'
 
 // Mock dependencies
 jest.mock('lucide-react-native', () => {
-  return new Proxy({}, {
-    get: () => () => null,
-  })
+  return new Proxy(
+    {},
+    {
+      get: () => () => null,
+    },
+  )
 })
 
 describe('Controls', () => {

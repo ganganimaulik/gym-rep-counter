@@ -4,9 +4,12 @@ import ProgressScreen from '../ProgressScreen'
 
 // Mock dependencies
 jest.mock('lucide-react-native', () => {
-  return new Proxy({}, {
-    get: () => () => null,
-  })
+  return new Proxy(
+    {},
+    {
+      get: () => () => null,
+    },
+  )
 })
 
 jest.mock('expo-blur', () => ({
@@ -45,7 +48,7 @@ const mockAnalytics = {
       repsAtMax: 10,
       maxWeight: 80,
       date: createMockTimestamp(new Date('2026-07-13T10:00:00')),
-    }
+    },
   ],
   streak: 5,
   weeklyVolume: [
@@ -53,7 +56,10 @@ const mockAnalytics = {
     { label: 'Week 2', value: 12000 },
   ],
   exercises: ['Bench Press', 'Squat'],
-  getExerciseTrends: jest.fn(() => ({ labels: ['Week 1', 'Week 2'], data: [75, 80] })),
+  getExerciseTrends: jest.fn(() => ({
+    labels: ['Week 1', 'Week 2'],
+    data: [75, 80],
+  })),
   refreshAnalytics: jest.fn(),
 }
 
@@ -74,13 +80,21 @@ describe('ProgressScreen', () => {
     mockDataHook = {
       // Seed logs as yesterday so today is empty (triggers addWeightLog instead of updateWeightLog)
       weightLogs: [
-        { id: 'w1', weight: 75.5, date: createMockTimestamp(new Date('2026-07-12T10:00:00')) },
+        {
+          id: 'w1',
+          weight: 75.5,
+          date: createMockTimestamp(new Date('2026-07-12T10:00:00')),
+        },
       ],
       addWeightLog: jest.fn().mockResolvedValue(undefined),
       updateWeightLog: jest.fn().mockResolvedValue(undefined),
       deleteWeightLog: jest.fn().mockResolvedValue(undefined),
       calorieLogs: [
-        { id: 'c1', calories: 2500, date: createMockTimestamp(new Date('2026-07-12T10:00:00')) },
+        {
+          id: 'c1',
+          calories: 2500,
+          date: createMockTimestamp(new Date('2026-07-12T10:00:00')),
+        },
       ],
       addCalorieLog: jest.fn().mockResolvedValue(undefined),
       updateCalorieLog: jest.fn().mockResolvedValue(undefined),
@@ -152,8 +166,16 @@ describe('ProgressScreen', () => {
     fireEvent.press(getByTestId('save-health-button'))
 
     await waitFor(() => {
-      expect(mockDataHook.addWeightLog).toHaveBeenCalledWith(77.2, expect.any(Date), mockUser)
-      expect(mockDataHook.addCalorieLog).toHaveBeenCalledWith(2650, expect.any(Date), mockUser)
+      expect(mockDataHook.addWeightLog).toHaveBeenCalledWith(
+        77.2,
+        expect.any(Date),
+        mockUser,
+      )
+      expect(mockDataHook.addCalorieLog).toHaveBeenCalledWith(
+        2650,
+        expect.any(Date),
+        mockUser,
+      )
     })
   })
 })

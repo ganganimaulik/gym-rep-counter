@@ -31,9 +31,12 @@ jest.mock('@react-native-community/netinfo', () => ({
 }))
 
 jest.mock('lucide-react-native', () => {
-  return new Proxy({}, {
-    get: () => () => null,
-  })
+  return new Proxy(
+    {},
+    {
+      get: () => () => null,
+    },
+  )
 })
 
 jest.mock('expo-blur', () => ({
@@ -147,19 +150,18 @@ jest.mock('./components/SplashScreen', () => () => null)
 
 jest.mock('./components/HistoryScreen', () => {
   const { Text } = require('react-native')
-  return ({ visible }: any) => visible ? <Text>HISTORY</Text> : null
+  return ({ visible }: any) => (visible ? <Text>HISTORY</Text> : null)
 })
 
 jest.mock('./components/ProgressScreen', () => {
   const { Text } = require('react-native')
-  return ({ visible }: any) => visible ? <Text>PROGRESS</Text> : null
+  return ({ visible }: any) => (visible ? <Text>PROGRESS</Text> : null)
 })
 
 jest.mock('./components/JournalScreen', () => {
   const { Text } = require('react-native')
-  return ({ visible }: any) => visible ? <Text>JOURNAL</Text> : null
+  return ({ visible }: any) => (visible ? <Text>JOURNAL</Text> : null)
 })
-
 
 describe('App Component', () => {
   beforeEach(() => {
@@ -224,6 +226,8 @@ describe('App Component', () => {
     })
 
     expect(mockDataHookValue.syncUserData).toHaveBeenCalled()
-    expect(mockDataHookValue.fetchWeightLogs).toHaveBeenCalledWith({ uid: 'auth-user-id' })
+    expect(mockDataHookValue.fetchWeightLogs).toHaveBeenCalledWith({
+      uid: 'auth-user-id',
+    })
   })
 })

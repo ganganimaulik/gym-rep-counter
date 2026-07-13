@@ -860,7 +860,13 @@ describe('useData Hook', () => {
   describe('Authenticated User History Pagination & Tiebreaker', () => {
     it('should build query with orderBy date/documentId and startAfter date/id', async () => {
       const { result } = renderHook(() => useData())
-      const { orderBy, documentId, startAfter, limit, getDocs } = require('firebase/firestore')
+      const {
+        orderBy,
+        documentId,
+        startAfter,
+        limit,
+        getDocs,
+      } = require('firebase/firestore')
 
       const lastVisibleMock: any = {
         id: 'h2',
@@ -875,14 +881,19 @@ describe('useData Hook', () => {
 
       expect(orderBy).toHaveBeenCalledWith('date', 'desc')
       expect(documentId).toHaveBeenCalled()
-      expect(startAfter).toHaveBeenCalledWith(lastVisibleMock.date, lastVisibleMock.id)
+      expect(startAfter).toHaveBeenCalledWith(
+        lastVisibleMock.date,
+        lastVisibleMock.id,
+      )
       expect(limit).toHaveBeenCalledWith(20)
     })
 
     it('returns empty array when getDocs throws', async () => {
       const { result } = renderHook(() => useData())
       const { getDocs } = require('firebase/firestore')
-      ;(getDocs as jest.Mock).mockRejectedValueOnce(new Error('Firestore error'))
+      ;(getDocs as jest.Mock).mockRejectedValueOnce(
+        new Error('Firestore error'),
+      )
 
       let history: any
       await act(async () => {
@@ -903,7 +914,8 @@ describe('useData Hook', () => {
       }))
 
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
 
@@ -911,7 +923,10 @@ describe('useData Hook', () => {
 
       let history: any
       await act(async () => {
-        history = await result.current.fetchHistory(null, { id: 'guest-9', date: { seconds: 991, nanoseconds: 0 } } as any)
+        history = await result.current.fetchHistory(null, {
+          id: 'guest-9',
+          date: { seconds: 991, nanoseconds: 0 },
+        } as any)
       })
 
       // guest-9 is at index 9, so next page should start at index 10 (guest-10)
@@ -929,7 +944,8 @@ describe('useData Hook', () => {
       }))
 
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
 
@@ -937,7 +953,10 @@ describe('useData Hook', () => {
 
       let history: any
       await act(async () => {
-        history = await result.current.fetchHistory(null, { id: 'guest-4', date: { seconds: 996, nanoseconds: 0 } } as any)
+        history = await result.current.fetchHistory(null, {
+          id: 'guest-4',
+          date: { seconds: 996, nanoseconds: 0 },
+        } as any)
       })
 
       expect(history).toEqual([])
@@ -952,7 +971,8 @@ describe('useData Hook', () => {
       }))
 
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
 
@@ -960,7 +980,10 @@ describe('useData Hook', () => {
 
       let history: any
       await act(async () => {
-        history = await result.current.fetchHistory(null, { id: 'guest-nonexistent', date: { seconds: 996, nanoseconds: 0 } } as any)
+        history = await result.current.fetchHistory(null, {
+          id: 'guest-nonexistent',
+          date: { seconds: 996, nanoseconds: 0 },
+        } as any)
       })
 
       expect(history).toHaveLength(5)
@@ -969,13 +992,29 @@ describe('useData Hook', () => {
 
     it('sorts entries descending by date regardless of insertion order', async () => {
       const unsortedHistory = [
-        { id: 'guest-old', exerciseId: 'ex1', set: 1, date: { seconds: 100, nanoseconds: 0 } },
-        { id: 'guest-new', exerciseId: 'ex1', set: 1, date: { seconds: 300, nanoseconds: 0 } },
-        { id: 'guest-mid', exerciseId: 'ex1', set: 1, date: { seconds: 200, nanoseconds: 0 } },
+        {
+          id: 'guest-old',
+          exerciseId: 'ex1',
+          set: 1,
+          date: { seconds: 100, nanoseconds: 0 },
+        },
+        {
+          id: 'guest-new',
+          exerciseId: 'ex1',
+          set: 1,
+          date: { seconds: 300, nanoseconds: 0 },
+        },
+        {
+          id: 'guest-mid',
+          exerciseId: 'ex1',
+          set: 1,
+          date: { seconds: 200, nanoseconds: 0 },
+        },
       ]
 
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(unsortedHistory))
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(unsortedHistory))
         return Promise.resolve(null)
       })
 
@@ -1137,11 +1176,21 @@ describe('useData Hook', () => {
       })
 
       await act(async () => {
-        await result.current.updateHistoryEntry('entry-1', { reps: 15, weight: 60 }, null)
+        await result.current.updateHistoryEntry(
+          'entry-1',
+          { reps: 15, weight: 60 },
+          null,
+        )
       })
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestHistory', expect.any(String))
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(todayKey, expect.any(String))
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestHistory',
+        expect.any(String),
+      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        todayKey,
+        expect.any(String),
+      )
       expect(result.current.todaysCompletions).toHaveLength(1)
       expect(result.current.todaysCompletions[0].reps).toBe(15)
       expect(result.current.todaysCompletions[0].weight).toBe(60)
@@ -1175,14 +1224,24 @@ describe('useData Hook', () => {
         await result.current.deleteHistoryEntry('entry-1', null)
       })
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestHistory', JSON.stringify([]))
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(todayKey, JSON.stringify([]))
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestHistory',
+        JSON.stringify([]),
+      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        todayKey,
+        JSON.stringify([]),
+      )
       expect(result.current.todaysCompletions).toHaveLength(0)
     })
 
     it('should leave todaysCompletions untouched when firestore write fails on update/delete', async () => {
-      ;(updateDoc as jest.Mock).mockRejectedValueOnce(new Error('Update failed'))
-      ;(deleteDoc as jest.Mock).mockRejectedValueOnce(new Error('Delete failed'))
+      ;(updateDoc as jest.Mock).mockRejectedValueOnce(
+        new Error('Update failed'),
+      )
+      ;(deleteDoc as jest.Mock).mockRejectedValueOnce(
+        new Error('Delete failed'),
+      )
       ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
 
       const { result } = renderHook(() => useData())
@@ -1204,7 +1263,9 @@ describe('useData Hook', () => {
         )
       })
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
 
       // Attempt update
       await act(async () => {
@@ -1246,8 +1307,14 @@ describe('useData Hook', () => {
         )
       })
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestHistory', expect.any(String))
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(todayKey, expect.any(String))
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestHistory',
+        expect.any(String),
+      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        todayKey,
+        expect.any(String),
+      )
       expect(result.current.historyVersion).toBe(versionBefore + 1)
     })
 
@@ -1367,9 +1434,9 @@ describe('useData Hook', () => {
         ([key]) => key === todayKey,
       )
       expect(todayWrite).toBeDefined()
-      expect(JSON.parse(todayWrite![1]).map((e: { id: string }) => e.id)).toEqual(
-        ['today-set1'],
-      )
+      expect(
+        JSON.parse(todayWrite![1]).map((e: { id: string }) => e.id),
+      ).toEqual(['today-set1'])
 
       // History screen refreshes on version change
       expect(result.current.historyVersion).toBe(1)
@@ -1408,23 +1475,44 @@ describe('useData Hook', () => {
       expect(result.current.historyVersion).toBe(versionBefore + 1)
     })
 
-    it('deletes only today\'s entries for the given exercise with set >= N', async () => {
+    it("deletes only today's entries for the given exercise with set >= N", async () => {
       mockBatch.commit.mockResolvedValue(undefined)
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
 
       // Seed mock completions
       const sets = [
-        { id: 'set-ex1-s1', exerciseId: 'ex1', set: 1, reps: 10, weight: 50, date: { seconds: Math.floor(startTime / 1000) } },
-        { id: 'set-ex1-s2', exerciseId: 'ex1', set: 2, reps: 10, weight: 50, date: { seconds: Math.floor(startTime / 1000) } },
-        { id: 'set-ex2-s2', exerciseId: 'ex2', set: 2, reps: 10, weight: 50, date: { seconds: Math.floor(startTime / 1000) } },
+        {
+          id: 'set-ex1-s1',
+          exerciseId: 'ex1',
+          set: 1,
+          reps: 10,
+          weight: 50,
+          date: { seconds: Math.floor(startTime / 1000) },
+        },
+        {
+          id: 'set-ex1-s2',
+          exerciseId: 'ex1',
+          set: 2,
+          reps: 10,
+          weight: 50,
+          date: { seconds: Math.floor(startTime / 1000) },
+        },
+        {
+          id: 'set-ex2-s2',
+          exerciseId: 'ex2',
+          set: 2,
+          reps: 10,
+          weight: 50,
+          date: { seconds: Math.floor(startTime / 1000) },
+        },
       ]
 
       ;(getDocs as jest.Mock).mockResolvedValueOnce({
-        docs: sets.map(s => ({
+        docs: sets.map((s) => ({
           id: s.id,
-          data: () => s
-        }))
+          data: () => s,
+        })),
       })
 
       // Fetch completions to populate in-memory state
@@ -1434,7 +1522,9 @@ describe('useData Hook', () => {
 
       mockBatch.delete.mockClear()
       const originalDoc = (doc as jest.Mock).getMockImplementation()
-      ;(doc as jest.Mock).mockImplementation((_db, _collection, _uid, _sub, id) => ({ id }))
+      ;(doc as jest.Mock).mockImplementation(
+        (_db, _collection, _uid, _sub, id) => ({ id }),
+      )
 
       await act(async () => {
         await result.current.resetSetsFrom('ex1', 2, mockUser)
@@ -1443,7 +1533,6 @@ describe('useData Hook', () => {
       expect(mockBatch.delete).toHaveBeenCalledTimes(1)
       const deletedRef = mockBatch.delete.mock.calls[0][0]
       expect(deletedRef.id).toBe('set-ex1-s2')
-
       ;(doc as jest.Mock).mockImplementation(originalDoc)
     })
   })

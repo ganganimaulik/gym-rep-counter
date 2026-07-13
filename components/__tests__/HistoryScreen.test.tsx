@@ -49,7 +49,9 @@ describe('HistoryScreen', () => {
     )
 
     await waitFor(() => {
-      expect(getByText('No workout history yet. Complete a set to get started!')).toBeTruthy()
+      expect(
+        getByText('No workout history yet. Complete a set to get started!'),
+      ).toBeTruthy()
     })
   })
 
@@ -83,7 +85,7 @@ describe('HistoryScreen', () => {
         reps: 5,
         weight: 120,
         date: null, // invalid date
-      }
+      },
     ]
 
     mockDataHook.fetchHistory.mockResolvedValueOnce(mockHistory)
@@ -107,8 +109,8 @@ describe('HistoryScreen', () => {
   it('computes rest time badge between consecutive sets correctly', async () => {
     const today = new Date('2026-07-13')
     const time1 = new Date(today.getTime() + 10 * 60 * 1000) // 10 mins past
-    const time2 = new Date(today.getTime() + 6 * 60 * 1000)  // startTime of newest set (6 mins past)
-    const time3 = new Date(today.getTime() + 5 * 60 * 1000)  // endTime of oldest set (5 mins past)
+    const time2 = new Date(today.getTime() + 6 * 60 * 1000) // startTime of newest set (6 mins past)
+    const time3 = new Date(today.getTime() + 5 * 60 * 1000) // endTime of oldest set (5 mins past)
 
     const mockHistory = [
       {
@@ -118,7 +120,7 @@ describe('HistoryScreen', () => {
         reps: 10,
         weight: 60,
         date: createMockTimestamp(time1),
-        startTime: createMockTimestamp(time2), 
+        startTime: createMockTimestamp(time2),
       },
       {
         id: 'set-oldest',
@@ -128,7 +130,7 @@ describe('HistoryScreen', () => {
         weight: 60,
         date: createMockTimestamp(time3),
         startTime: createMockTimestamp(new Date(today.getTime())),
-      }
+      },
     ]
 
     mockDataHook.fetchHistory.mockResolvedValueOnce(mockHistory)
@@ -276,7 +278,10 @@ describe('HistoryScreen', () => {
     fireEvent.press(getByText('Delete Entry'))
 
     await waitFor(() => {
-      expect(mockDataHook.deleteHistoryEntry).toHaveBeenCalledWith('h1', mockUser)
+      expect(mockDataHook.deleteHistoryEntry).toHaveBeenCalledWith(
+        'h1',
+        mockUser,
+      )
       expect(queryByText('Bench Press')).toBeNull()
     })
   })

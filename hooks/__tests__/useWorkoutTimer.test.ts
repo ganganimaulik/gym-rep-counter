@@ -828,7 +828,7 @@ describe('useWorkoutTimer', () => {
 
       act(() => result.current.startWorkout())
       act(() => result.current.continueToNextPhase()) // finish set 1 -> enter rest
-      
+
       await waitFor(() => expect(result.current.phase).toBe('Rest'))
 
       mockQueueSpeak.mockClear()
@@ -843,7 +843,10 @@ describe('useWorkoutTimer', () => {
       })
 
       // Announcement should have fired once
-      expect(mockQueueSpeak).toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+      expect(mockQueueSpeak).toHaveBeenCalledWith(
+        'Rest target reached.',
+        expect.any(Object),
+      )
       expect(mockQueueSpeak).toHaveBeenCalledTimes(1)
 
       // Advance more: should not fire announcement again
@@ -851,7 +854,10 @@ describe('useWorkoutTimer', () => {
       act(() => {
         jest.advanceTimersByTime(2000)
       })
-      expect(mockQueueSpeak).not.toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+      expect(mockQueueSpeak).not.toHaveBeenCalledWith(
+        'Rest target reached.',
+        expect.any(Object),
+      )
 
       // Pause during rest: elapsed time should be stored
       act(() => {
@@ -865,14 +871,17 @@ describe('useWorkoutTimer', () => {
         result.current.pauseWorkout() // toggles pause -> resume
       })
       expect(result.current.isPaused).toBe(false)
-      expect(mockQueueSpeak).not.toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+      expect(mockQueueSpeak).not.toHaveBeenCalledWith(
+        'Rest target reached.',
+        expect.any(Object),
+      )
 
       // Moving to next set (set 2 rest) should reset restTargetAnnounced
       act(() => result.current.runNextSet())
       await waitFor(() => expect(result.current.phase).toBe('Get Ready'))
       act(() => result.current.continueToNextPhase())
       await waitFor(() => expect(result.current.phase).toBe('Rest'))
-      
+
       mockQueueSpeak.mockClear()
       act(() => {
         jest.advanceTimersByTime(5000)
@@ -880,7 +889,10 @@ describe('useWorkoutTimer', () => {
       await waitFor(() => {
         expect(result.current.isRestComplete).toBe(true)
       })
-      expect(mockQueueSpeak).toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+      expect(mockQueueSpeak).toHaveBeenCalledWith(
+        'Rest target reached.',
+        expect.any(Object),
+      )
     })
 
     it('endSet during eccentric phase records setStartTime and passes to onSetComplete', async () => {
@@ -914,7 +926,7 @@ describe('useWorkoutTimer', () => {
         expect.objectContaining({
           startTime: expect.any(Number),
           endTime: expect.any(Number),
-        })
+        }),
       )
     })
 
@@ -931,7 +943,7 @@ describe('useWorkoutTimer', () => {
 
       act(() => result.current.startWorkout())
       mockOnSetComplete.mockClear()
-      
+
       act(() => {
         result.current.endSet()
       })
@@ -940,7 +952,7 @@ describe('useWorkoutTimer', () => {
         expect.objectContaining({
           startTime: expect.any(Number),
           endTime: expect.any(Number),
-        })
+        }),
       )
       const call = mockOnSetComplete.mock.calls[0][0]
       expect(call.startTime).toBe(call.endTime)
@@ -1002,7 +1014,7 @@ describe('useWorkoutTimer', () => {
       const customSettings = {
         ...defaultSettings,
         eccentricSeconds: 6,
-        eccentricCountdownEnabled: true
+        eccentricCountdownEnabled: true,
       }
       const { result } = renderHook(() =>
         useWorkoutTimer(
@@ -1065,7 +1077,11 @@ describe('useWorkoutTimer', () => {
     })
 
     it('live-activity integration is called on start, update, and stop', async () => {
-      const { startWorkoutActivity, updateWorkoutActivity, stopWorkoutActivity } = require('../../utils/workoutActivity')
+      const {
+        startWorkoutActivity,
+        updateWorkoutActivity,
+        stopWorkoutActivity,
+      } = require('../../utils/workoutActivity')
       const { result, unmount } = renderHook(() =>
         useWorkoutTimer(
           defaultSettings,

@@ -117,7 +117,10 @@ describe('WorkoutManagementModal', () => {
       />,
     )
 
-    fireEvent.changeText(getByPlaceholderText('Exercise name'), 'Leg Extensions')
+    fireEvent.changeText(
+      getByPlaceholderText('Exercise name'),
+      'Leg Extensions',
+    )
     fireEvent.changeText(getByPlaceholderText('Sets'), '3')
     fireEvent.changeText(getByPlaceholderText('Reps'), '15')
     fireEvent.press(getByText('Add Exercise'))

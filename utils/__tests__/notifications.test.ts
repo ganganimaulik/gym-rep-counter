@@ -108,7 +108,7 @@ describe('notifications', () => {
         statRemindersEnabled: false,
       }
       await setupReminders(disabledSettings, [], [], [], [])
-      
+
       const statReminders = mockScheduleNotification.mock.calls.filter(
         (call: any[]) => call[0].content.title === 'Update Stats 📊',
       )
