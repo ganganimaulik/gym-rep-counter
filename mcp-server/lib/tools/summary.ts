@@ -12,8 +12,9 @@ import {
 } from 'firebase/firestore'
 import {
   getDayRange,
-  getTodayString,
   getDateStringFromTimestamp,
+  getTodayString,
+  getWeekStart,
 } from '../date-utils'
 import {
   formatDate,
@@ -211,17 +212,14 @@ export function registerSummaryTools(server: McpServer) {
       const tz = args.timezone || 'UTC'
 
       const offset = args.week_offset ?? 0
-      // Calculate week range
+      // Calculate week range using shared getWeekStart
       const todayStr = getTodayString(tz)
       const [y, m, d] = todayStr.split('-').map(Number)
       const today = new Date(y, m - 1, d)
       today.setDate(today.getDate() + offset * 7)
 
-      // Get Monday of this week
-      const dayOfWeek = today.getDay()
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-      const monday = new Date(today)
-      monday.setDate(monday.getDate() + mondayOffset)
+      // Use shared getWeekStart instead of inline Monday calculation
+      const monday = getWeekStart(today)
       const sunday = new Date(monday)
       sunday.setDate(sunday.getDate() + 6)
 

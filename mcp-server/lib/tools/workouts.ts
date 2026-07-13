@@ -5,8 +5,8 @@ import { getUserContext } from '../user-context'
 import { getFirebaseClient } from '../firebase-client'
 import {
   getDaysBackRange,
-  getDateStringFromTimestamp,
   toDate,
+  getDateStringFromTimestamp,
 } from '../date-utils'
 import {
   formatDate,

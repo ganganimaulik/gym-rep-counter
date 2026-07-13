@@ -1,6 +1,26 @@
 import { Timestamp } from 'firebase/firestore'
 
 /**
+ * Convert any Firestore timestamp-like object to a Date.
+ */
+export function toDate(ts: unknown): Date {
+  if (ts instanceof Date) return ts
+  const tsObj = ts as Record<string, unknown>
+  if (
+    tsObj &&
+    typeof (tsObj as { toDate?: () => Date }).toDate === 'function'
+  ) {
+    return (tsObj as { toDate: () => Date }).toDate()
+  }
+  if (tsObj && (tsObj._seconds !== undefined || tsObj.seconds !== undefined)) {
+    const seconds = (tsObj._seconds ?? tsObj.seconds) as number
+    const nanos = (tsObj._nanoseconds ?? tsObj.nanoseconds ?? 0) as number
+    return new Date(seconds * 1000 + nanos / 1000000)
+  }
+  return new Date(ts as string | number)
+}
+
+/**
  * Get the timezone offset in milliseconds for a given date and timezone.
  * Positive means timezone is ahead of UTC.
  */
@@ -101,11 +121,11 @@ export function getWeekRange(
   const today = new Date(y, m - 1, d)
   today.setDate(today.getDate() + weekOffset * 7)
 
-  const weekStart = getWeekStart(today)
-  const weekEnd = new Date(weekStart)
+  const weekStartDate = getWeekStart(today)
+  const weekEnd = new Date(weekStartDate)
   weekEnd.setDate(weekEnd.getDate() + 7)
 
-  const startStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`
+  const startStr = `${weekStartDate.getFullYear()}-${String(weekStartDate.getMonth() + 1).padStart(2, '0')}-${String(weekStartDate.getDate()).padStart(2, '0')}`
   const endStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`
 
   const startOffset = getTimezoneOffset(startStr, timezone)
@@ -120,7 +140,7 @@ export function getWeekRange(
   return {
     start: Timestamp.fromDate(startUtc),
     end: Timestamp.fromDate(endUtc),
-    startDate: weekStart,
+    startDate: weekStartDate,
     endDate: new Date(weekEnd.getTime() - 1),
   }
 }
@@ -134,24 +154,4 @@ export function getDateStringFromTimestamp(
 ): string {
   const date = toDate(ts)
   return date.toLocaleDateString('en-CA', { timeZone: timezone })
-}
-
-/**
- * Convert any Firestore timestamp-like object to a Date.
- */
-export function toDate(ts: unknown): Date {
-  if (ts instanceof Date) return ts
-  const tsObj = ts as Record<string, unknown>
-  if (
-    tsObj &&
-    typeof (tsObj as { toDate?: () => Date }).toDate === 'function'
-  ) {
-    return (tsObj as { toDate: () => Date }).toDate()
-  }
-  if (tsObj && (tsObj._seconds !== undefined || tsObj.seconds !== undefined)) {
-    const seconds = (tsObj._seconds ?? tsObj.seconds) as number
-    const nanos = (tsObj._nanoseconds ?? tsObj.nanoseconds ?? 0) as number
-    return new Date(seconds * 1000 + nanos / 1000000)
-  }
-  return new Date(ts as string | number)
 }

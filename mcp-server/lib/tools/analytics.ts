@@ -13,7 +13,7 @@ import {
   getDoc,
   Timestamp,
 } from 'firebase/firestore'
-import { getDaysBackRange, getDateStringFromTimestamp } from '../date-utils'
+import { getDaysBackRange } from '../date-utils'
 import { formatWeight, formatCalories, formatShortDate } from '../formatters'
 import {
   analyzeTDEE,
@@ -23,6 +23,8 @@ import {
   type WeightUnit,
   type EnergyUnit,
 } from '../tdee-adapter'
+import { calculateTrends } from '../../../utils/analyticsUtils'
+import type { WorkoutSet } from '../../../declarations'
 
 export function registerAnalyticsTools(server: McpServer) {
   server.tool(
@@ -260,13 +262,25 @@ export function registerAnalyticsTools(server: McpServer) {
       )
 
       const filterName = args.exercise_name.toLowerCase()
-      const filtered = snap.docs
-        .map((d) => d.data())
-        .filter((s) =>
-          (s.exerciseName as string).toLowerCase().includes(filterName),
-        )
 
-      if (filtered.length === 0) {
+      // Find matching exercise ID from raw data
+      let exerciseDisplayName = args.exercise_name
+      let matchingExerciseId: string | null = null
+
+      const allSets = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as unknown as WorkoutSet[]
+
+      for (const s of allSets) {
+        if (s.exerciseName.toLowerCase().includes(filterName)) {
+          exerciseDisplayName = s.exerciseName
+          matchingExerciseId = s.exerciseId
+          break
+        }
+      }
+
+      if (!matchingExerciseId) {
         return {
           content: [
             {
@@ -277,66 +291,45 @@ export function registerAnalyticsTools(server: McpServer) {
         }
       }
 
-      // Group by date to get per-session averages
-      const sessionMap = new Map<
-        string,
-        { totalWeight: number; totalReps: number; count: number }
-      >()
-      for (const s of filtered) {
-        const dateStr = getDateStringFromTimestamp(
-          s.date as Timestamp,
-          tz,
-        )
-        const existing = sessionMap.get(dateStr) || {
-          totalWeight: 0,
-          totalReps: 0,
-          count: 0,
+      // Use shared calculateTrends from mobile app's analyticsUtils
+      const trends = calculateTrends(allSets, matchingExerciseId)
+
+      if (trends.length === 0) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `📈 Exercise Trends: ${exerciseDisplayName}\n\nNo data found for this exercise in the last 90 days.`,
+            },
+          ],
         }
-        existing.totalWeight += s.weight as number
-        existing.totalReps += s.reps as number
-        existing.count++
-        sessionMap.set(dateStr, existing)
       }
-
-      const sessions = Array.from(sessionMap.entries())
-        .map(([dateStr, data]) => ({
-          dateStr,
-          avgWeight: Math.round((data.totalWeight / data.count) * 10) / 10,
-          avgReps: Math.round((data.totalReps / data.count) * 10) / 10,
-          setCount: data.count,
-        }))
-        .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
-
-      // Use the exercise name from the first matching record
-      const exerciseDisplayName = filtered[0].exerciseName as string
 
       const lines: string[] = []
       lines.push(`📈 Exercise Trends: ${exerciseDisplayName}`)
       lines.push('')
 
-      const recentSessions = sessions.slice(-10)
-      lines.push(`Session History (Last ${recentSessions.length}):`)
-      for (const s of recentSessions.reverse()) {
-        const [y, m, d] = s.dateStr.split('-').map(Number)
-        const date = new Date(y, m - 1, d)
-        const dateLabel = date.toLocaleDateString('en-US', {
+      const recentTrends = trends.slice(-10)
+      lines.push(`Session History (Last ${recentTrends.length}):`)
+      for (const t of [...recentTrends].reverse()) {
+        const dateLabel = t.date.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
         })
         lines.push(
-          `  ${dateLabel}: ${s.setCount} sets — Avg ${formatWeight(s.avgWeight, ctx.weightUnit)} × ${s.avgReps} reps`,
+          `  ${dateLabel}: ${t.setCount} sets — Avg ${formatWeight(t.avgWeight, ctx.weightUnit)} × ${t.avgReps} reps`,
         )
       }
 
       // Progress summary
-      if (sessions.length >= 2) {
-        const first = sessions[0]
-        const last = sessions[sessions.length - 1]
+      if (trends.length >= 2) {
+        const first = trends[0]
+        const last = trends[trends.length - 1]
         const delta = last.avgWeight - first.avgWeight
         const sign = delta >= 0 ? '+' : ''
         lines.push('')
         lines.push(
-          `Progress: ${formatWeight(first.avgWeight, ctx.weightUnit)} → ${formatWeight(last.avgWeight, ctx.weightUnit)} (${sign}${delta.toFixed(1)} ${ctx.weightUnit} over ${sessions.length} sessions)`,
+          `Progress: ${formatWeight(first.avgWeight, ctx.weightUnit)} → ${formatWeight(last.avgWeight, ctx.weightUnit)} (${sign}${delta.toFixed(1)} ${ctx.weightUnit} over ${trends.length} sessions)`,
         )
       }
 

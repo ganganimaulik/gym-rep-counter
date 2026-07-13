@@ -16,36 +16,27 @@ import {
   type WeightUnit,
   type EnergyUnit,
 } from '../../modules/tdeeCalculator'
+import { toDate } from './date-utils'
 
 // Re-export everything from the shared module so consumers only need this one import
 export * from '../../modules/tdeeCalculator'
 
 // ---------------------------------------------------------------------------
-// Server-side types (Firestore Admin SDK specific)
+// Server-side types
 // ---------------------------------------------------------------------------
-
-/**
- * Represents a raw Firestore timestamp as it appears in document data.
- * Firestore timestamps serialize as { _seconds, _nanoseconds } in the
- * firebase-admin SDK's DocumentData.
- */
-interface FirestoreTimestampData {
-  _seconds: number
-  _nanoseconds: number
-}
 
 /** Raw weight log document data from Firestore */
 export interface RawWeightLog {
   id?: string
   weight: number
-  date: Timestamp | FirestoreTimestampData
+  date: Timestamp
 }
 
 /** Raw calorie log document data from Firestore */
 export interface RawCalorieLog {
   id?: string
   calories: number
-  date: Timestamp | FirestoreTimestampData
+  date: Timestamp
 }
 
 /** TDEE config as stored in Firestore */
@@ -98,25 +89,10 @@ export interface TDEEAnalysisResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Converts a Firestore timestamp (Timestamp instance or raw {_seconds, _nanoseconds})
- * to a JavaScript Date.
- */
-function toDate(ts: Timestamp | FirestoreTimestampData): Date {
-  if (ts instanceof Timestamp) {
-    return ts.toDate()
-  }
-  // Raw serialized format: { _seconds, _nanoseconds }
-  return new Date(ts._seconds * 1000 + ts._nanoseconds / 1_000_000)
-}
-
-/**
  * Converts a Firestore timestamp to milliseconds since epoch.
  */
-function toMillis(ts: Timestamp | FirestoreTimestampData): number {
-  if (ts instanceof Timestamp) {
-    return ts.toMillis()
-  }
-  return ts._seconds * 1000 + Math.floor(ts._nanoseconds / 1_000_000)
+function toMillis(ts: Timestamp): number {
+  return ts.toMillis()
 }
 
 /**

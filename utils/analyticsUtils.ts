@@ -7,6 +7,28 @@ import type {
 } from '../declarations'
 
 /**
+ * Get the start of a week (Monday) for a given date
+ */
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  // getDay returns 0 for Sunday, 1 for Monday, etc.
+  // We want Monday as start of week
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  d.setDate(diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+/**
+ * Get a unique week key string for grouping
+ */
+function getWeekKey(date: Date): string {
+  const weekStart = getWeekStart(date)
+  return weekStart.toISOString().split('T')[0]
+}
+
+/**
  * Calculate Personal Records (PRs) - max weight lifted per exercise
  */
 export function calculatePRs(
@@ -41,28 +63,6 @@ export function calculatePRs(
 
   // Sort by max weight descending
   return prs.sort((a, b) => b.maxWeight - a.maxWeight)
-}
-
-/**
- * Get the start of a week (Monday) for a given date
- */
-function getWeekStart(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  // getDay returns 0 for Sunday, 1 for Monday, etc.
-  // We want Monday as start of week
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-/**
- * Get a unique week key string for grouping
- */
-function getWeekKey(date: Date): string {
-  const weekStart = getWeekStart(date)
-  return weekStart.toISOString().split('T')[0]
 }
 
 /**
