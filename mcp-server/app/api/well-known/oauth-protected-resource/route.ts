@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     resource: baseUrl,
     authorization_servers: [baseUrl],
     bearer_methods_supported: ['header'],
-    scopes_supported: ['openid', 'email', 'profile'],
+    scopes_supported: ['email', 'profile'],
   }
 
   return new Response(JSON.stringify(metadata), {

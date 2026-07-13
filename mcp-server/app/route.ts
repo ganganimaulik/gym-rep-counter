@@ -22,7 +22,9 @@ const handler = createMcpHandler(
     },
   },
   {
-    basePath: '/api',
+    streamableHttpEndpoint: '/',
+    sseEndpoint: '/sse',
+    sseMessageEndpoint: '/message',
     maxDuration: 60,
     verboseLogs: true,
   },

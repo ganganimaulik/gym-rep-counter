@@ -13,6 +13,18 @@ const nextConfig = {
         source: '/.well-known/oauth-authorization-server',
         destination: '/api/well-known/oauth-authorization-server',
       },
+      {
+        source: '/mcp',
+        destination: '/api/mcp',
+      },
+      {
+        source: '/sse',
+        destination: '/api/sse',
+      },
+      {
+        source: '/message',
+        destination: '/api/message',
+      },
     ]
   },
 }

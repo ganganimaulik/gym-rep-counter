@@ -190,7 +190,10 @@ export function registerJournalTools(server: McpServer) {
         supplements: args.supplements || [],
       }
 
-      await addDoc(collection(db, `users/${user.uid}/journalEntries`), entryData)
+      await addDoc(
+        collection(db, `users/${user.uid}/journalEntries`),
+        entryData,
+      )
 
       const displayDate = formatDate(start, tz)
       let confirmation = `✅ Journal entry saved for ${displayDate}`

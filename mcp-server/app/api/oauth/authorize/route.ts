@@ -4,6 +4,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const baseUrl = getBaseUrl(req)
 
+  console.log('Authorize request query:', Object.fromEntries(url.searchParams.entries()))
+
   // Extract OAuth params from ChatGPT
   const clientId = url.searchParams.get('client_id')
   const redirectUri = url.searchParams.get('redirect_uri')
@@ -11,7 +13,7 @@ export async function GET(req: Request) {
   const codeChallenge = url.searchParams.get('code_challenge')
   const codeChallengeMethod =
     url.searchParams.get('code_challenge_method') || 'S256'
-  const scope = url.searchParams.get('scope') || 'openid email profile'
+  const scope = url.searchParams.get('scope') || 'email profile'
 
   if (!redirectUri) {
     return new Response(

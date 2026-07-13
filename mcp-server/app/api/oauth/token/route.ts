@@ -107,14 +107,15 @@ export async function POST(req: Request) {
   }
 
   const googleTokens = await tokenResponse.json()
+  console.log('googleTokens keys:', Object.keys(googleTokens), 'has id_token:', !!googleTokens.id_token)
 
   // Return Google's access token to ChatGPT
   return new Response(
     JSON.stringify({
       access_token: googleTokens.access_token,
-      token_type: 'bearer',
+      token_type: googleTokens.token_type || 'Bearer',
       expires_in: googleTokens.expires_in || 3600,
-      scope: googleTokens.scope || 'openid email profile',
+      scope: 'email profile',
       ...(googleTokens.refresh_token
         ? { refresh_token: googleTokens.refresh_token }
         : {}),

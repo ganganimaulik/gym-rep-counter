@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     grant_types_supported: ['authorization_code'],
     code_challenge_methods_supported: ['S256', 'plain'],
     token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
-    scopes_supported: ['openid', 'email', 'profile'],
+    scopes_supported: ['email', 'profile'],
   }
 
   return new Response(JSON.stringify(metadata), {

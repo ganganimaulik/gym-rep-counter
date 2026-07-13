@@ -3,13 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getMcpUser } from '../auth'
 import { getUserContext } from '../user-context'
 import { getFirebaseClient } from '../firebase-client'
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  getDocs,
-} from 'firebase/firestore'
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 import {
   getDayRange,
   getDateStringFromTimestamp,

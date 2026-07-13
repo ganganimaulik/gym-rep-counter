@@ -26,10 +26,7 @@ import {
   addDoc,
   Timestamp,
 } from 'firebase/firestore'
-import {
-  calculateStreak,
-  calculatePRs,
-} from '../../../utils/analyticsUtils'
+import { calculateStreak, calculatePRs } from '../../../utils/analyticsUtils'
 import type { WorkoutSet } from '../../../declarations'
 
 export function registerWorkoutTools(server: McpServer) {
@@ -94,10 +91,7 @@ export function registerWorkoutTools(server: McpServer) {
       // Group by date
       const grouped: Record<string, Array<Record<string, unknown>>> = {}
       for (const s of sets) {
-        const dateKey = getDateStringFromTimestamp(
-          s.date as Timestamp,
-          tz,
-        )
+        const dateKey = getDateStringFromTimestamp(s.date as Timestamp, tz)
         if (!grouped[dateKey]) grouped[dateKey] = []
         grouped[dateKey].push(s)
       }
@@ -375,7 +369,11 @@ export function registerWorkoutTools(server: McpServer) {
 
       // Calculate streak using shared analytics utility
       const streakInfo = calculateStreak(allSets)
-      const { currentStreak, longestStreak, currentWeekWorkouts: currentWeekDays } = streakInfo
+      const {
+        currentStreak,
+        longestStreak,
+        currentWeekWorkouts: currentWeekDays,
+      } = streakInfo
 
       const lines: string[] = []
       lines.push('🏆 Personal Records')
