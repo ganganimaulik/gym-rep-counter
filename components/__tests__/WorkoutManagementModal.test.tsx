@@ -106,4 +106,50 @@ describe('WorkoutManagementModal', () => {
       },
     ])
   })
+
+  test('calls setWorkouts when adding a new exercise to a workout', () => {
+    const { getByPlaceholderText, getByText } = render(
+      <WorkoutManagementModal
+        visible={true}
+        onClose={mockOnClose}
+        workouts={mockWorkouts}
+        setWorkouts={mockSetWorkouts}
+      />,
+    )
+
+    fireEvent.changeText(getByPlaceholderText('Exercise name'), 'Leg Extensions')
+    fireEvent.changeText(getByPlaceholderText('Sets'), '3')
+    fireEvent.changeText(getByPlaceholderText('Reps'), '15')
+    fireEvent.press(getByText('Add Exercise'))
+
+    expect(mockSetWorkouts).toHaveBeenCalledWith([
+      {
+        id: 'w1',
+        name: 'Test Workout',
+        exercises: [
+          ...mockWorkouts[0].exercises,
+          expect.objectContaining({
+            name: 'Leg Extensions',
+            sets: 3,
+            reps: 15,
+          }),
+        ],
+      },
+    ])
+  })
+
+  test('calls setWorkouts when deleting a workout', () => {
+    const { getByTestId } = render(
+      <WorkoutManagementModal
+        visible={true}
+        onClose={mockOnClose}
+        workouts={mockWorkouts}
+        setWorkouts={mockSetWorkouts}
+      />,
+    )
+
+    fireEvent.press(getByTestId('delete-workout-button'))
+
+    expect(mockSetWorkouts).toHaveBeenCalledWith([])
+  })
 })

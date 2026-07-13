@@ -558,7 +558,7 @@ export function useWorkoutTimer(
   ])
 
   const pauseWorkout = useCallback(() => {
-    if (!ui.isRunning) return
+    if (!ui.isRunning && wState.current.phase !== PHASES.REST) return
 
     if (ui.isPaused) {
       updateUI({ isPaused: false })

@@ -17,6 +17,12 @@ jest.mock('expo-background-timer', () => ({
   disableBackgroundExecution: jest.fn(),
 }))
 
+jest.mock('../../utils/workoutActivity', () => ({
+  startWorkoutActivity: jest.fn(),
+  updateWorkoutActivity: jest.fn(),
+  stopWorkoutActivity: jest.fn(),
+}))
+
 const mockQueueSpeak = jest.fn((_text, options) => {
   if (options?.onDone) {
     // Simulate async speech completion
@@ -806,6 +812,318 @@ describe('useWorkoutTimer', () => {
       expect(result.current.isRunning).toBe(false)
       // Since no active exercise, it does fullReset when endSet is called instead of calling onSetComplete
       expect(mockOnSetComplete).not.toHaveBeenCalled()
+    })
+
+    it('rest target announcement fires exactly once per rest period and preserves remaining/elapsed time across pause/resume', async () => {
+      const threeSetExercise = { ...activeExercise, sets: 3 }
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          threeSetExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      act(() => result.current.continueToNextPhase()) // finish set 1 -> enter rest
+      
+      await waitFor(() => expect(result.current.phase).toBe('Rest'))
+
+      mockQueueSpeak.mockClear()
+
+      // Ticks continue past target (restSeconds = 5)
+      act(() => {
+        jest.advanceTimersByTime(5000)
+      })
+
+      await waitFor(() => {
+        expect(result.current.isRestComplete).toBe(true)
+      })
+
+      // Announcement should have fired once
+      expect(mockQueueSpeak).toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+      expect(mockQueueSpeak).toHaveBeenCalledTimes(1)
+
+      // Advance more: should not fire announcement again
+      mockQueueSpeak.mockClear()
+      act(() => {
+        jest.advanceTimersByTime(2000)
+      })
+      expect(mockQueueSpeak).not.toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+
+      // Pause during rest: elapsed time should be stored
+      act(() => {
+        result.current.pauseWorkout()
+      })
+      expect(result.current.isPaused).toBe(true)
+
+      // Resume: should not re-fire announcement since it was already announced
+      mockQueueSpeak.mockClear()
+      act(() => {
+        result.current.pauseWorkout() // toggles pause -> resume
+      })
+      expect(result.current.isPaused).toBe(false)
+      expect(mockQueueSpeak).not.toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+
+      // Moving to next set (set 2 rest) should reset restTargetAnnounced
+      act(() => result.current.runNextSet())
+      await waitFor(() => expect(result.current.phase).toBe('Get Ready'))
+      act(() => result.current.continueToNextPhase())
+      await waitFor(() => expect(result.current.phase).toBe('Rest'))
+      
+      mockQueueSpeak.mockClear()
+      act(() => {
+        jest.advanceTimersByTime(5000)
+      })
+      await waitFor(() => {
+        expect(result.current.isRestComplete).toBe(true)
+      })
+      expect(mockQueueSpeak).toHaveBeenCalledWith('Rest target reached.', expect.any(Object))
+    })
+
+    it('endSet during eccentric phase records setStartTime and passes to onSetComplete', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      act(() => {
+        jest.advanceTimersByTime(3000) // countdown
+      })
+      await waitFor(() => expect(result.current.phase).toBe('Concentric'))
+
+      act(() => {
+        jest.advanceTimersByTime(1000) // concentric duration
+      })
+      await waitFor(() => expect(result.current.phase).toBe('Eccentric'))
+
+      mockOnSetComplete.mockClear()
+      act(() => {
+        result.current.endSet()
+      })
+
+      expect(mockOnSetComplete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startTime: expect.any(Number),
+          endTime: expect.any(Number),
+        })
+      )
+    })
+
+    it('endSet during countdown sets setStartTime to endTime', () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      mockOnSetComplete.mockClear()
+      
+      act(() => {
+        result.current.endSet()
+      })
+
+      expect(mockOnSetComplete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startTime: expect.any(Number),
+          endTime: expect.any(Number),
+        })
+      )
+      const call = mockOnSetComplete.mock.calls[0][0]
+      expect(call.startTime).toBe(call.endTime)
+    })
+
+    it('pauseWorkout when not running or startWorkout when already running are no-ops', () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.pauseWorkout()
+      })
+      expect(result.current.isPaused).toBe(false)
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.isRunning).toBe(true)
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.isRunning).toBe(true)
+    })
+
+    it('addCountdownTime adds 5s only during countdown phase', () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.addCountdownTime()
+      })
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.phase).toBe('Get Ready')
+
+      act(() => {
+        result.current.addCountdownTime()
+      })
+    })
+
+    it('eccentric audio countdown speaks each of the last <=5 whole seconds once', async () => {
+      const customSettings = {
+        ...defaultSettings,
+        eccentricSeconds: 6,
+        eccentricCountdownEnabled: true
+      }
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          customSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => result.current.startWorkout())
+      act(() => {
+        jest.advanceTimersByTime(3000) // countdown
+      })
+      await waitFor(() => expect(result.current.phase).toBe('Concentric'))
+
+      act(() => {
+        jest.advanceTimersByTime(1000) // concentric
+      })
+      await waitFor(() => expect(result.current.phase).toBe('Eccentric'))
+
+      mockSpeakEccentric.mockClear()
+      for (let i = 0; i < 6; i++) {
+        act(() => {
+          jest.advanceTimersByTime(1000)
+        })
+      }
+
+      await waitFor(() => {
+        expect(mockSpeakEccentric).toHaveBeenCalledTimes(5)
+      })
+      expect(mockSpeakEccentric).toHaveBeenCalledWith('5')
+      expect(mockSpeakEccentric).toHaveBeenCalledWith('1')
+    })
+
+    it('countdown reaching 0: speaks Go!, rep to 1, speaks 1 when not jumping', async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      mockQueueSpeak.mockClear()
+      act(() => result.current.startWorkout())
+      act(() => {
+        jest.advanceTimersByTime(3000) // countdown seconds
+      })
+
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Concentric')
+      })
+      expect(mockQueueSpeak).toHaveBeenCalledWith('Go!', expect.any(Object))
+      expect(mockQueueSpeak).toHaveBeenCalledWith('1')
+      expect(result.current.currentRep.value).toBe(1)
+    })
+
+    it('live-activity integration is called on start, update, and stop', async () => {
+      const { startWorkoutActivity, updateWorkoutActivity, stopWorkoutActivity } = require('../../utils/workoutActivity')
+      const { result, unmount } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      startWorkoutActivity.mockClear()
+      updateWorkoutActivity.mockClear()
+      stopWorkoutActivity.mockClear()
+
+      act(() => {
+        result.current.startWorkout()
+      })
+
+      await waitFor(() => {
+        expect(startWorkoutActivity).toHaveBeenCalled()
+      })
+
+      act(() => {
+        jest.advanceTimersByTime(3000) // countdown ends -> concentric
+      })
+      await waitFor(() => {
+        expect(updateWorkoutActivity).toHaveBeenCalled()
+      })
+
+      // Stop workout manually
+      act(() => {
+        result.current.stopWorkout()
+      })
+      await waitFor(() => {
+        expect(stopWorkoutActivity).toHaveBeenCalled()
+      })
+
+      // Or, unmount while active:
+      // Let's render a new hook and unmount it to verify unmount behavior
+      const renderRes = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+      act(() => {
+        renderRes.result.current.startWorkout()
+      })
+      await waitFor(() => {
+        expect(startWorkoutActivity).toHaveBeenCalled()
+      })
+
+      stopWorkoutActivity.mockClear()
+      renderRes.unmount()
+      expect(stopWorkoutActivity).toHaveBeenCalled()
     })
   })
 })

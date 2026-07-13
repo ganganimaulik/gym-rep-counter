@@ -45,3 +45,34 @@ jest.mock('./modules/workout-activity', () => ({
 jest.mock('expo-crypto', () => ({
   randomUUID: jest.fn(() => 'test-uuid'),
 }))
+
+jest.mock('@react-native-google-signin/google-signin', () => {
+  const React = require('react')
+  const { TouchableOpacity } = require('react-native')
+  const mockButton = (props: any) => {
+    return <TouchableOpacity {...props} testID={props.testID || 'google-signin-btn'} />
+  }
+  mockButton.Size = { Wide: 'Wide', Standard: 'Standard', Icon: 'Icon' }
+  mockButton.Color = { Dark: 'Dark', Light: 'Light', Auto: 'Auto' }
+  return {
+    GoogleSignin: {
+      configure: jest.fn(),
+      hasPlayServices: jest.fn().mockResolvedValue(true),
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+      signInSilently: jest.fn(),
+      isSignedIn: jest.fn(),
+    },
+    GoogleSigninButton: mockButton,
+  }
+})
+
+jest.mock('expo-notifications', () => ({
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  setNotificationHandler: jest.fn(),
+  cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id'),
+  AndroidNotificationPriority: { HIGH: 'high' },
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+}))

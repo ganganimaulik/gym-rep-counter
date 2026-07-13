@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
+  doc,
   setDoc,
   getDoc,
   addDoc,
@@ -856,72 +857,139 @@ describe('useData Hook', () => {
     })
   })
 
-  describe('Authenticated User History Pagination', () => {
-    it('should fetch history with pagination', async () => {
+  describe('Authenticated User History Pagination & Tiebreaker', () => {
+    it('should build query with orderBy date/documentId and startAfter date/id', async () => {
       const { result } = renderHook(() => useData())
-      const mockDocsPage1 = [
-        {
-          id: 'h1',
-          data: () => ({
-            exerciseId: 'ex1',
-            date: { seconds: 100, nanoseconds: 0 },
-            reps: 10,
-            weight: 50,
-            exerciseName: 'E1',
-            workoutId: 'w1',
-          }),
-        },
-        {
-          id: 'h2',
-          data: () => ({
-            exerciseId: 'ex1',
-            date: { seconds: 90, nanoseconds: 0 },
-            reps: 10,
-            weight: 50,
-            exerciseName: 'E1',
-            workoutId: 'w1',
-          }),
-        },
-      ]
-      const mockDocsPage2 = [
-        {
-          id: 'h3',
-          data: () => ({
-            exerciseId: 'ex1',
-            date: { seconds: 80, nanoseconds: 0 },
-            reps: 10,
-            weight: 50,
-            exerciseName: 'E1',
-            workoutId: 'w1',
-          }),
-        },
-      ]
+      const { orderBy, documentId, startAfter, limit, getDocs } = require('firebase/firestore')
 
-      // First call returns Page 1
-      ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage1 })
+      const lastVisibleMock: any = {
+        id: 'h2',
+        date: { seconds: 90, nanoseconds: 0 },
+      }
 
-      let historyPage1
+      ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: [] })
+
       await act(async () => {
-        historyPage1 = await result.current.fetchHistory(mockUser, undefined)
+        await result.current.fetchHistory(mockUser, lastVisibleMock)
       })
 
-      expect(historyPage1).toHaveLength(2)
-      expect(getDocs).toHaveBeenCalled()
+      expect(orderBy).toHaveBeenCalledWith('date', 'desc')
+      expect(documentId).toHaveBeenCalled()
+      expect(startAfter).toHaveBeenCalledWith(lastVisibleMock.date, lastVisibleMock.id)
+      expect(limit).toHaveBeenCalledWith(20)
+    })
 
-      // Second call passing the last doc of page 1 as 'lastDoc'
-      ;(getDocs as jest.Mock).mockResolvedValueOnce({ docs: mockDocsPage2 })
-      const lastDocOfPage1 = historyPage1![1] // Use the returned object, not the mock doc
+    it('returns empty array when getDocs throws', async () => {
+      const { result } = renderHook(() => useData())
+      const { getDocs } = require('firebase/firestore')
+      ;(getDocs as jest.Mock).mockRejectedValueOnce(new Error('Firestore error'))
 
-      let historyPage2
+      let history: any
       await act(async () => {
-        historyPage2 = await result.current.fetchHistory(
-          mockUser,
-          lastDocOfPage1,
-        )
+        history = await result.current.fetchHistory(mockUser, undefined)
       })
 
-      expect(historyPage2).toHaveLength(1)
-      expect(historyPage2![0].id).toBe('h3')
+      expect(history).toEqual([])
+    })
+  })
+
+  describe('Guest History Pagination & Sorting', () => {
+    it('returns second page of 20 starting after lastVisible.id', async () => {
+      const guestHistory = Array.from({ length: 30 }, (_, i) => ({
+        id: `guest-${i}`,
+        exerciseId: 'ex1',
+        set: 1,
+        date: { seconds: 1000 - i, nanoseconds: 0 },
+      }))
+
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
+
+      const { result } = renderHook(() => useData())
+
+      let history: any
+      await act(async () => {
+        history = await result.current.fetchHistory(null, { id: 'guest-9', date: { seconds: 991, nanoseconds: 0 } } as any)
+      })
+
+      // guest-9 is at index 9, so next page should start at index 10 (guest-10)
+      expect(history).toHaveLength(20)
+      expect(history[0].id).toBe('guest-10')
+      expect(history[19].id).toBe('guest-29')
+    })
+
+    it('returns [] when lastVisible.id is beyond the end', async () => {
+      const guestHistory = Array.from({ length: 5 }, (_, i) => ({
+        id: `guest-${i}`,
+        exerciseId: 'ex1',
+        set: 1,
+        date: { seconds: 1000 - i, nanoseconds: 0 },
+      }))
+
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
+
+      const { result } = renderHook(() => useData())
+
+      let history: any
+      await act(async () => {
+        history = await result.current.fetchHistory(null, { id: 'guest-4', date: { seconds: 996, nanoseconds: 0 } } as any)
+      })
+
+      expect(history).toEqual([])
+    })
+
+    it('starts from index 0 when lastVisible.id is not found in stored history', async () => {
+      const guestHistory = Array.from({ length: 5 }, (_, i) => ({
+        id: `guest-${i}`,
+        exerciseId: 'ex1',
+        set: 1,
+        date: { seconds: 1000 - i, nanoseconds: 0 },
+      }))
+
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
+
+      const { result } = renderHook(() => useData())
+
+      let history: any
+      await act(async () => {
+        history = await result.current.fetchHistory(null, { id: 'guest-nonexistent', date: { seconds: 996, nanoseconds: 0 } } as any)
+      })
+
+      expect(history).toHaveLength(5)
+      expect(history[0].id).toBe('guest-0')
+    })
+
+    it('sorts entries descending by date regardless of insertion order', async () => {
+      const unsortedHistory = [
+        { id: 'guest-old', exerciseId: 'ex1', set: 1, date: { seconds: 100, nanoseconds: 0 } },
+        { id: 'guest-new', exerciseId: 'ex1', set: 1, date: { seconds: 300, nanoseconds: 0 } },
+        { id: 'guest-mid', exerciseId: 'ex1', set: 1, date: { seconds: 200, nanoseconds: 0 } },
+      ]
+
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory') return Promise.resolve(JSON.stringify(unsortedHistory))
+        return Promise.resolve(null)
+      })
+
+      const { result } = renderHook(() => useData())
+
+      let history: any
+      await act(async () => {
+        history = await result.current.fetchHistory(null)
+      })
+
+      expect(history).toHaveLength(3)
+      expect(history[0].id).toBe('guest-new')
+      expect(history[1].id).toBe('guest-mid')
+      expect(history[2].id).toBe('guest-old')
     })
   })
 
@@ -1044,75 +1112,143 @@ describe('useData Hook', () => {
       expect(updateDoc).toHaveBeenCalled()
     })
 
-    it('should update history entry for guest user', async () => {
+    it('should update guestHistory, todaysCompletions keys, and in-memory state for guest user', async () => {
       const guestHistory = [
         {
           id: 'entry-1',
           exerciseId: 'ex1',
           reps: 10,
           weight: 50,
-          date: { seconds: 1672531200, nanoseconds: 0 },
+          date: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
         },
       ]
+      const todayKey = `todaysCompletions-${getLocalDateString()}`
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
         if (key === 'guestHistory')
           return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === todayKey)
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
-      const { result } = renderHook(() => useData())
 
+      const { result } = renderHook(() => useData())
       await act(async () => {
-        await result.current.updateHistoryEntry('entry-1', { reps: 15 }, null)
+        await result.current.fetchTodaysCompletions(null, 'ex1')
       })
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        'guestHistory',
-        expect.any(String),
-      )
-    })
-
-    it('should delete history entry for authenticated user', async () => {
-      const { result } = renderHook(() => useData())
-
       await act(async () => {
-        await result.current.deleteHistoryEntry('entry-id', mockUser)
+        await result.current.updateHistoryEntry('entry-1', { reps: 15, weight: 60 }, null)
       })
 
-      expect(deleteDoc).toHaveBeenCalled()
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestHistory', expect.any(String))
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(todayKey, expect.any(String))
+      expect(result.current.todaysCompletions).toHaveLength(1)
+      expect(result.current.todaysCompletions[0].reps).toBe(15)
+      expect(result.current.todaysCompletions[0].weight).toBe(60)
     })
 
-    it('should delete history entry for guest user', async () => {
+    it('should delete guestHistory, todaysCompletions keys, and in-memory state for guest user', async () => {
       const guestHistory = [
         {
           id: 'entry-1',
           exerciseId: 'ex1',
           reps: 10,
           weight: 50,
-          date: { seconds: 1672531200, nanoseconds: 0 },
-        },
-        {
-          id: 'entry-2',
-          exerciseId: 'ex1',
-          reps: 12,
-          weight: 55,
-          date: { seconds: 1672531300, nanoseconds: 0 },
+          date: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
         },
       ]
+      const todayKey = `todaysCompletions-${getLocalDateString()}`
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
         if (key === 'guestHistory')
           return Promise.resolve(JSON.stringify(guestHistory))
+        if (key === todayKey)
+          return Promise.resolve(JSON.stringify(guestHistory))
         return Promise.resolve(null)
       })
+
       const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.fetchTodaysCompletions(null, 'ex1')
+      })
 
       await act(async () => {
         await result.current.deleteHistoryEntry('entry-1', null)
       })
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        'guestHistory',
-        expect.any(String),
-      )
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestHistory', JSON.stringify([]))
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(todayKey, JSON.stringify([]))
+      expect(result.current.todaysCompletions).toHaveLength(0)
+    })
+
+    it('should leave todaysCompletions untouched when firestore write fails on update/delete', async () => {
+      ;(updateDoc as jest.Mock).mockRejectedValueOnce(new Error('Update failed'))
+      ;(deleteDoc as jest.Mock).mockRejectedValueOnce(new Error('Delete failed'))
+      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
+
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
+      })
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Attempt update
+      await act(async () => {
+        await result.current.updateHistoryEntry('doc1', { reps: 20 }, mockUser)
+      })
+
+      expect(result.current.todaysCompletions[0].reps).toBe(10)
+
+      // Attempt delete
+      await act(async () => {
+        await result.current.deleteHistoryEntry('doc1', mockUser)
+      })
+
+      expect(result.current.todaysCompletions).toHaveLength(1)
+
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('guest addHistoryEntry appends to both keys and bumps historyVersion', async () => {
+      const todayKey = `todaysCompletions-${getLocalDateString()}`
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+      const { result } = renderHook(() => useData())
+
+      const versionBefore = result.current.historyVersion
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          Date.now(),
+          Date.now() + 1000,
+          null,
+        )
+      })
+
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith('guestHistory', expect.any(String))
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(todayKey, expect.any(String))
+      expect(result.current.historyVersion).toBe(versionBefore + 1)
     })
 
     it('should reflect entry updates in todaysCompletions for authenticated user', async () => {
@@ -1270,6 +1406,45 @@ describe('useData Hook', () => {
       })
 
       expect(result.current.historyVersion).toBe(versionBefore + 1)
+    })
+
+    it('deletes only today\'s entries for the given exercise with set >= N', async () => {
+      mockBatch.commit.mockResolvedValue(undefined)
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      // Seed mock completions
+      const sets = [
+        { id: 'set-ex1-s1', exerciseId: 'ex1', set: 1, reps: 10, weight: 50, date: { seconds: Math.floor(startTime / 1000) } },
+        { id: 'set-ex1-s2', exerciseId: 'ex1', set: 2, reps: 10, weight: 50, date: { seconds: Math.floor(startTime / 1000) } },
+        { id: 'set-ex2-s2', exerciseId: 'ex2', set: 2, reps: 10, weight: 50, date: { seconds: Math.floor(startTime / 1000) } },
+      ]
+
+      ;(getDocs as jest.Mock).mockResolvedValueOnce({
+        docs: sets.map(s => ({
+          id: s.id,
+          data: () => s
+        }))
+      })
+
+      // Fetch completions to populate in-memory state
+      await act(async () => {
+        await result.current.fetchTodaysCompletions(mockUser, 'ex1')
+      })
+
+      mockBatch.delete.mockClear()
+      const originalDoc = (doc as jest.Mock).getMockImplementation()
+      ;(doc as jest.Mock).mockImplementation((_db, _collection, _uid, _sub, id) => ({ id }))
+
+      await act(async () => {
+        await result.current.resetSetsFrom('ex1', 2, mockUser)
+      })
+
+      expect(mockBatch.delete).toHaveBeenCalledTimes(1)
+      const deletedRef = mockBatch.delete.mock.calls[0][0]
+      expect(deletedRef.id).toBe('set-ex1-s2')
+
+      ;(doc as jest.Mock).mockImplementation(originalDoc)
     })
   })
 

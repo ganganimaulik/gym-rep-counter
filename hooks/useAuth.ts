@@ -106,6 +106,12 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
 
   const disconnectAccount = useCallback(async () => {
     try {
+      if (Platform.OS === 'web' && process.env.EXPO_PUBLIC_PLAYWRIGHT === '1') {
+        localStorage.removeItem('PLAYWRIGHT_MOCK_USER')
+        setUser(null)
+        onAuthSuccessRef.current(null)
+        return
+      }
       if (Platform.OS !== 'web') {
         await GoogleSignin.signOut()
       }

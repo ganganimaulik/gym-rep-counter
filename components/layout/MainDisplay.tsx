@@ -98,6 +98,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   return (
     <StyledView className="items-center py-6">
       <StyledTouchableOpacity
+        testID="main-display-pressable"
         onPress={handlePress}
         activeOpacity={phase === 'Get Ready' ? 0.7 : 1}>
         <StyledView
@@ -121,6 +122,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
           <StyledView className="items-center justify-center mt-2">
             {phase === 'Rest' || phase === 'Get Ready' || !phase ? (
               <StyledAnimatedTextInput
+                testID="main-display-status"
                 className="text-3xl font-black text-white text-center w-52"
                 editable={false}
                 pointerEvents="none"
@@ -131,6 +133,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
             ) : (
               <StyledView className="items-center">
                 <StyledAnimatedTextInput
+                  testID="main-display-reps"
                   className="text-8xl font-black text-white text-center h-24 w-40"
                   editable={false}
                   pointerEvents="none"
@@ -151,6 +154,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
                 SET
               </StyledText>
               <StyledAnimatedTextInput
+                testID="main-display-sets"
                 className="text-zinc-300 text-sm font-black text-center w-8"
                 editable={false}
                 pointerEvents="none"

@@ -18,6 +18,7 @@ import SyncStatus from './SyncStatus'
 import UserProfile from './layout/UserProfile'
 import { Settings } from '../hooks/useData'
 import type { User as FirebaseUser } from 'firebase/auth'
+import Toast from 'react-native-toast-message'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -65,6 +66,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   }
 
   const handleSave = () => {
+    const keysToValidate: (keyof Settings)[] = [
+      'countdownSeconds',
+      'countdownAnnouncementThreshold',
+      'restSeconds',
+      'maxReps',
+      'maxSets',
+      'concentricSeconds',
+      'eccentricSeconds',
+    ]
+
+    for (const key of keysToValidate) {
+      const val = Number(localSettings[key])
+      if (isNaN(val) || val <= 0) {
+        Toast.show({
+          type: 'error',
+          text1: 'Invalid Inputs',
+          text2: 'All numeric settings must be valid positive numbers.',
+        })
+        return
+      }
+    }
+
     onSave(localSettings)
   }
 
@@ -134,6 +157,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       testID="mock-login-button"
                       className="bg-zinc-950 border border-indigo-900 rounded-xl px-6 py-3 flex-row items-center justify-center w-[220px]"
                       onPress={async () => {
+                        if (process.env.EXPO_PUBLIC_PLAYWRIGHT === '1') {
+                          if (typeof window !== 'undefined' && (window as any).setMockUser) {
+                            (window as any).setMockUser({
+                              uid: 'test-user',
+                              email: 'test@example.com',
+                              displayName: 'Test User',
+                            })
+                          }
+                          return
+                        }
                         const {
                           signInWithEmailAndPassword,
                           createUserWithEmailAndPassword,

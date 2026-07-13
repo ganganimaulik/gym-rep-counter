@@ -102,6 +102,29 @@ describe('notifications', () => {
       expect(mockScheduleNotification).not.toHaveBeenCalled()
     })
 
+    test('does not schedule stat reminders when statRemindersEnabled is false', async () => {
+      const disabledSettings = {
+        ...baseSettings,
+        statRemindersEnabled: false,
+      }
+      await setupReminders(disabledSettings, [], [], [], [])
+      
+      const statReminders = mockScheduleNotification.mock.calls.filter(
+        (call: any[]) => call[0].content.title === 'Update Stats 📊',
+      )
+      expect(statReminders.length).toBe(0)
+    })
+
+    test('uses auto-detected sleep window when statRemindersUseAutoSleep is true', async () => {
+      const detectSleep = require('../sleepDetection').detectSleepWindow
+      const autoSleepSettings = {
+        ...baseSettings,
+        statRemindersUseAutoSleep: true,
+      }
+      await setupReminders(autoSleepSettings, [], [], [], [])
+      expect(detectSleep).toHaveBeenCalled()
+    })
+
     test('bedtime reminder includes supplement info for today', async () => {
       const now = new Date()
       const settings: any = {
