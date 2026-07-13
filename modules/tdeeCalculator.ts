@@ -456,7 +456,7 @@ export function calculateTDEEPipeline(
   // Track the latest known weight (AI column)
   let latestKnownWeight: number | null = startingWeight
 
-  // Track first week to prevent skewed initial deltas if startingWeight config is inaccurate
+  // Whether the week-1 delta baseline (AM6 = F6) is still unresolved
   let isFirstWeekWithWeight = true
 
   // Pre-calculate raw weight anchors for retroactive linear interpolation of missing weeks
@@ -512,9 +512,13 @@ export function calculateTDEEPipeline(
       ? calculateWeeklyAverage(gapFilledCalories)
       : null
 
-    // Auto-detect starting weight to prevent massive delta spikes
+    // Week-1 delta baseline is startingWeight (AT12 = AS12 - AM6). Without a
+    // starting weight the sheet leaves F6-dependent cells blank, so fall back
+    // to this week's average (delta 0) rather than a delta against 0.
     if (avgWeight !== null && isFirstWeekWithWeight) {
-      prevAvgWeight = avgWeight
+      if (startingWeight === null) {
+        prevAvgWeight = avgWeight
+      }
       isFirstWeekWithWeight = false
     }
 

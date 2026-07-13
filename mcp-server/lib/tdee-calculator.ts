@@ -461,7 +461,7 @@ export function calculateTDEEPipeline(
   // Track the latest known weight (AI column)
   let latestKnownWeight: number | null = startingWeight
 
-  // Track first week to prevent skewed initial deltas if startingWeight config is inaccurate
+  // Whether the week-1 delta baseline (AM6 = F6) is still unresolved
   let isFirstWeekWithWeight = true
 
   // Pre-calculate raw weight anchors for retroactive linear interpolation of missing weeks
@@ -517,9 +517,13 @@ export function calculateTDEEPipeline(
       ? calculateWeeklyAverage(gapFilledCalories)
       : null
 
-    // Auto-detect starting weight to prevent massive delta spikes
+    // Week-1 delta baseline is startingWeight (AT12 = AS12 - AM6). Without a
+    // starting weight the sheet leaves F6-dependent cells blank, so fall back
+    // to this week's average (delta 0) rather than a delta against 0.
     if (avgWeight !== null && isFirstWeekWithWeight) {
-      prevAvgWeight = avgWeight
+      if (startingWeight === null) {
+        prevAvgWeight = avgWeight
+      }
       isFirstWeekWithWeight = false
     }
 
@@ -878,10 +882,24 @@ export function analyzeTDEE(
   calorieLogs: RawCalorieLog[],
   tdeeConfig: TDEEConfigData | null,
 ): TDEEAnalysisResult {
-  // Determine dynamic starting weight from the oldest logged weight
+  // Cap TDEE processing to 1 year of data for performance
+  const oneYearAgo = new Date()
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+  const oneYearAgoMillis = oneYearAgo.getTime()
+
+  const recentWeightLogs = weightLogs.filter(
+    (l) => toMillis(l.date) >= oneYearAgoMillis,
+  )
+  const recentCalorieLogs = calorieLogs.filter(
+    (l) => toMillis(l.date) >= oneYearAgoMillis,
+  )
+
+  // Starting weight (F6): earliest logged weight within the processed window
   // Weight logs are expected newest-first from Firestore orderBy('date', 'desc')
   const startingWeight =
-    weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight : null
+    recentWeightLogs.length > 0
+      ? recentWeightLogs[recentWeightLogs.length - 1].weight
+      : null
 
   const weightUnit: WeightUnit = tdeeConfig?.weightUnit ?? 'kg'
   const energyUnit: EnergyUnit = tdeeConfig?.energyUnit ?? 'cal'
@@ -907,18 +925,6 @@ export function analyzeTDEE(
       recentWeeks: [],
     }
   }
-
-  // Cap TDEE processing to 1 year of data for performance
-  const oneYearAgo = new Date()
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-  const oneYearAgoMillis = oneYearAgo.getTime()
-
-  const recentWeightLogs = weightLogs.filter(
-    (l) => toMillis(l.date) >= oneYearAgoMillis,
-  )
-  const recentCalorieLogs = calorieLogs.filter(
-    (l) => toMillis(l.date) >= oneYearAgoMillis,
-  )
 
   // Group logs into weekly buckets
   let weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)

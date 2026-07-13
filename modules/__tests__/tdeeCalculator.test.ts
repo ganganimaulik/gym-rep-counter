@@ -382,8 +382,10 @@ describe('tdeeCalculator', () => {
       expect(result.weeks[0].avgWeight).toBeCloseTo(179, 0)
       expect(result.weeks[0].avgCalories).toBe(2000)
       expect(result.weeks[0].displayTDEE).not.toBeNull()
-      // First week delta is 0 due to auto-detecting starting weight, so TDEE should equal avg calories
-      expect(result.weeks[0].displayTDEE!).toBe(2000)
+      // First week delta is measured against startingWeight (AT12 = AS12 - AM6):
+      // 179 - 180 = -1 lb → TDEE = 2000 + (1 × 3500) / 7 = 2500
+      expect(result.weeks[0].weightDelta).toBeCloseTo(-1, 5)
+      expect(result.weeks[0].displayTDEE!).toBe(2500)
     })
 
     it('calculates smoothed TDEE over multiple weeks', () => {

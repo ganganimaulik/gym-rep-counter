@@ -49,13 +49,14 @@ describe('useTDEE Hook', () => {
     expect(result.current.hasEnoughData).toBe(false)
   })
 
-  it('No config → returns fallback with seedTDEE based on oldest weight log', () => {
-    // Actually the hook uses the most recent log in the array (last item) for startingWeight
-    // wait, weightLogs are typically sorted by date, oldest to newest or newest to oldest?
-    // In useTDEE, startingWeight = weightLogs[weightLogs.length - 1].weight
+  it('No config → returns fallback with seedTDEE based on earliest in-window weight log', () => {
+    // startingWeight = earliest log inside the 1-year window; logs arrive
+    // newest-first, so the hook reads the last element of the filtered array
+    const daysAgo = (n: number) =>
+      new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString()
     const logs = [
-      createWeightLog(80, '2023-01-01'),
-      createWeightLog(82, '2023-01-02'), // last log
+      createWeightLog(80, daysAgo(1)),
+      createWeightLog(82, daysAgo(2)), // earliest in-window log
     ]
     const { result } = renderHook(() => useTDEE(logs, [], null))
 
@@ -63,6 +64,19 @@ describe('useTDEE Hook', () => {
     expect(result.current.seedTDEE).toBe(expectedSeed)
     expect(result.current.displayTDEE).toBe(roundDisplayTDEE(expectedSeed))
     expect(result.current.hasEnoughData).toBe(false)
+  })
+
+  it('Weight log older than 1 year is not used as starting weight', () => {
+    const daysAgo = (n: number) =>
+      new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString()
+    const logs = [
+      createWeightLog(80, daysAgo(1)),
+      createWeightLog(95, daysAgo(400)), // stale log outside the processing window
+    ]
+    const { result } = renderHook(() => useTDEE(logs, [], null))
+
+    const expectedSeed = calculateSeedTDEE(80, 'kg', 'cal')
+    expect(result.current.seedTDEE).toBe(expectedSeed)
   })
 
   it('With config but no logs → returns seed TDEE, hasEnoughData = false', () => {

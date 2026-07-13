@@ -129,9 +129,24 @@ export function useTDEE(
   tdeeConfig: TDEEConfig | null,
 ): UseTDEEResult {
   return useMemo(() => {
-    // Determine dynamic starting weight from the oldest logged weight
+    // Cap TDEE processing to 1 year of data for performance while preserving full history elsewhere
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+    const oneYearAgoMillis = oneYearAgo.getTime()
+
+    const recentWeightLogs = weightLogs.filter(
+      (l) => l.date.toMillis() >= oneYearAgoMillis,
+    )
+    const recentCalorieLogs = calorieLogs.filter(
+      (l) => l.date.toMillis() >= oneYearAgoMillis,
+    )
+
+    // Starting weight (F6): earliest logged weight within the processed window
+    // (logs are ordered newest-first, so the earliest is the last element)
     const startingWeight =
-      weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight : null
+      recentWeightLogs.length > 0
+        ? recentWeightLogs[recentWeightLogs.length - 1].weight
+        : null
 
     if (!tdeeConfig) {
       const fallbackSeed = startingWeight
@@ -152,18 +167,6 @@ export function useTDEE(
         weeksWithData: 0,
       }
     }
-
-    // Cap TDEE processing to 1 year of data for performance while preserving full history elsewhere
-    const oneYearAgo = new Date()
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-    const oneYearAgoMillis = oneYearAgo.getTime()
-
-    const recentWeightLogs = weightLogs.filter(
-      (l) => l.date.toMillis() >= oneYearAgoMillis,
-    )
-    const recentCalorieLogs = calorieLogs.filter(
-      (l) => l.date.toMillis() >= oneYearAgoMillis,
-    )
 
     // Group logs into weekly buckets
     let weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)
