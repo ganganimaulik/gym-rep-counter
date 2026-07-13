@@ -22,6 +22,14 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts", "../modules/**/*.ts", "../utils/**/*.ts", "../declarations.d.ts"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "../modules/tdeeCalculator.ts",
+    "../utils/analyticsUtils.ts",
+    "../declarations.d.ts"
+  ],
   "exclude": ["node_modules"]
 }
