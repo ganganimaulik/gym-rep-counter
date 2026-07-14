@@ -1,9 +1,13 @@
 export function bgSetTimeout(
-  callback: (...args: any[]) => void,
+  callback: (...args: unknown[]) => void,
   delay?: number,
-  ...args: any[]
+  ...args: unknown[]
 ): number {
-  return setTimeout(callback, delay, ...args) as unknown as number
+  return setTimeout(
+    callback as (...args: unknown[]) => void,
+    delay,
+    ...args,
+  ) as unknown as number
 }
 
 export function bgClearTimeout(timeoutId: number | undefined): void {

@@ -5,7 +5,6 @@ import {
   Text,
   SectionList,
   ActivityIndicator,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   Keyboard,
@@ -13,7 +12,7 @@ import {
   Platform,
 } from 'react-native'
 import { styled } from 'nativewind'
-import { X, Pencil, Trash2 } from 'lucide-react-native'
+import { Pencil, Trash2 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 
 import type { User as FirebaseUser } from 'firebase/auth'
@@ -22,14 +21,12 @@ import { DataHook } from '../hooks/useData'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
-const StyledSafeAreaView = styled(SafeAreaView)
 const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledTextInput = styled(TextInput)
 const StyledBlurView = styled(BlurView)
 
 interface HistoryScreenProps {
   visible: boolean
-  onClose: () => void
   user: FirebaseUser | null
   dataHook: DataHook
 }
@@ -41,7 +38,6 @@ interface EditModalState {
 
 const HistoryScreen: React.FC<HistoryScreenProps> = ({
   visible,
-  onClose,
   user,
   dataHook,
 }) => {

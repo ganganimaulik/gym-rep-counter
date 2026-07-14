@@ -8,7 +8,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
 } from 'react-native'
 import { styled } from 'nativewind'
 import { X, Trash2, Plus, GripVertical } from 'lucide-react-native'
@@ -180,6 +179,7 @@ const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
     )
   },
 )
+WorkoutItem.displayName = 'WorkoutItem'
 
 const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   visible,

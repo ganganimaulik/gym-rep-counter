@@ -53,10 +53,31 @@ module.exports = tseslint.config(
     },
   },
   {
-    // Disable require rule for the config file itself
-    files: ['eslint.config.js'],
+    // Disable require rule for all JS files (mostly config/scripts in this project)
+    files: ['**/*.js'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
+    // Disable prop-types validation for TypeScript files since TS handles typing
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      'react/prop-types': 'off',
+    },
+  },
+  {
+    // Rule overrides for tests and configs
+    files: [
+      '**/__tests__/**/*.{js,jsx,ts,tsx}',
+      '**/*.{test,spec}.{js,jsx,ts,tsx}',
+      'jest.setup.js',
+      'e2e/**/*.{js,ts}',
+    ],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'react/display-name': 'off',
     },
   },
 )

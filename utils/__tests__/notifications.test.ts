@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { setupReminders, cancelAllReminders } from '../notifications'
 import { detectSleepWindow } from '../sleepDetection'
 

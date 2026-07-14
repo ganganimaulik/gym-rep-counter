@@ -1082,7 +1082,7 @@ describe('useWorkoutTimer', () => {
         updateWorkoutActivity,
         stopWorkoutActivity,
       } = require('../../utils/workoutActivity')
-      const { result, unmount } = renderHook(() =>
+      const { result } = renderHook(() =>
         useWorkoutTimer(
           defaultSettings,
           mockAudioHandler,

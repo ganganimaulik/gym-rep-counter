@@ -9,7 +9,7 @@ test.describe('Gym Rep Counter E2E Tests', () => {
         if (response.ok()) {
           break
         }
-      } catch (e) {
+      } catch {
         // Ignore and wait
       }
       await new Promise((resolve) => setTimeout(resolve, 1000))

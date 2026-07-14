@@ -626,7 +626,6 @@ const App: React.FC = () => {
           }}>
           <HistoryScreen
             visible={currentTab === 'history'}
-            onClose={() => setCurrentTab('workout')}
             user={user}
             dataHook={dataHook}
           />

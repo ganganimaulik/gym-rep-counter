@@ -4,7 +4,6 @@ import AddSetDetailsModal from '../AddSetDetailsModal'
 
 // Mock expo-blur
 jest.mock('expo-blur', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return {
     BlurView: View,
@@ -71,7 +70,6 @@ describe('AddSetDetailsModal', () => {
       />,
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Modal } = require('react-native')
     const modalComponent = UNSAFE_getByType(Modal)
 

@@ -21,7 +21,6 @@ jest.mock('react-native-chart-kit', () => ({
 }))
 
 jest.mock('@react-native-picker/picker', () => {
-  const { View } = require('react-native')
   const MockPicker = ({ children }: any) => children
   MockPicker.Item = () => null
   return {

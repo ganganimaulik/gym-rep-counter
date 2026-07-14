@@ -20,8 +20,6 @@ import {
   KCAL_PER_KG,
   KJ_PER_LB,
   KJ_PER_KG,
-  SEED_MULTIPLIER_KCAL_LB,
-  SEED_MULTIPLIER_KCAL_KG,
   type WeekInput,
 } from '../tdeeCalculator'
 

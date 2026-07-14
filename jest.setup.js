@@ -49,8 +49,13 @@ jest.mock('expo-crypto', () => ({
 jest.mock('@react-native-google-signin/google-signin', () => {
   const React = require('react')
   const { TouchableOpacity } = require('react-native')
-  const mockButton = (props: any) => {
-    return <TouchableOpacity {...props} testID={props.testID || 'google-signin-btn'} />
+  const mockButton = (props) => {
+    return (
+      <TouchableOpacity
+        {...props}
+        testID={props.testID || 'google-signin-btn'}
+      />
+    )
   }
   mockButton.Size = { Wide: 'Wide', Standard: 'Standard', Icon: 'Icon' }
   mockButton.Color = { Dark: 'Dark', Light: 'Light', Auto: 'Auto' }

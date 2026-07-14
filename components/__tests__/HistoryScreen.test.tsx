@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, fireEvent, act, waitFor } from '@testing-library/react-native'
+import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import HistoryScreen from '../HistoryScreen'
 
 // Mock dependencies
@@ -40,12 +40,7 @@ describe('HistoryScreen', () => {
 
   it('renders no history message when empty', async () => {
     const { getByText } = render(
-      <HistoryScreen
-        visible={true}
-        onClose={jest.fn()}
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
     )
 
     await waitFor(() => {
@@ -91,12 +86,7 @@ describe('HistoryScreen', () => {
     mockDataHook.fetchHistory.mockResolvedValueOnce(mockHistory)
 
     const { getByText, queryByText } = render(
-      <HistoryScreen
-        visible={true}
-        onClose={jest.fn()}
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
     )
 
     await waitFor(() => {
@@ -136,12 +126,7 @@ describe('HistoryScreen', () => {
     mockDataHook.fetchHistory.mockResolvedValueOnce(mockHistory)
 
     const { getByText } = render(
-      <HistoryScreen
-        visible={true}
-        onClose={jest.fn()}
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
     )
 
     await waitFor(() => {
@@ -152,12 +137,7 @@ describe('HistoryScreen', () => {
 
   it('runs forceRefresh when tab becomes visible and historyVersion changed', async () => {
     const { rerender } = render(
-      <HistoryScreen
-        visible={false}
-        onClose={jest.fn()}
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <HistoryScreen visible={false} user={mockUser} dataHook={mockDataHook} />,
     )
 
     expect(mockDataHook.fetchHistory).not.toHaveBeenCalled()
@@ -165,12 +145,7 @@ describe('HistoryScreen', () => {
     // Become visible
     mockDataHook.historyVersion = 1
     rerender(
-      <HistoryScreen
-        visible={true}
-        onClose={jest.fn()}
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
     )
 
     await waitFor(() => {
@@ -193,12 +168,7 @@ describe('HistoryScreen', () => {
     mockDataHook.fetchHistory.mockResolvedValueOnce([item])
 
     const { getByText, getByTestId } = render(
-      <HistoryScreen
-        visible={true}
-        onClose={jest.fn()}
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
     )
 
     await waitFor(() => {
@@ -259,12 +229,7 @@ describe('HistoryScreen', () => {
     mockDataHook.fetchHistory.mockResolvedValueOnce([item])
 
     const { getByText, queryByText } = render(
-      <HistoryScreen
-        visible={true}
-        onClose={jest.fn()}
-        user={mockUser}
-        dataHook={mockDataHook}
-      />,
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
     )
 
     await waitFor(() => {

@@ -40,17 +40,17 @@ jest.mock('firebase/firestore', () => ({
       this.seconds = seconds
       this.nanoseconds = nanoseconds
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     static now: any = jest.fn(() => ({
       toDate: () => new Date(),
       toMillis: () => Date.now(),
     }))
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     static fromDate: any = jest.fn((date: Date) => ({
       toDate: () => date,
       toMillis: () => date.getTime(),
     }))
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     static fromMillis: any = jest.fn((millis: number) => ({
       toDate: () => new Date(millis),
       toMillis: () => millis,
@@ -85,7 +85,6 @@ describe('useData Hook', () => {
     uid: 'test-uid',
     email: 'test@test.com',
     displayName: 'Test User',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any
   const defaultSettings: Settings = {
     countdownSeconds: 5,
@@ -631,7 +630,6 @@ describe('useData Hook', () => {
       await act(async () => {
         await result.current.addHistoryEntry(
           {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             workoutId: null as any, // Simulate no workout
             exerciseId: 'ex1',
             exerciseName: 'Test Exercise',
@@ -845,10 +843,8 @@ describe('useData Hook', () => {
       })
       const { result } = renderHook(() => useData())
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let history: any
       await act(async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         history = await result.current.fetchHistory(null as any)
       })
 
@@ -1076,7 +1072,7 @@ describe('useData Hook', () => {
 
     it('should sync offline queue to firestore', async () => {
       const { result } = renderHook(() => useData())
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const offlineEntry: any = {
         id: 'offline-1',
         exerciseId: 'ex1',
@@ -1117,7 +1113,7 @@ describe('useData Hook', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {})
       const { result } = renderHook(() => useData())
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const offlineEntry: any = { id: 'offline-1' }
 
       await act(async () => {

@@ -12,31 +12,35 @@ export interface SleepWindow {
 }
 
 // Safely extract milliseconds from any date/timestamp format
-function getMillis(dateField: any): number | null {
+function getMillis(dateField: unknown): number | null {
   if (!dateField) return null
 
-  // 1. Check if it's a Firestore Timestamp with toMillis()
-  if (typeof dateField.toMillis === 'function') {
-    return dateField.toMillis()
-  }
+  if (typeof dateField === 'object') {
+    const obj = dateField as Record<string, unknown>
+    // 1. Check if it's a Firestore Timestamp with toMillis()
+    if (typeof obj.toMillis === 'function') {
+      return (obj.toMillis as () => number)()
+    }
 
-  // 2. Check if it's a Firestore Timestamp with toDate()
-  if (typeof dateField.toDate === 'function') {
-    return dateField.toDate().getTime()
-  }
+    // 2. Check if it's a Firestore Timestamp with toDate()
+    if (typeof obj.toDate === 'function') {
+      const toDateFn = obj.toDate as () => { getTime: () => number }
+      return toDateFn().getTime()
+    }
 
-  // 3. Check if it's a serialized Timestamp object { seconds, nanoseconds }
-  if (typeof dateField.seconds === 'number') {
-    return dateField.seconds * 1000
-  }
+    // 3. Check if it's a serialized Timestamp object { seconds, nanoseconds }
+    if (typeof obj.seconds === 'number') {
+      return obj.seconds * 1000
+    }
 
-  // 4. Check if it's already a JS Date object
-  if (dateField instanceof Date) {
-    return dateField.getTime()
+    // 4. Check if it's already a JS Date object
+    if (dateField instanceof Date) {
+      return dateField.getTime()
+    }
   }
 
   // 5. Try parsing as date string/number
-  const parsed = new Date(dateField).getTime()
+  const parsed = new Date(dateField as string | number | Date).getTime()
   if (!isNaN(parsed)) {
     return parsed
   }
@@ -52,7 +56,7 @@ export function detectSleepWindow(
 ): SleepWindow {
   const timestamps: number[] = []
 
-  const addTime = (dateField: any) => {
+  const addTime = (dateField: unknown) => {
     const ms = getMillis(dateField)
     if (ms !== null) {
       timestamps.push(ms)

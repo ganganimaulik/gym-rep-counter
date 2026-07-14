@@ -72,19 +72,19 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   const animatedRepProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentRep.value)),
-    } as any
+    } as Record<string, string> as never
   }, [])
 
   const animatedSetProps = useAnimatedProps(() => {
     return {
       text: String(Math.round(currentSet.value)),
-    } as any
+    } as Record<string, string> as never
   }, [])
 
   const animatedStatusProps = useAnimatedProps(() => {
     return {
       text: statusText.value,
-    } as any
+    } as Record<string, string> as never
   }, [])
 
   const handlePress = () => {

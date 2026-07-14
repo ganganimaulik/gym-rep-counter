@@ -1,5 +1,3 @@
-import { Platform } from 'react-native'
-
 // Unmock the module we are trying to test since it's mocked in jest.setup.js
 jest.unmock('../index')
 

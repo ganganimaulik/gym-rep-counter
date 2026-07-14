@@ -1,4 +1,4 @@
-import type { JournalEntry, SupplementLog } from '../declarations'
+import type { JournalEntry } from '../declarations'
 
 // Schedule types for supplement frequency
 export type SupplementScheduleType =

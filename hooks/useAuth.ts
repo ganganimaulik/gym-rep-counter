@@ -41,10 +41,13 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
           const mockUser = JSON.parse(mockUserStr)
           setUser(mockUser)
           onAuthSuccessRef.current(mockUser)
-        } catch (e) {}
+        } catch {}
       }
 
-      ;(window as any).setMockUser = (mockUser: any) => {
+      const win = window as unknown as {
+        setMockUser?: (mockUser: FirebaseUser | null) => void
+      }
+      win.setMockUser = (mockUser) => {
         setUser(mockUser)
         onAuthSuccessRef.current(mockUser)
       }

@@ -2,7 +2,13 @@ import { requireNativeModule } from 'expo-modules-core'
 
 import { Platform } from 'react-native'
 
-let WorkoutActivityModule: any = null
+interface WorkoutActivityModuleType {
+  startActivity(state: WorkoutActivityState): void
+  updateActivity(state: WorkoutActivityState): void
+  stopActivity(): void
+}
+
+let WorkoutActivityModule: WorkoutActivityModuleType | null = null
 try {
   if (Platform.OS !== 'web') {
     WorkoutActivityModule = requireNativeModule('WorkoutActivityModule')

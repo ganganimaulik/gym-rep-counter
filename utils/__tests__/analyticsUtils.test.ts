@@ -41,7 +41,7 @@ const createMockSet = (
   weight,
   reps,
   set: 1,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   date: new Timestamp(Math.floor(date.getTime() / 1000), 0) as any,
 })
 
