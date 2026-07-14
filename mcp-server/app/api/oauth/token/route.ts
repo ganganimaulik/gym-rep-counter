@@ -107,7 +107,12 @@ export async function POST(req: Request) {
   }
 
   const googleTokens = await tokenResponse.json()
-  console.log('googleTokens keys:', Object.keys(googleTokens), 'has id_token:', !!googleTokens.id_token)
+  console.log(
+    'googleTokens keys:',
+    Object.keys(googleTokens),
+    'has id_token:',
+    !!googleTokens.id_token,
+  )
 
   // Return Google's access token to ChatGPT
   return new Response(

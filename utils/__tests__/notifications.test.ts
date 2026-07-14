@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { setupReminders, cancelAllReminders } from '../notifications'
+import { detectSleepWindow } from '../sleepDetection'
 
 // Mock expo-notifications
 const mockScheduleNotification = jest.fn().mockResolvedValue('notification-id')
@@ -116,7 +117,7 @@ describe('notifications', () => {
     })
 
     test('uses auto-detected sleep window when statRemindersUseAutoSleep is true', async () => {
-      const detectSleep = require('../sleepDetection').detectSleepWindow
+      const detectSleep = detectSleepWindow
       const autoSleepSettings = {
         ...baseSettings,
         statRemindersUseAutoSleep: true,
@@ -126,7 +127,6 @@ describe('notifications', () => {
     })
 
     test('bedtime reminder includes supplement info for today', async () => {
-      const now = new Date()
       const settings: any = {
         ...baseSettings,
         supplementSuggestions: [
@@ -150,6 +150,30 @@ describe('notifications', () => {
       expect(bedtimeReminders.length).toBeGreaterThan(0)
       const firstReminder = bedtimeReminders[0][0]
       expect(firstReminder.content.body).toBeTruthy()
+    })
+
+    test('cancels previous setup runs if a new run is triggered concurrently', async () => {
+      // Mock scheduleNotificationAsync to have a small delay so we can interleave calls
+      mockScheduleNotification.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve('notification-id'), 5),
+          ),
+      )
+
+      // Start first setup
+      const p1 = setupReminders(baseSettings, [], [], [], [])
+      // Start second setup immediately
+      const p2 = setupReminders(baseSettings, [], [], [], [])
+
+      await Promise.all([p1, p2])
+
+      // Restore simple resolved value
+      mockScheduleNotification.mockResolvedValue('notification-id')
+
+      // Total scheduled calls should be much less than 2 full runs (116 calls)
+      // It should be around 58-60 calls because the first run was aborted early.
+      expect(mockScheduleNotification.mock.calls.length).toBeLessThan(100)
     })
   })
 

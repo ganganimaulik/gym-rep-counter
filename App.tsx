@@ -289,11 +289,14 @@ const App: React.FC = () => {
     triggerReminders()
   }, [
     settings.statRemindersEnabled,
+    settings.statRemindersUseAutoSleep,
+    settings.statRemindersSleepStart,
+    settings.statRemindersSleepEnd,
+    settings.supplementSuggestions,
     weightLogs.length,
     calorieLogs.length,
     journalEntries.length,
     todaysCompletions.length,
-    settings,
   ])
 
   useEffect(() => {
@@ -446,11 +449,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const safeDeactivate = () => {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const res = deactivateKeepAwake('workout') as any
         if (res && typeof res.catch === 'function') {
           res.catch(() => {})
         }
-      } catch (e) {}
+      } catch {
+        // ignored
+      }
     }
 
     if (isRunning || isResting) {
@@ -689,6 +695,7 @@ const App: React.FC = () => {
             size={22}
           />
           <StyledText
+            // eslint-disable-next-line react-native/no-color-literals
             style={{ color: currentTab === 'journal' ? '#0ea5e9' : '#71717a' }}
             className="text-[10px] mt-1 font-semibold">
             Journal

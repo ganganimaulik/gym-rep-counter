@@ -9,6 +9,8 @@ import {
 import { Settings } from '../hooks/useData'
 import { buildBedtimeReminderBody } from './supplementSchedule'
 
+let activeRunId = 0
+
 export async function setupReminders(
   settings: Settings,
   weightLogs: WeightLog[],
@@ -16,12 +18,18 @@ export async function setupReminders(
   journalEntries: JournalEntry[],
   workoutHistory: WorkoutSet[],
 ) {
+  const runId = ++activeRunId
+  const isAborted = () => runId !== activeRunId
+
   try {
     // 1. Check permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync()
+    if (isAborted()) return
+
     let finalStatus = existingStatus
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync()
+      if (isAborted()) return
       finalStatus = status
     }
     if (finalStatus !== 'granted') {
@@ -41,6 +49,7 @@ export async function setupReminders(
 
     // 3. Cancel existing notifications
     await Notifications.cancelAllScheduledNotificationsAsync()
+    if (isAborted()) return
 
     // 4. Get sleep window
     let sleepStart = settings.statRemindersSleepStart ?? 23
@@ -69,6 +78,7 @@ export async function setupReminders(
 
     // 5. Find the last time the user logged stats
     let lastLogTime = 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const getLogTime = (dateField: any) => {
       if (!dateField) return 0
       return typeof dateField.toMillis === 'function'
@@ -104,6 +114,7 @@ export async function setupReminders(
       let offsetHours = 4
 
       while (scheduledCount < targetCount && offsetHours < 240) {
+        if (isAborted()) return
         const candidateDate = new Date(baseTime + offsetHours * 60 * 60 * 1000)
 
         if (!isInSleepWindow(candidateDate)) {
@@ -130,11 +141,14 @@ export async function setupReminders(
       }
     }
 
+    if (isAborted()) return
+
     // 7. Schedule bedtime supplement/journal reminders
     await scheduleBedtimeReminders(
       sleepStart,
       settings.supplementSuggestions || [],
       journalEntries,
+      isAborted,
     )
   } catch (e) {
     console.error('Error in setupReminders:', e)
@@ -150,6 +164,7 @@ async function scheduleBedtimeReminders(
   sleepStartHour: number,
   supplementSuggestions: NonNullable<Settings['supplementSuggestions']>,
   journalEntries: JournalEntry[],
+  isAborted?: () => boolean,
 ): Promise<number> {
   // If no supplements have schedules set, we still remind about journal entries
   const reminderHour = (sleepStartHour - 4 + 24) % 24
@@ -159,6 +174,9 @@ async function scheduleBedtimeReminders(
   const daysToSchedule = 10
 
   for (let dayOffset = 0; dayOffset < daysToSchedule; dayOffset++) {
+    if (isAborted && isAborted()) {
+      return scheduledCount
+    }
     const targetDate = new Date(now)
     targetDate.setDate(targetDate.getDate() + dayOffset)
     targetDate.setHours(reminderHour, 0, 0, 0)

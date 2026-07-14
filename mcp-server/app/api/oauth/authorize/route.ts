@@ -4,7 +4,10 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const baseUrl = getBaseUrl(req)
 
-  console.log('Authorize request query:', Object.fromEntries(url.searchParams.entries()))
+  console.log(
+    'Authorize request query:',
+    Object.fromEntries(url.searchParams.entries()),
+  )
 
   // Extract OAuth params from ChatGPT
   const clientId = url.searchParams.get('client_id')
