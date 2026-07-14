@@ -43,7 +43,7 @@ import { useNetInfo } from '@react-native-community/netinfo'
 
 // Hooks
 import { useAuth } from './hooks/useAuth'
-import { useData, Settings, Workout } from './hooks/useData'
+import { useData, Settings, Workout, Exercise } from './hooks/useData'
 import { useAudio } from './hooks/useAudio'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 
@@ -160,6 +160,28 @@ const App: React.FC = () => {
   const startingSet = activeExercise
     ? getNextUncompletedSet(activeExercise.id)
     : 1
+
+  // An exercise is "done" once every one of its sets has been logged today.
+  const isExerciseDone = useCallback(
+    (exercise: Exercise): boolean =>
+      Array.from({ length: exercise.sets }, (_, i) => i + 1).every(
+        (setNumber) => isSetCompleted(exercise.id, setNumber),
+      ),
+    [isSetCompleted],
+  )
+
+  // Partition exercises into completed-first / unfinished-last order,
+  // preserving relative order within each group. `treatAsDoneId` lets a
+  // just-finished exercise count as complete before its final set is persisted.
+  const orderExercisesByCompletion = useCallback(
+    (exercises: Exercise[], treatAsDoneId?: string) => {
+      const done = (e: Exercise) => e.id === treatAsDoneId || isExerciseDone(e)
+      const completed = exercises.filter(done)
+      const remaining = exercises.filter((e) => !done(e))
+      return { ordered: [...completed, ...remaining], completed, remaining }
+    },
+    [isExerciseDone],
+  )
 
   const continueToNextPhaseRef = useRef<() => void>(() => {})
 
@@ -310,26 +332,33 @@ const App: React.FC = () => {
   }, [isConnected, user, syncOfflineQueue])
 
   useEffect(() => {
-    if (isExerciseComplete) {
-      if (
-        currentWorkout &&
-        currentExerciseIndex < currentWorkout.exercises.length - 1
-      ) {
-        const nextIndex = currentExerciseIndex + 1
-        setCurrentExerciseIndex(nextIndex)
-        audioHandler.speak(
-          `Next exercise: ${currentWorkout.exercises[nextIndex].name}`,
-        )
-      } else {
+    if (!isExerciseComplete) return
+    if (currentWorkout && activeExercise) {
+      // The exercise that just finished counts as done even though its final
+      // set may not be persisted yet.
+      const { ordered, completed, remaining } = orderExercisesByCompletion(
+        currentWorkout.exercises,
+        activeExercise.id,
+      )
+      if (remaining.length === 0) {
+        // Every set of every exercise is done.
         setStatusText('Workout Complete!')
         audioHandler.speak('Workout Complete!')
+      } else {
+        // Move completed exercises to the front and continue with the first
+        // unfinished one.
+        const nextIndex = completed.length
+        setCurrentWorkout({ ...currentWorkout, exercises: ordered })
+        setCurrentExerciseIndex(nextIndex)
+        audioHandler.speak(`Next exercise: ${ordered[nextIndex].name}`)
       }
-      resetExerciseCompleteFlag()
     }
+    resetExerciseCompleteFlag()
   }, [
     isExerciseComplete,
     currentWorkout,
-    currentExerciseIndex,
+    activeExercise,
+    orderExercisesByCompletion,
     setStatusText,
     audioHandler,
     resetExerciseCompleteFlag,
@@ -357,10 +386,22 @@ const App: React.FC = () => {
         return
       }
       const workout = workouts.find((w: Workout) => w.id === workoutId)
-      setCurrentWorkout(workout || null)
-      setCurrentExerciseIndex(0)
+      if (!workout) {
+        setCurrentWorkout(null)
+        setCurrentExerciseIndex(0)
+        return
+      }
+      // Show already-completed exercises first and resume at the first
+      // unfinished one.
+      const { ordered, completed } = orderExercisesByCompletion(
+        workout.exercises,
+      )
+      setCurrentWorkout({ ...workout, exercises: ordered })
+      setCurrentExerciseIndex(
+        completed.length < ordered.length ? completed.length : 0,
+      )
     },
-    [stopWorkout, workouts],
+    [stopWorkout, workouts, orderExercisesByCompletion],
   )
 
   const nextExercise = useCallback(() => {
