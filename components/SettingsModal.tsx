@@ -8,7 +8,6 @@ import {
   ScrollView,
   Keyboard,
   Platform,
-  Clipboard,
 } from 'react-native'
 import { styled } from 'nativewind'
 import Slider from '@react-native-community/slider'
@@ -54,16 +53,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     setLocalSettings(settings)
   }, [settings])
-
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    Clipboard.setString('https://mcp-server-alpha-blush.vercel.app/api')
-    setCopied(true)
-    setTimeout(() => {
-      setCopied(false)
-    }, 2000)
-  }
 
   const handleSave = () => {
     const keysToValidate: (keyof Settings)[] = [
@@ -530,34 +519,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </StyledView>
                 </StyledView>
               )}
-          </StyledView>
-
-          {/* MCP Server Settings Card */}
-          <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-            <StyledText className="text-xs font-black text-zinc-400 tracking-widest uppercase mb-4">
-              MCP Server Settings
-            </StyledText>
-
-            <StyledView className="mb-4">
-              <StyledText className="text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1.5">
-                Vercel MCP Server URL
-              </StyledText>
-              <StyledView className="flex-row items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-                <StyledText
-                  testID="vercel-mcp-url-text"
-                  className="text-zinc-300 text-sm font-medium flex-1 mr-2 select-text">
-                  https://mcp-server-alpha-blush.vercel.app/api
-                </StyledText>
-                <StyledTouchableOpacity
-                  testID="copy-vercel-mcp-url"
-                  onPress={handleCopy}
-                  className="bg-indigo-600/20 border border-indigo-500/30 rounded-lg px-3 py-1.5 active:bg-indigo-600/40 min-w-[60px] items-center">
-                  <StyledText className="text-indigo-400 font-bold text-xs">
-                    {copied ? 'Copied' : 'Copy'}
-                  </StyledText>
-                </StyledTouchableOpacity>
-              </StyledView>
-            </StyledView>
           </StyledView>
 
           {/* Action Save Button */}

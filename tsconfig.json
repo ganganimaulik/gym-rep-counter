@@ -11,6 +11,6 @@
     "noEmit": true,
     "allowJs": true
   },
-  "exclude": ["node_modules", "mcp-server"],
+  "exclude": ["node_modules"],
   "include": ["**/*.ts", "**/*.tsx", "declarations.d.ts"]
 }
