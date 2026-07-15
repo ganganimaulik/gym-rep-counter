@@ -2664,4 +2664,79 @@ describe('useData Hook', () => {
       expect(result.current.tdeeConfig).toBeNull()
     })
   })
+
+  describe('Active Session Persistence', () => {
+    beforeEach(() => {
+      jest.clearAllMocks()
+    })
+
+    it('saveActiveSession writes correct data to AsyncStorage', async () => {
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.saveActiveSession('workout-123', 2)
+      })
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'activeWorkoutSession',
+        JSON.stringify({ workoutId: 'workout-123', exerciseIndex: 2 }),
+      )
+    })
+
+    it('loadActiveSession reads and returns persisted session', async () => {
+      const originalGetItem = AsyncStorage.getItem as jest.Mock
+      const defaultImpl = originalGetItem.getMockImplementation()
+      originalGetItem.mockImplementation((key: string) => {
+        if (key === 'activeWorkoutSession') {
+          return Promise.resolve(
+            JSON.stringify({ workoutId: 'workout-456', exerciseIndex: 3 }),
+          )
+        }
+        return defaultImpl ? defaultImpl(key) : Promise.resolve(null)
+      })
+      const { result } = renderHook(() => useData())
+      let session: { workoutId: string; exerciseIndex: number } | null = null
+      await act(async () => {
+        session = await result.current.loadActiveSession()
+      })
+      expect(session).toEqual({ workoutId: 'workout-456', exerciseIndex: 3 })
+      originalGetItem.mockImplementation(defaultImpl)
+    })
+
+    it('loadActiveSession returns null when no session exists', async () => {
+      ;(AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(null)
+      const { result } = renderHook(() => useData())
+      let session: { workoutId: string; exerciseIndex: number } | null = null
+      await act(async () => {
+        session = await result.current.loadActiveSession()
+      })
+      expect(session).toBeNull()
+    })
+
+    it('loadActiveSession returns null for invalid data', async () => {
+      const originalGetItem = AsyncStorage.getItem as jest.Mock
+      const defaultImpl = originalGetItem.getMockImplementation()
+      originalGetItem.mockImplementation((key: string) => {
+        if (key === 'activeWorkoutSession') {
+          return Promise.resolve(JSON.stringify({ exerciseIndex: 1 }))
+        }
+        return defaultImpl ? defaultImpl(key) : Promise.resolve(null)
+      })
+      const { result } = renderHook(() => useData())
+      let session: { workoutId: string; exerciseIndex: number } | null = null
+      await act(async () => {
+        session = await result.current.loadActiveSession()
+      })
+      expect(session).toBeNull()
+      originalGetItem.mockImplementation(defaultImpl)
+    })
+
+    it('clearActiveSession removes the key', async () => {
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.clearActiveSession()
+      })
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+        'activeWorkoutSession',
+      )
+    })
+  })
 })

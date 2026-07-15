@@ -56,4 +56,26 @@ test.describe('Workout Screen Tests', () => {
     // Since we jumped back to Set 1, it triggers countdown, so the phase becomes "Get Ready"
     await expect(page.locator('text=Get Ready').first()).toBeVisible()
   })
+
+  test('should restore active workout after page reload', async ({ page }) => {
+    // Select a workout
+    await page.click('text=Select a workout...')
+    await page.click('text=Day 1 (Lower)')
+
+    // Verify the workout is selected — exercise name should be visible
+    await expect(page.locator('text=Squat').first()).toBeVisible()
+
+    // Verify activeWorkoutSession is saved in AsyncStorage
+    const sessionBefore = await page.evaluate(() => {
+      return localStorage.getItem('activeWorkoutSession')
+    })
+    expect(sessionBefore).not.toBeNull()
+
+    // Reload the page (simulates app restart)
+    await page.reload()
+    await page.waitForTimeout(3000)
+
+    // After reload, the same workout and exercise should be restored
+    await expect(page.locator('text=Squat').first()).toBeVisible()
+  })
 })

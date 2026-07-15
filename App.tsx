@@ -116,6 +116,9 @@ const App: React.FC = () => {
     calorieLogs,
     journalEntries,
     todaysCompletions,
+    saveActiveSession,
+    loadActiveSession,
+    clearActiveSession,
   } = dataHook
 
   const onAuthSuccess = useCallback(
@@ -362,6 +365,7 @@ const App: React.FC = () => {
         // Every set of every exercise is done.
         setStatusText('Workout Complete!')
         audioHandler.speak('Workout Complete!')
+        clearActiveSession()
       } else {
         // Move completed exercises to the front and continue with the first
         // unfinished one.
@@ -380,6 +384,7 @@ const App: React.FC = () => {
     setStatusText,
     audioHandler,
     resetExerciseCompleteFlag,
+    clearActiveSession,
   ])
 
   useEffect(() => {
@@ -395,12 +400,52 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, setDataSettings])
 
+  // Persist active workout session to AsyncStorage whenever it changes
+  useEffect(() => {
+    if (currentWorkout) {
+      saveActiveSession(currentWorkout.id, currentExerciseIndex)
+    }
+  }, [currentWorkout, currentExerciseIndex, saveActiveSession])
+
+  // Restore active workout session on initial mount once workouts are loaded
+  const sessionRestoredRef = useRef(false)
+  useEffect(() => {
+    if (sessionRestoredRef.current || workouts.length === 0) return
+    sessionRestoredRef.current = true
+
+    const restore = async () => {
+      const session = await loadActiveSession()
+      if (!session) return
+
+      const workout = workouts.find((w: Workout) => w.id === session.workoutId)
+      if (!workout) {
+        await clearActiveSession()
+        return
+      }
+
+      // Reorder exercises like selectWorkout does, then apply the saved index
+      const { ordered, completed } = orderExercisesByCompletion(
+        workout.exercises,
+      )
+      setCurrentWorkout({ ...workout, exercises: ordered })
+
+      // Use the saved exercise index if it's still valid, otherwise fall back
+      // to the first uncompleted exercise
+      const validIndex = session.exerciseIndex < ordered.length
+        ? session.exerciseIndex
+        : (completed.length < ordered.length ? completed.length : 0)
+      setCurrentExerciseIndex(validIndex)
+    }
+    restore()
+  }, [workouts, loadActiveSession, clearActiveSession, orderExercisesByCompletion])
+
   const selectWorkout = useCallback(
     (workoutId: string | null) => {
       stopWorkout()
       if (workoutId === null) {
         setCurrentWorkout(null)
         setCurrentExerciseIndex(0)
+        clearActiveSession()
         return
       }
       const workout = workouts.find((w: Workout) => w.id === workoutId)
@@ -419,7 +464,7 @@ const App: React.FC = () => {
         completed.length < ordered.length ? completed.length : 0,
       )
     },
-    [stopWorkout, workouts, orderExercisesByCompletion],
+    [stopWorkout, workouts, orderExercisesByCompletion, clearActiveSession],
   )
 
   const nextExercise = useCallback(() => {

@@ -227,6 +227,15 @@ export interface DataHook {
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
   setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
+  saveActiveSession: (
+    workoutId: string,
+    exerciseIndex: number,
+  ) => Promise<void>
+  loadActiveSession: () => Promise<{
+    workoutId: string
+    exerciseIndex: number
+  } | null>
+  clearActiveSession: () => Promise<void>
 }
 
 const defaultSettings: Settings = {
@@ -1961,6 +1970,48 @@ export const useData = (): DataHook => {
     [],
   )
 
+  const ACTIVE_SESSION_KEY = 'activeWorkoutSession'
+
+  const saveActiveSession = useCallback(
+    async (workoutId: string, exerciseIndex: number) => {
+      try {
+        await AsyncStorage.setItem(
+          ACTIVE_SESSION_KEY,
+          JSON.stringify({ workoutId, exerciseIndex }),
+        )
+      } catch (e) {
+        console.error('Failed to save active session', e)
+      }
+    },
+    [],
+  )
+
+  const loadActiveSession = useCallback(async (): Promise<{
+    workoutId: string
+    exerciseIndex: number
+  } | null> => {
+    try {
+      const raw = await AsyncStorage.getItem(ACTIVE_SESSION_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed.workoutId === 'string' && typeof parsed.exerciseIndex === 'number') {
+          return parsed
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load active session', e)
+    }
+    return null
+  }, [])
+
+  const clearActiveSession = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(ACTIVE_SESSION_KEY)
+    } catch (e) {
+      console.error('Failed to clear active session', e)
+    }
+  }, [])
+
   return useMemo(
     () => ({
       settings,
@@ -2011,6 +2062,9 @@ export const useData = (): DataHook => {
       setWorkouts,
       setSettings,
       setOfflineQueue,
+      saveActiveSession,
+      loadActiveSession,
+      clearActiveSession,
     }),
     [
       settings,
@@ -2061,6 +2115,9 @@ export const useData = (): DataHook => {
       setWorkouts,
       setSettings,
       setOfflineQueue,
+      saveActiveSession,
+      loadActiveSession,
+      clearActiveSession,
     ],
   )
 }

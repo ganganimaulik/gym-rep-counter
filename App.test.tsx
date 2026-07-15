@@ -101,6 +101,9 @@ const mockDataHookValue = {
   journalEntries: [],
   todaysCompletions: [],
   historyVersion: 0,
+  saveActiveSession: jest.fn(),
+  loadActiveSession: jest.fn().mockResolvedValue(null),
+  clearActiveSession: jest.fn(),
 }
 jest.mock('./hooks/useData', () => ({
   useData: () => mockDataHookValue,
@@ -228,6 +231,12 @@ describe('App Component', () => {
     expect(mockDataHookValue.syncUserData).toHaveBeenCalled()
     expect(mockDataHookValue.fetchWeightLogs).toHaveBeenCalledWith({
       uid: 'auth-user-id',
+    })
+  })
+  it('calls loadActiveSession on mount to restore workout state', async () => {
+    render(<App />)
+    await waitFor(() => {
+      expect(mockDataHookValue.loadActiveSession).toHaveBeenCalled()
     })
   })
 })
