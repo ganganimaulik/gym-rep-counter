@@ -23,6 +23,11 @@ jest.mock('../../utils/workoutActivity', () => ({
   stopWorkoutActivity: jest.fn(),
 }))
 
+jest.mock('../../utils/restNotification', () => ({
+  scheduleRestEndNotification: jest.fn().mockResolvedValue(undefined),
+  cancelRestEndNotification: jest.fn().mockResolvedValue(undefined),
+}))
+
 const mockQueueSpeak = jest.fn((_text, options) => {
   if (options?.onDone) {
     // Simulate async speech completion

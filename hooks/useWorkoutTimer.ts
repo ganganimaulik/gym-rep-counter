@@ -14,6 +14,10 @@ import {
   updateWorkoutActivity,
   stopWorkoutActivity,
 } from '../utils/workoutActivity'
+import {
+  scheduleRestEndNotification,
+  cancelRestEndNotification,
+} from '../utils/restNotification'
 
 // Constants
 const PHASES = {
@@ -205,6 +209,18 @@ export function useWorkoutTimer(
     wState.current.phaseStart = Date.now() - initialElapsed * 1000
     wState.current.lastSpokenSecond = -1
 
+    // Lock-screen fallback for the rest target: fires even if Live Activities
+    // are disabled or the phone is muted. Cancelled if rest exits early
+    // (see the rest-notification effect below). No-ops if already past target.
+    if (activeExercise) {
+      scheduleRestEndNotification({
+        secondsFromNow: settings.restSeconds - initialElapsed,
+        exerciseName: activeExercise.name,
+        set: wState.current.set,
+        totalSets: activeExercise.sets ?? settings.maxSets,
+      })
+    }
+
     // We need to track if we have already spoken the "Rest Complete" message for this session
     // to avoid speaking it blindly if we resume after the target.
     // But `lastSpokenSecond` can handle that if we set it correctly.
@@ -232,7 +248,7 @@ export function useWorkoutTimer(
       schedule(1000 - (Date.now() % 1000), tick, false)
     }
     tick()
-  }, [settings, queueSpeak, schedule, statusText, updateUI])
+  }, [settings, queueSpeak, schedule, statusText, updateUI, activeExercise])
 
   const fullReset = useCallback(() => {
     clearTimer()
@@ -739,15 +755,29 @@ export function useWorkoutTimer(
       : Date.now()
     const restSeconds = settings.restSeconds
 
+    // While paused in rest, remainingTime holds the elapsed rest in ms
+    // (see pauseWorkout) — the widget renders a frozen countdown from this.
+    const pausedRemainingSeconds =
+      ui.isPaused && isResting
+        ? Math.max(
+            0,
+            restSeconds - Math.floor(wState.current.remainingTime / 1000),
+          )
+        : 0
+
     const statePayload = {
       exerciseName: activeExercise.name,
       nextExerciseName: nextExerciseName || '',
       currentSet: wState.current.set,
       totalSets: activeExercise.sets ?? settings.maxSets,
       reps: activeExercise.reps,
+      currentRep: wState.current.rep,
       phase: ui.phase,
       isResting,
+      isPaused: ui.isPaused,
+      isRestComplete: ui.isRestComplete,
       restSeconds,
+      pausedRemainingSeconds,
       restStartTimestamp,
     }
 
@@ -763,15 +793,30 @@ export function useWorkoutTimer(
     ui.isRunning,
     ui.isPaused,
     ui.phase,
+    ui.isRestComplete,
     settings.restSeconds,
     settings.maxSets,
   ])
+
+  // Cancel the pending rest-end notification whenever rest stops being
+  // active (set started early, workout stopped, pause). Scheduling happens
+  // in startRest, which knows the exact rest anchor time.
+  useEffect(() => {
+    if (Platform.OS === 'web') return
+    const isResting = ui.phase === PHASE_DISPLAY[PHASES.REST]
+    if (!isResting || ui.isPaused) {
+      cancelRestEndNotification()
+    }
+  }, [ui.phase, ui.isPaused])
 
   // Also clean up on unmount
   useEffect(() => {
     return () => {
       if (isActivityActiveRef.current) {
         stopWorkoutActivity()
+      }
+      if (Platform.OS !== 'web') {
+        cancelRestEndNotification()
       }
     }
   }, [])

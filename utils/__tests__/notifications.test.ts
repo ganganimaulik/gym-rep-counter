@@ -3,7 +3,8 @@ import { detectSleepWindow } from '../sleepDetection'
 
 // Mock expo-notifications
 const mockScheduleNotification = jest.fn().mockResolvedValue('notification-id')
-const mockCancelAll = jest.fn().mockResolvedValue(undefined)
+const mockGetAllScheduled = jest.fn().mockResolvedValue([])
+const mockCancelScheduled = jest.fn().mockResolvedValue(undefined)
 const mockGetPermissions = jest.fn().mockResolvedValue({ status: 'granted' })
 const mockRequestPermissions = jest
   .fn()
@@ -14,7 +15,8 @@ jest.mock('expo-notifications', () => ({
   getPermissionsAsync: () => mockGetPermissions(),
   requestPermissionsAsync: () => mockRequestPermissions(),
   setNotificationHandler: (handler: any) => mockSetHandler(handler),
-  cancelAllScheduledNotificationsAsync: () => mockCancelAll(),
+  getAllScheduledNotificationsAsync: () => mockGetAllScheduled(),
+  cancelScheduledNotificationAsync: (id: string) => mockCancelScheduled(id),
   scheduleNotificationAsync: (opts: any) => mockScheduleNotification(opts),
   AndroidNotificationPriority: { HIGH: 'high' },
   SchedulableTriggerInputTypes: { DATE: 'date' },
@@ -51,9 +53,42 @@ describe('notifications', () => {
       expect(mockGetPermissions).toHaveBeenCalled()
     })
 
-    test('cancels all existing notifications before scheduling', async () => {
+    test('cancels existing reminder notifications before scheduling', async () => {
+      mockGetAllScheduled.mockResolvedValueOnce([
+        { identifier: 'stat-1', content: { data: {} } },
+        { identifier: 'bedtime-1', content: {} },
+      ])
       await setupReminders(baseSettings, [], [], [], [])
-      expect(mockCancelAll).toHaveBeenCalled()
+      expect(mockCancelScheduled).toHaveBeenCalledWith('stat-1')
+      expect(mockCancelScheduled).toHaveBeenCalledWith('bedtime-1')
+    })
+
+    test('preserves a pending rest-end notification when cancelling reminders', async () => {
+      mockGetAllScheduled.mockResolvedValueOnce([
+        { identifier: 'stat-1', content: { data: {} } },
+        { identifier: 'rest-1', content: { data: { type: 'rest-end' } } },
+      ])
+      await setupReminders(baseSettings, [], [], [], [])
+      expect(mockCancelScheduled).toHaveBeenCalledWith('stat-1')
+      expect(mockCancelScheduled).not.toHaveBeenCalledWith('rest-1')
+    })
+
+    test('foreground handler suppresses rest-end alerts but shows reminders', async () => {
+      await setupReminders(baseSettings, [], [], [], [])
+
+      const handler = mockSetHandler.mock.calls[0][0].handleNotification
+
+      const restEnd = await handler({
+        request: { content: { data: { type: 'rest-end' } } },
+      })
+      expect(restEnd.shouldShowBanner).toBe(false)
+      expect(restEnd.shouldPlaySound).toBe(false)
+
+      const reminder = await handler({
+        request: { content: { data: {} } },
+      })
+      expect(reminder.shouldShowBanner).toBe(true)
+      expect(reminder.shouldPlaySound).toBe(true)
     })
 
     test('schedules stat reminders (non-sleep window hours)', async () => {
@@ -177,9 +212,14 @@ describe('notifications', () => {
   })
 
   describe('cancelAllReminders', () => {
-    test('cancels all scheduled notifications', async () => {
+    test('cancels scheduled reminders but preserves rest-end notification', async () => {
+      mockGetAllScheduled.mockResolvedValueOnce([
+        { identifier: 'stat-1', content: { data: {} } },
+        { identifier: 'rest-1', content: { data: { type: 'rest-end' } } },
+      ])
       await cancelAllReminders()
-      expect(mockCancelAll).toHaveBeenCalled()
+      expect(mockCancelScheduled).toHaveBeenCalledWith('stat-1')
+      expect(mockCancelScheduled).not.toHaveBeenCalledWith('rest-1')
     })
   })
 })

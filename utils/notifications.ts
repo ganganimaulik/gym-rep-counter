@@ -8,8 +8,28 @@ import {
 } from '../declarations'
 import { Settings } from '../hooks/useData'
 import { buildBedtimeReminderBody } from './supplementSchedule'
+import { REST_END_NOTIFICATION_TYPE } from './restNotification'
 
 let activeRunId = 0
+
+/**
+ * Cancel all scheduled reminder notifications while preserving a pending
+ * rest-end alert (scheduled by the workout timer via restNotification.ts).
+ * setupReminders re-runs whenever a set is logged, which is often mid-rest —
+ * a blanket cancelAll here would silently kill the rest timer alert.
+ */
+async function cancelReminderNotifications() {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync()
+  await Promise.all(
+    scheduled
+      .filter((n) => n.content.data?.type !== REST_END_NOTIFICATION_TYPE)
+      .map((n) =>
+        Notifications.cancelScheduledNotificationAsync(n.identifier).catch(
+          () => {},
+        ),
+      ),
+  )
+}
 
 export async function setupReminders(
   settings: Settings,
@@ -36,19 +56,25 @@ export async function setupReminders(
       return
     }
 
-    // 2. Configure foreground handler
+    // 2. Configure foreground handler. Rest-end alerts are silenced while the
+    // app is foregrounded — the in-app timer and voice cue already cover it.
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
+      handleNotification: async (notification) => {
+        const isRestEnd =
+          notification?.request?.content?.data?.type ===
+          REST_END_NOTIFICATION_TYPE
+        return {
+          shouldShowAlert: !isRestEnd,
+          shouldPlaySound: !isRestEnd,
+          shouldSetBadge: false,
+          shouldShowBanner: !isRestEnd,
+          shouldShowList: !isRestEnd,
+        }
+      },
     })
 
-    // 3. Cancel existing notifications
-    await Notifications.cancelAllScheduledNotificationsAsync()
+    // 3. Cancel existing reminders (keeps any pending rest-end alert)
+    await cancelReminderNotifications()
     if (isAborted()) return
 
     // 4. Get sleep window
@@ -233,5 +259,5 @@ async function scheduleBedtimeReminders(
 }
 
 export async function cancelAllReminders() {
-  await Notifications.cancelAllScheduledNotificationsAsync()
+  await cancelReminderNotifications()
 }

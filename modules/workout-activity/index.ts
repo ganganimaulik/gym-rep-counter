@@ -26,9 +26,13 @@ export interface WorkoutActivityState {
   currentSet: number
   totalSets: number
   reps: number
+  currentRep: number
   phase: string
   isResting: boolean
+  isPaused: boolean
+  isRestComplete: boolean
   restSeconds: number
+  pausedRemainingSeconds: number
   restStartTimestamp: number
 }
 

@@ -20,6 +20,7 @@ import {
   StatusBar,
   AppState,
   AppStateStatus,
+  Linking,
 } from 'react-native'
 import { styled } from 'nativewind'
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
@@ -229,6 +230,23 @@ const App: React.FC = () => {
 
   // Keep ref in sync
   continueToNextPhaseRef.current = continueToNextPhase
+
+  // Tapping the Live Activity / Dynamic Island opens repcounterapp://workout —
+  // route it to the workout tab.
+  useEffect(() => {
+    const handleUrl = (url: string | null) => {
+      if (url?.startsWith('repcounterapp://workout')) {
+        setCurrentTab('workout')
+      }
+    }
+    Linking.getInitialURL()
+      .then(handleUrl)
+      .catch(() => {})
+    const subscription = Linking.addEventListener('url', ({ url }) =>
+      handleUrl(url),
+    )
+    return () => subscription.remove()
+  }, [])
 
   const appState = useRef<AppStateStatus>(AppState.currentState)
 

@@ -3,6 +3,7 @@
     "name": "rep-counter-app",
     "slug": "rep-counter-app",
     "version": "1.0.0",
+    "scheme": "repcounterapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
