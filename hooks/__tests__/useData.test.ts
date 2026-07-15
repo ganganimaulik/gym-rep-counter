@@ -1130,6 +1130,67 @@ describe('useData Hook', () => {
       )
       consoleErrorSpy.mockRestore()
     })
+
+    it('should not commit the same queue twice when syncs overlap', async () => {
+      const { result } = renderHook(() => useData())
+
+      let resolveCommit!: () => void
+      mockBatch.commit.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveCommit = resolve
+          }),
+      )
+
+      const offlineEntry: any = { id: 'offline-1' }
+      await act(async () => {
+        result.current.setOfflineQueue([offlineEntry])
+      })
+
+      await act(async () => {
+        const first = result.current.syncOfflineQueue(mockUser)
+        const second = result.current.syncOfflineQueue(mockUser)
+        resolveCommit()
+        await Promise.all([first, second])
+      })
+
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1)
+      expect(mockBatch.set).toHaveBeenCalledTimes(1)
+      expect(result.current.offlineQueue).toHaveLength(0)
+    })
+
+    it('should preserve entries queued while a sync is in flight', async () => {
+      const { result } = renderHook(() => useData())
+
+      let resolveCommit!: () => void
+      mockBatch.commit.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveCommit = resolve
+          }),
+      )
+
+      const firstEntry: any = { id: 'offline-1' }
+      const lateEntry: any = { id: 'offline-2' }
+      await act(async () => {
+        result.current.setOfflineQueue([firstEntry])
+      })
+
+      await act(async () => {
+        const syncPromise = result.current.syncOfflineQueue(mockUser)
+        result.current.setOfflineQueue((prev) => [...prev, lateEntry])
+        resolveCommit()
+        await syncPromise
+      })
+
+      expect(result.current.offlineQueue).toHaveLength(1)
+      expect(result.current.offlineQueue[0].id).toBe('offline-2')
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('offlineQueue')
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'offlineQueue',
+        JSON.stringify([lateEntry]),
+      )
+    })
   })
 
   describe('Update and Delete History Entry', () => {

@@ -70,9 +70,11 @@ public class WorkoutActivityModule: Module {
   private func stopActivity() {
     if #available(iOS 16.2, *) {
       guard let activity = self.currentActivity as? Activity<WorkoutAttributes> else { return }
+      // Nil the reference synchronously so a subsequent startActivity's new
+      // activity won't be clobbered by the delayed Task.
+      self.currentActivity = nil
       Task {
         await activity.end(nil, dismissalPolicy: .immediate)
-        self.currentActivity = nil
         print("WorkoutActivityModule: Successfully stopped Live Activity!")
       }
     }

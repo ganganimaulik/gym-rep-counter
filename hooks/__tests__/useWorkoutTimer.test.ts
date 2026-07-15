@@ -168,6 +168,61 @@ describe('useWorkoutTimer', () => {
     expect(mockQueueSpeak).toHaveBeenCalledWith('Resuming', { priority: true })
   })
 
+  it('should freeze all timers while paused (no phase progression)', async () => {
+    const { result } = renderHook(() =>
+      useWorkoutTimer(
+        defaultSettings,
+        mockAudioHandler,
+        activeExercise,
+        mockOnSetComplete,
+        1,
+      ),
+    )
+
+    // Start workout — enters countdown phase
+    act(() => {
+      result.current.startWorkout()
+    })
+    expect(result.current.phase).toBe('Get Ready')
+
+    // Advance partway through the countdown so the timer is actively ticking
+    act(() => {
+      jest.advanceTimersByTime(1000)
+    })
+    expect(result.current.phase).toBe('Get Ready')
+
+    // Pause
+    act(() => {
+      result.current.pauseWorkout()
+    })
+    expect(result.current.isPaused).toBe(true)
+
+    // Clear mocks so we can assert nothing new fires while paused
+    mockQueueSpeak.mockClear()
+    mockSpeakEccentric.mockClear()
+    mockOnSetComplete.mockClear()
+
+    // Advance timers well past what would finish the countdown + a full set
+    const totalPhaseMs =
+      (defaultSettings.countdownSeconds +
+        defaultSettings.concentricSeconds +
+        defaultSettings.eccentricSeconds) *
+      1000 *
+      2
+    act(() => {
+      jest.advanceTimersByTime(totalPhaseMs)
+    })
+
+    // Phase must NOT have advanced — still paused in countdown
+    expect(result.current.isPaused).toBe(true)
+    expect(result.current.phase).toBe('Get Ready')
+    expect(result.current.currentRep.value).toBe(0)
+    expect(mockOnSetComplete).not.toHaveBeenCalled()
+    // No speech should have fired (countdown numbers, 'Go!', rep announcements, etc.)
+    expect(mockQueueSpeak).not.toHaveBeenCalled()
+    expect(mockSpeakEccentric).not.toHaveBeenCalled()
+  })
+
   describe('Phase Transitions', () => {
     it('should call onSetComplete after the last rep', async () => {
       const { result } = renderHook(() =>

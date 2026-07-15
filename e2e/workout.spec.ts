@@ -63,7 +63,7 @@ test.describe('Workout Screen Tests', () => {
     await page.click('text=Day 1 (Lower)')
 
     // Verify the workout is selected — exercise name should be visible
-    await expect(page.locator('text=Squat').first()).toBeVisible()
+    await expect(page.locator('text=Leg Press').first()).toBeVisible()
 
     // Verify activeWorkoutSession is saved in AsyncStorage
     const sessionBefore = await page.evaluate(() => {
@@ -76,6 +76,6 @@ test.describe('Workout Screen Tests', () => {
     await page.waitForTimeout(3000)
 
     // After reload, the same workout and exercise should be restored
-    await expect(page.locator('text=Squat').first()).toBeVisible()
+    await expect(page.locator('text=Leg Press').first()).toBeVisible()
   })
 })

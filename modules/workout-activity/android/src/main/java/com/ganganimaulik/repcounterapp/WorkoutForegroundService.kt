@@ -22,9 +22,12 @@ class WorkoutForegroundService : Service() {
     private var currentSet = 1
     private var totalSets = 1
     private var reps = 0
+    private var currentRep = 0
     private var phase = ""
     private var isResting = false
+    private var isPaused = false
     private var restSeconds = 0
+    private var pausedRemainingSeconds = 0
     private var restStartTimestamp: Double = 0.0
 
     private var countDownTimer: CountDownTimer? = null
@@ -54,16 +57,20 @@ class WorkoutForegroundService : Service() {
         currentSet = intent.getIntExtra("currentSet", 1)
         totalSets = intent.getIntExtra("totalSets", 1)
         reps = intent.getIntExtra("reps", 0)
+        currentRep = intent.getIntExtra("currentRep", 0)
         phase = intent.getStringExtra("phase") ?: ""
         isResting = intent.getBooleanExtra("isResting", false)
+        isPaused = intent.getBooleanExtra("isPaused", false)
         restSeconds = intent.getIntExtra("restSeconds", 0)
+        pausedRemainingSeconds = intent.getIntExtra("pausedRemainingSeconds", 0)
         restStartTimestamp = intent.getDoubleExtra("restStartTimestamp", 0.0)
 
         // Start Foreground Service with initial notification
-        val notification = buildNotification(isResting, if (isResting) restSeconds else 0)
+        val initialRemainingSec = if (isPaused) pausedRemainingSeconds else restSeconds
+        val notification = buildNotification(isResting, if (isResting) initialRemainingSec else 0)
         startForeground(NOTIFICATION_ID, notification)
 
-        if (isResting && restSeconds > 0) {
+        if (isResting && restSeconds > 0 && !isPaused) {
             startTimer()
         } else {
             stopTimer()
@@ -151,13 +158,23 @@ class WorkoutForegroundService : Service() {
         }
 
         if (resting) {
-            builder.setContentTitle("Resting: ${remainingSec}s remaining")
-            builder.setContentText("Next: ${if (nextExerciseName.isEmpty()) "None" : nextExerciseName} (Set $currentSet/$totalSets)")
+            val title = if (isPaused) {
+                "Resting (Paused): ${remainingSec}s remaining"
+            } else {
+                "Resting: ${remainingSec}s remaining"
+            }
+            builder.setContentTitle(title)
+            builder.setContentText("Next: ${if (nextExerciseName.isEmpty()) "None" else nextExerciseName} (Set $currentSet/$totalSets)")
             builder.setProgress(restSeconds, remainingSec, false)
             builder.setPriority(NotificationCompat.PRIORITY_LOW)
         } else {
-            builder.setContentTitle("Active: $exerciseName")
-            builder.setContentText("Set $currentSet of $totalSets • $reps Reps")
+            val title = if (isPaused) {
+                "Active (Paused): $exerciseName"
+            } else {
+                "Active: $exerciseName"
+            }
+            builder.setContentTitle(title)
+            builder.setContentText("Set $currentSet of $totalSets • Rep $currentRep of $reps")
             builder.setProgress(0, 0, false)
             builder.setPriority(NotificationCompat.PRIORITY_HIGH)
         }

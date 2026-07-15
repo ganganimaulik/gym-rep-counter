@@ -42,9 +42,12 @@ class WorkoutActivityModule : Module() {
         putExtra("currentSet", (data["currentSet"] as? Number)?.toInt() ?: 1)
         putExtra("totalSets", (data["totalSets"] as? Number)?.toInt() ?: 1)
         putExtra("reps", (data["reps"] as? Number)?.toInt() ?: 0)
+        putExtra("currentRep", (data["currentRep"] as? Number)?.toInt() ?: 0)
         putExtra("phase", data["phase"] as? String ?: "")
         putExtra("isResting", data["isResting"] as? Boolean ?: false)
+        putExtra("isPaused", data["isPaused"] as? Boolean ?: false)
         putExtra("restSeconds", (data["restSeconds"] as? Number)?.toInt() ?: 0)
+        putExtra("pausedRemainingSeconds", (data["pausedRemainingSeconds"] as? Number)?.toInt() ?: 0)
         putExtra("restStartTimestamp", (data["restStartTimestamp"] as? Number)?.toDouble() ?: System.currentTimeMillis().toDouble())
       }
 

@@ -597,6 +597,7 @@ export function useWorkoutTimer(
           fullReset()
       }
     } else {
+      clearTimer(false)
       const elapsed = Date.now() - wState.current.phaseStart
 
       if (wState.current.phase === PHASES.REST) {

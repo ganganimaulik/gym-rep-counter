@@ -280,6 +280,7 @@ export const useData = (): DataHook => {
   const [offlineQueue, setOfflineQueue] = useState<WorkoutSet[]>([])
   const [historyVersion, setHistoryVersion] = useState(0)
   const submittedKeysRef = useRef<Set<string>>(new Set())
+  const offlineSyncInFlightRef = useRef(false)
 
   const loadOfflineQueue = useCallback(async () => {
     try {
@@ -1099,12 +1100,17 @@ export const useData = (): DataHook => {
   const syncOfflineQueue = useCallback(
     async (user: FirebaseUser) => {
       if (offlineQueue.length === 0) return
+      // Two triggers (connectivity effect + login sync) can overlap; a second
+      // flush of the same entries would create duplicate history docs.
+      if (offlineSyncInFlightRef.current) return
+      offlineSyncInFlightRef.current = true
 
-      console.log(`Syncing ${offlineQueue.length} offline entries...`)
+      const entriesToSync = offlineQueue
+      console.log(`Syncing ${entriesToSync.length} offline entries...`)
       const batch = writeBatch(db)
       const historyCollectionRef = collection(db, 'users', user.uid, 'history')
 
-      offlineQueue.forEach((entry) => {
+      entriesToSync.forEach((entry) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...dataToUpload } = entry
         // Strip undefined values — Firestore rejects them
@@ -1117,11 +1123,22 @@ export const useData = (): DataHook => {
 
       try {
         await batch.commit()
-        setOfflineQueue([])
-        await AsyncStorage.removeItem('offlineQueue')
+        // Only drop what was flushed — entries queued mid-commit must survive.
+        const flushedIds = new Set(entriesToSync.map((entry) => entry.id))
+        setOfflineQueue((prev) => {
+          const remaining = prev.filter((entry) => !flushedIds.has(entry.id))
+          if (remaining.length === 0) {
+            AsyncStorage.removeItem('offlineQueue')
+          } else {
+            AsyncStorage.setItem('offlineQueue', JSON.stringify(remaining))
+          }
+          return remaining
+        })
         console.log('Offline queue synced successfully.')
       } catch (e) {
         console.error('Failed to sync offline queue', e)
+      } finally {
+        offlineSyncInFlightRef.current = false
       }
     },
     [offlineQueue],

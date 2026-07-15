@@ -15,6 +15,22 @@ describe('WorkoutActivityModule', () => {
   let consoleWarnSpy: jest.SpyInstance
   let consoleErrorSpy: jest.SpyInstance
 
+  const mockState = {
+    exerciseName: 'Squat',
+    nextExerciseName: 'Bench Press',
+    currentSet: 1,
+    totalSets: 3,
+    reps: 10,
+    currentRep: 0,
+    phase: 'active',
+    isResting: false,
+    isPaused: false,
+    isRestComplete: false,
+    restSeconds: 0,
+    pausedRemainingSeconds: 0,
+    restStartTimestamp: 0,
+  }
+
   beforeEach(() => {
     jest.clearAllMocks()
     jest.resetModules()
@@ -43,18 +59,6 @@ describe('WorkoutActivityModule', () => {
 
     const { startActivity } = require('../index')
 
-    const mockState = {
-      exerciseName: 'Squat',
-      nextExerciseName: 'Bench Press',
-      currentSet: 1,
-      totalSets: 3,
-      reps: 10,
-      phase: 'active',
-      isResting: false,
-      restSeconds: 0,
-      restStartTimestamp: 0,
-    }
-
     startActivity(mockState)
 
     expect(startActivitySpy).toHaveBeenCalledWith(mockState)
@@ -70,18 +74,6 @@ describe('WorkoutActivityModule', () => {
     })
 
     const { startActivity } = require('../index')
-
-    const mockState = {
-      exerciseName: 'Squat',
-      nextExerciseName: 'Bench Press',
-      currentSet: 1,
-      totalSets: 3,
-      reps: 10,
-      phase: 'active',
-      isResting: false,
-      restSeconds: 0,
-      restStartTimestamp: 0,
-    }
 
     startActivity(mockState)
 
@@ -101,18 +93,6 @@ describe('WorkoutActivityModule', () => {
     })
 
     const { startActivity } = require('../index')
-
-    const mockState = {
-      exerciseName: 'Squat',
-      nextExerciseName: 'Bench Press',
-      currentSet: 1,
-      totalSets: 3,
-      reps: 10,
-      phase: 'active',
-      isResting: false,
-      restSeconds: 0,
-      restStartTimestamp: 0,
-    }
 
     startActivity(mockState)
 
@@ -134,18 +114,6 @@ describe('WorkoutActivityModule', () => {
 
     const { updateActivity } = require('../index')
 
-    const mockState = {
-      exerciseName: 'Squat',
-      nextExerciseName: 'Bench Press',
-      currentSet: 1,
-      totalSets: 3,
-      reps: 10,
-      phase: 'active',
-      isResting: false,
-      restSeconds: 0,
-      restStartTimestamp: 0,
-    }
-
     const result = updateActivity(mockState)
 
     expect(updateActivitySpy).toHaveBeenCalledWith(mockState)
@@ -159,18 +127,6 @@ describe('WorkoutActivityModule', () => {
     })
 
     const { updateActivity } = require('../index')
-
-    const mockState = {
-      exerciseName: 'Squat',
-      nextExerciseName: 'Bench Press',
-      currentSet: 1,
-      totalSets: 3,
-      reps: 10,
-      phase: 'active',
-      isResting: false,
-      restSeconds: 0,
-      restStartTimestamp: 0,
-    }
 
     const result = updateActivity(mockState)
 
@@ -190,18 +146,6 @@ describe('WorkoutActivityModule', () => {
     })
 
     const { updateActivity } = require('../index')
-
-    const mockState = {
-      exerciseName: 'Squat',
-      nextExerciseName: 'Bench Press',
-      currentSet: 1,
-      totalSets: 3,
-      reps: 10,
-      phase: 'active',
-      isResting: false,
-      restSeconds: 0,
-      restStartTimestamp: 0,
-    }
 
     const result = updateActivity(mockState)
 

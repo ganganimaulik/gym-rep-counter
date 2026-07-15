@@ -88,6 +88,7 @@ const App: React.FC = () => {
   // Workout State
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
+  const [workoutsLoaded, setWorkoutsLoaded] = useState<boolean>(false)
 
   // Custom Hooks
   const { isConnected } = useNetInfo()
@@ -139,6 +140,7 @@ const App: React.FC = () => {
         await loadTDEEConfig(null)
         await fetchJournalEntries(null)
       }
+      setWorkoutsLoaded(true)
     },
     [
       loadSettings,
@@ -410,7 +412,7 @@ const App: React.FC = () => {
   // Restore active workout session on initial mount once workouts are loaded
   const sessionRestoredRef = useRef(false)
   useEffect(() => {
-    if (sessionRestoredRef.current || workouts.length === 0) return
+    if (!workoutsLoaded || sessionRestoredRef.current || workouts.length === 0) return
     sessionRestoredRef.current = true
 
     const restore = async () => {
@@ -437,7 +439,7 @@ const App: React.FC = () => {
       setCurrentExerciseIndex(validIndex)
     }
     restore()
-  }, [workouts, loadActiveSession, clearActiveSession, orderExercisesByCompletion])
+  }, [workoutsLoaded, workouts, loadActiveSession, clearActiveSession, orderExercisesByCompletion])
 
   const selectWorkout = useCallback(
     (workoutId: string | null) => {

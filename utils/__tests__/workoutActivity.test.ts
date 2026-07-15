@@ -33,9 +33,13 @@ describe('workoutActivity', () => {
     currentSet: 1,
     totalSets: 3,
     reps: 10,
+    currentRep: 0,
     phase: 'rest',
     isResting: true,
+    isPaused: false,
+    isRestComplete: false,
     restSeconds: 60,
+    pausedRemainingSeconds: 0,
     restStartTimestamp: 1234567890,
   }
 
