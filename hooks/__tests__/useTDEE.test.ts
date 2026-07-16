@@ -1,10 +1,16 @@
 import { renderHook } from '@testing-library/react-native'
 import { useTDEE } from '../useTDEE'
-import type { WeightLog, CalorieLog, TDEEConfig } from '../../declarations'
+import type {
+  WeightLog,
+  CalorieLog,
+  MeasurementLog,
+  TDEEConfig,
+} from '../../declarations'
 import { Timestamp } from 'firebase/firestore'
 import {
   calculateSeedTDEE,
   roundDisplayTDEE,
+  calculateBodyFatPercent,
 } from '../../modules/tdeeCalculator'
 
 const createTimestamp = (date: Date): Timestamp =>
@@ -262,5 +268,133 @@ describe('useTDEE Hook', () => {
 
     // If twoYearsAgo was included, we'd have over 52 weeks. Since it's filtered, we should have around 26 weeks.
     expect(result.current.weeks.length).toBeLessThan(52)
+  })
+})
+
+describe('useTDEE Hook — measurement logs (weekly body fat)', () => {
+  const bfConfig: TDEEConfig = {
+    ...baseConfig,
+    gender: 'male',
+    heightValue: 70,
+    measurementUnit: 'inch',
+  }
+
+  const createMeasurementLog = (
+    waist: number,
+    neck: number,
+    dateStr: string,
+    hip?: number,
+  ): MeasurementLog => ({
+    id: Math.random().toString(),
+    waist,
+    neck,
+    ...(hip !== undefined ? { hip } : {}),
+    date: createTimestamp(new Date(dateStr)),
+  })
+
+  // Two weeks of weight data: 2026-05-04 (Mon) and 2026-05-11 (Mon)
+  const weights = [
+    createWeightLog(79.5, '2026-05-11'),
+    createWeightLog(80, '2026-05-04'),
+  ]
+
+  it('assigns each week the measurement logged within it', () => {
+    // Newest-first, matching fetchMeasurementLogs ordering
+    const measurements = [
+      createMeasurementLog(34, 15, '2026-05-12'), // week 2
+      createMeasurementLog(36, 15, '2026-05-06'), // week 1
+    ]
+
+    const { result } = renderHook(() =>
+      useTDEE(weights, [], bfConfig, measurements),
+    )
+
+    expect(result.current.weeks).toHaveLength(2)
+    expect(result.current.weeks[0].bodyFatPct).toBe(
+      calculateBodyFatPercent('male', 36, 15, 70, 'inch'),
+    )
+    expect(result.current.weeks[1].bodyFatPct).toBe(
+      calculateBodyFatPercent('male', 34, 15, 70, 'inch'),
+    )
+    // Waist shrank, so BF% must have dropped between the weeks
+    expect(result.current.weeks[1].bodyFatPct!).toBeLessThan(
+      result.current.weeks[0].bodyFatPct!,
+    )
+  })
+
+  it('weeks without a measurement get no body fat %', () => {
+    const measurements = [createMeasurementLog(36, 15, '2026-05-06')] // week 1 only
+
+    const { result } = renderHook(() =>
+      useTDEE(weights, [], bfConfig, measurements),
+    )
+
+    expect(result.current.weeks[0].bodyFatPct).not.toBeNull()
+    expect(result.current.weeks[1].bodyFatPct).toBeNull()
+  })
+
+  it('uses the latest measurement when a week has several', () => {
+    const measurements = [
+      createMeasurementLog(35, 15, '2026-05-08'), // week 1, later
+      createMeasurementLog(36, 15, '2026-05-05'), // week 1, earlier
+    ]
+
+    const { result } = renderHook(() =>
+      useTDEE(weights, [], bfConfig, measurements),
+    )
+
+    expect(result.current.weeks[0].bodyFatPct).toBe(
+      calculateBodyFatPercent('male', 35, 15, 70, 'inch'),
+    )
+  })
+
+  it('falls back to static config measurements when no logs exist', () => {
+    const configWithStatic: TDEEConfig = {
+      ...bfConfig,
+      waistValue: 34,
+      neckValue: 15,
+    }
+
+    const { result } = renderHook(() => useTDEE(weights, [], configWithStatic))
+
+    const expected = calculateBodyFatPercent('male', 34, 15, 70, 'inch')
+    expect(result.current.weeks[0].bodyFatPct).toBe(expected)
+    expect(result.current.weeks[1].bodyFatPct).toBe(expected)
+    expect(result.current.currentBodyFatPct).toBe(expected)
+  })
+
+  it('currentBodyFatPct comes from the newest measurement log', () => {
+    const measurements = [
+      createMeasurementLog(34, 15, '2026-05-12'),
+      createMeasurementLog(36, 15, '2026-05-06'),
+    ]
+
+    const { result } = renderHook(() =>
+      useTDEE(weights, [], bfConfig, measurements),
+    )
+
+    expect(result.current.currentBodyFatPct).toBe(
+      calculateBodyFatPercent('male', 34, 15, 70, 'inch'),
+    )
+  })
+
+  it('female formula uses hip from the measurement log', () => {
+    const femaleConfig: TDEEConfig = {
+      ...bfConfig,
+      gender: 'female',
+      heightValue: 65,
+    }
+    const measurements = [createMeasurementLog(30, 13, '2026-05-06', 38)]
+
+    const { result } = renderHook(() =>
+      useTDEE(weights, [], femaleConfig, measurements),
+    )
+
+    expect(result.current.weeks[0].bodyFatPct).toBe(
+      calculateBodyFatPercent('female', 30, 13, 65, 'inch', 38),
+    )
+    expect(result.current.currentBodyFatPct).toBe(
+      calculateBodyFatPercent('female', 30, 13, 65, 'inch', 38),
+    )
   })
 })

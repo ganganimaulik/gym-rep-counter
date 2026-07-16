@@ -24,6 +24,14 @@ export interface CalorieLog {
   date: Timestamp
 }
 
+export interface MeasurementLog {
+  id: string
+  waist: number
+  neck: number
+  hip?: number
+  date: Timestamp
+}
+
 export interface SupplementLog {
   name: string
   dosage?: string

@@ -27,8 +27,14 @@ import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { TDEEConfig, WeightLog, CalorieLog } from '../declarations'
+import type {
+  TDEEConfig,
+  WeightLog,
+  CalorieLog,
+  MeasurementLog,
+} from '../declarations'
 import { useTDEE } from '../hooks/useTDEE'
+import { calculateBodyFatPercent } from '../modules/tdeeCalculator'
 import { DataHook } from '../hooks/useData'
 import { globalStyles } from '../utils/globalStyles'
 
@@ -43,6 +49,7 @@ export interface HealthLogGroup {
   date: Date
   weightLog?: WeightLog
   calorieLog?: CalorieLog
+  measurementLog?: MeasurementLog
 }
 
 interface TDEEScreenProps {
@@ -87,13 +94,14 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const {
     weightLogs,
     calorieLogs,
+    measurementLogs,
     tdeeConfig,
     saveTDEEConfig,
     loadTDEEConfig,
   } = dataHook
 
   // Compute TDEE from logs + config
-  const tdeeData = useTDEE(weightLogs, calorieLogs, tdeeConfig)
+  const tdeeData = useTDEE(weightLogs, calorieLogs, tdeeConfig, measurementLogs)
 
   // Load config on mount
   useEffect(() => {
@@ -121,7 +129,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
 
   // ── Tab state for interactive components ──
   const [activeChartTab, setActiveChartTab] = useState<
-    'tdee' | 'weight' | 'calories'
+    'tdee' | 'weight' | 'calories' | 'bodyfat'
   >('tdee')
   const [activeHistoryTab, setActiveHistoryTab] = useState<'weekly' | 'daily'>(
     'daily',
@@ -187,10 +195,17 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       map.get(str)!.calorieLog = log
     })
 
+    measurementLogs.forEach((log) => {
+      const d = log.date.toDate()
+      const str = getDateStr(d)
+      if (!map.has(str)) map.set(str, { dateStr: str, date: d })
+      map.get(str)!.measurementLog = log
+    })
+
     return Array.from(map.values()).sort(
       (a, b) => b.date.getTime() - a.date.getTime(),
     )
-  }, [weightLogs, calorieLogs])
+  }, [weightLogs, calorieLogs, measurementLogs])
 
   const weightChartData = useMemo(() => {
     let filtered = [...weightLogs]
@@ -229,6 +244,51 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       ],
     }
   }, [calorieLogs, getSpacedLabels, timeframeDaily])
+
+  const bodyFatChartData = useMemo(() => {
+    if (
+      !tdeeConfig?.gender ||
+      !tdeeConfig.heightValue ||
+      !tdeeConfig.measurementUnit
+    ) {
+      return { labels: [''], datasets: [{ data: [0] }] }
+    }
+
+    let filtered = [...measurementLogs]
+    if (timeframeDaily > 0) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - timeframeDaily)
+      filtered = filtered.filter((log) => log.date.toDate() >= cutoff)
+    }
+
+    const points = filtered
+      .reverse()
+      .map((log) => ({
+        date: log.date.toDate(),
+        bf: calculateBodyFatPercent(
+          tdeeConfig.gender!,
+          log.waist,
+          log.neck,
+          tdeeConfig.heightValue!,
+          tdeeConfig.measurementUnit!,
+          log.hip,
+        ),
+      }))
+      .filter((p): p is { date: Date; bf: number } => p.bf !== null)
+
+    if (points.length === 0) {
+      return { labels: [''], datasets: [{ data: [0] }] }
+    }
+
+    return {
+      labels: getSpacedLabels(points.map((p) => p.date)),
+      datasets: [
+        {
+          data: points.map((p) => p.bf * 100),
+        },
+      ],
+    }
+  }, [measurementLogs, tdeeConfig, getSpacedLabels, timeframeDaily])
 
   // Sync goal inputs when config loads
   useEffect(() => {
@@ -643,6 +703,17 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
             </StyledView>
 
             <StyledView className="items-center flex-1">
+              <StyledText className="text-amber-400 text-lg font-black">
+                {tdeeData.currentBodyFatPct !== null
+                  ? `${(tdeeData.currentBodyFatPct * 100).toFixed(0)}%`
+                  : '—'}
+              </StyledText>
+              <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-1">
+                Body Fat
+              </StyledText>
+            </StyledView>
+
+            <StyledView className="items-center flex-1 border-l border-zinc-800/80">
               <StyledText className="text-indigo-400 text-lg font-black">
                 {tdeeData.weeksWithData}
               </StyledText>
@@ -863,6 +934,20 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 Calories
               </StyledText>
             </StyledTouchableOpacity>
+            <StyledTouchableOpacity
+              testID="chart-tab-bodyfat"
+              onPress={() => setActiveChartTab('bodyfat')}
+              activeOpacity={0.8}
+              className={`flex-1 py-2 rounded-lg items-center ${
+                activeChartTab === 'bodyfat' ? 'bg-zinc-800 shadow-sm' : ''
+              }`}>
+              <StyledText
+                className={`text-[10px] font-black uppercase tracking-wider ${
+                  activeChartTab === 'bodyfat' ? 'text-white' : 'text-zinc-500'
+                }`}>
+                Body Fat
+              </StyledText>
+            </StyledTouchableOpacity>
           </StyledView>
 
           {/* Timeframe Selector */}
@@ -1050,6 +1135,56 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               )}
             </StyledView>
           )}
+
+          {activeChartTab === 'bodyfat' && (
+            <StyledView>
+              <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
+                Body fat over time (%, US Army method)
+              </StyledText>
+              {bodyFatChartData.datasets[0].data.length >= 2 ? (
+                <LineChart
+                  data={bodyFatChartData}
+                  width={screenWidth - 20}
+                  height={170}
+                  chartConfig={{
+                    backgroundGradientFrom: '#18181b',
+                    backgroundGradientTo: '#18181b',
+                    backgroundGradientFromOpacity: 0,
+                    backgroundGradientToOpacity: 0,
+                    decimalPlaces: 1,
+                    color: (opacity = 1) => `rgba(251, 191, 36, ${opacity})`,
+                    labelColor: (opacity = 1) =>
+                      `rgba(161, 161, 170, ${opacity})`,
+                    style: {
+                      borderRadius: 16,
+                    },
+                    propsForDots: {
+                      r: '4',
+                      strokeWidth: '2',
+                      stroke: '#fbbf24',
+                    },
+                  }}
+                  bezier
+                  style={{
+                    borderRadius: 12,
+                    marginLeft: -40,
+                    marginRight: -30,
+                  }}
+                />
+              ) : (
+                <StyledView className="h-[170] justify-center items-center border border-dashed border-zinc-800 rounded-xl py-6">
+                  <Scale color="#3f3f46" size={36} />
+                  <StyledText className="text-zinc-500 text-xs italic text-center mt-3 px-4">
+                    {tdeeConfig?.gender &&
+                    tdeeConfig.heightValue &&
+                    tdeeConfig.measurementUnit
+                      ? 'Need at least 2 measurement entries in the selected timeframe to display body fat trend.'
+                      : 'Set your gender, height and measurement unit in Preferences to track body fat.'}
+                  </StyledText>
+                </StyledView>
+              )}
+            </StyledView>
+          )}
         </StyledView>
       )}
 
@@ -1201,6 +1336,16 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                         {group.calorieLog && (
                           <StyledText className="text-zinc-400 font-bold text-xs">
                             {group.calorieLog.calories} {energyLabel}
+                          </StyledText>
+                        )}
+                        {group.measurementLog && (
+                          <StyledText className="text-amber-400/80 font-bold text-[10px]">
+                            W {group.measurementLog.waist} · N{' '}
+                            {group.measurementLog.neck}
+                            {group.measurementLog.hip !== undefined
+                              ? ` · H ${group.measurementLog.hip}`
+                              : ''}{' '}
+                            {tdeeConfig?.measurementUnit === 'cm' ? 'cm' : 'in'}
                           </StyledText>
                         )}
                       </StyledView>

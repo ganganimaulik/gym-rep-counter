@@ -111,6 +111,7 @@ const App: React.FC = () => {
     syncOfflineQueue,
     fetchWeightLogs,
     fetchCalorieLogs,
+    fetchMeasurementLogs,
     loadTDEEConfig,
     fetchJournalEntries,
     weightLogs,
@@ -130,6 +131,7 @@ const App: React.FC = () => {
         await syncUserData(firebaseUser, localSettings, localWorkouts)
         await fetchWeightLogs(firebaseUser)
         await fetchCalorieLogs(firebaseUser)
+        await fetchMeasurementLogs(firebaseUser)
         await loadTDEEConfig(firebaseUser)
         await fetchJournalEntries(firebaseUser)
       } else {
@@ -137,6 +139,7 @@ const App: React.FC = () => {
         await loadWorkouts()
         await fetchWeightLogs(null)
         await fetchCalorieLogs(null)
+        await fetchMeasurementLogs(null)
         await loadTDEEConfig(null)
         await fetchJournalEntries(null)
       }
@@ -148,6 +151,7 @@ const App: React.FC = () => {
       syncUserData,
       fetchWeightLogs,
       fetchCalorieLogs,
+      fetchMeasurementLogs,
       loadTDEEConfig,
       fetchJournalEntries,
     ],

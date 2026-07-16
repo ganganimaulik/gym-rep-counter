@@ -20,7 +20,12 @@ import { Picker } from '@react-native-picker/picker'
 import DateTimePicker from '@react-native-community/datetimepicker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { TrendData, WeightLog, CalorieLog } from '../declarations'
+import type {
+  TrendData,
+  WeightLog,
+  CalorieLog,
+  MeasurementLog,
+} from '../declarations'
 import { useAnalytics } from '../hooks/useAnalytics'
 import { DataHook } from '../hooks/useData'
 import TDEEScreen, { HealthLogGroup } from './TDEEScreen'
@@ -86,6 +91,11 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     addCalorieLog,
     updateCalorieLog,
     deleteCalorieLog,
+    measurementLogs,
+    addMeasurementLog,
+    updateMeasurementLog,
+    deleteMeasurementLog,
+    tdeeConfig,
   } = dataHook
 
   const [activeSubTab, setActiveSubTab] = useState<'workouts' | 'health'>(
@@ -102,8 +112,13 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const [editingCalorieLog, setEditingCalorieLog] = useState<CalorieLog | null>(
     null,
   )
+  const [editingMeasurementLog, setEditingMeasurementLog] =
+    useState<MeasurementLog | null>(null)
   const [weightInput, setWeightInput] = useState('')
   const [calorieInput, setCalorieInput] = useState('')
+  const [waistInput, setWaistInput] = useState('')
+  const [neckInput, setNeckInput] = useState('')
+  const [hipInput, setHipInput] = useState('')
   const [dateValue, setDateValue] = useState<Date>(new Date())
   const [showDatePicker, setShowDatePicker] = useState(false)
 
@@ -146,18 +161,29 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
       map.get(str)!.calorieLog = log
     })
 
+    measurementLogs.forEach((log) => {
+      const d = log.date.toDate()
+      const str = getDateStr(d)
+      if (!map.has(str)) map.set(str, { dateStr: str, date: d })
+      map.get(str)!.measurementLog = log
+    })
+
     setHealthLogsByDate(
       Array.from(map.values()).sort(
         (a, b) => b.date.getTime() - a.date.getTime(),
       ),
     )
-  }, [weightLogs, calorieLogs])
+  }, [weightLogs, calorieLogs, measurementLogs])
 
   const handleOpenAddHealth = () => {
     setEditingWeightLog(null)
     setEditingCalorieLog(null)
+    setEditingMeasurementLog(null)
     setWeightInput('')
     setCalorieInput('')
+    setWaistInput('')
+    setNeckInput('')
+    setHipInput('')
     setDateValue(new Date())
     setShowDatePicker(false)
     setHealthModalVisible(true)
@@ -166,9 +192,21 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const handleOpenEditHealth = (group: HealthLogGroup) => {
     setEditingWeightLog(group.weightLog || null)
     setEditingCalorieLog(group.calorieLog || null)
+    setEditingMeasurementLog(group.measurementLog || null)
     setWeightInput(group.weightLog ? group.weightLog.weight.toString() : '')
     setCalorieInput(
       group.calorieLog ? group.calorieLog.calories.toString() : '',
+    )
+    setWaistInput(
+      group.measurementLog ? group.measurementLog.waist.toString() : '',
+    )
+    setNeckInput(
+      group.measurementLog ? group.measurementLog.neck.toString() : '',
+    )
+    setHipInput(
+      group.measurementLog?.hip !== undefined
+        ? group.measurementLog.hip.toString()
+        : '',
     )
     setDateValue(group.date)
     setShowDatePicker(false)
@@ -178,6 +216,28 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const handleSaveHealth = async () => {
     const weightNum = parseFloat(weightInput)
     const calorieNum = parseInt(calorieInput, 10)
+    const waistNum = parseFloat(waistInput)
+    const neckNum = parseFloat(neckInput)
+    const hipNum = parseFloat(hipInput)
+
+    // A measurement entry needs both waist and neck (the BF% formula requires
+    // both); hip is optional and only used for the female formula
+    const hasMeasurement =
+      !isNaN(waistNum) && waistNum > 0 && !isNaN(neckNum) && neckNum > 0
+    if ((waistInput.trim() || neckInput.trim()) && !hasMeasurement) {
+      Alert.alert(
+        'Incomplete Measurements',
+        'Please enter both waist and neck to log body measurements.',
+      )
+      return
+    }
+    const measurements = hasMeasurement
+      ? {
+          waist: waistNum,
+          neck: neckNum,
+          ...(!isNaN(hipNum) && hipNum > 0 ? { hip: hipNum } : {}),
+        }
+      : null
 
     const targetDateStr = dateValue.toLocaleDateString()
     const existingGroup = healthLogsByDate.find(
@@ -196,8 +256,17 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
       editingCalorieLog.id !== existingGroup.calorieLog.id &&
       !isNaN(calorieNum) &&
       calorieNum > 0
+    const movingMeasurementToExisting =
+      editingMeasurementLog &&
+      existingGroup?.measurementLog &&
+      editingMeasurementLog.id !== existingGroup.measurementLog.id &&
+      measurements !== null
 
-    if (movingWeightToExisting || movingCalorieToExisting) {
+    if (
+      movingWeightToExisting ||
+      movingCalorieToExisting ||
+      movingMeasurementToExisting
+    ) {
       Alert.alert(
         'Duplicate Entry',
         'An entry for this date already exists. Please edit the existing entry instead.',
@@ -245,13 +314,44 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
       }
     }
 
+    if (measurements) {
+      if (editingMeasurementLog) {
+        promises.push(
+          updateMeasurementLog(
+            editingMeasurementLog.id,
+            measurements,
+            dateValue,
+            user,
+          ),
+        )
+      } else if (existingGroup?.measurementLog) {
+        promises.push(
+          updateMeasurementLog(
+            existingGroup.measurementLog.id,
+            measurements,
+            dateValue,
+            user,
+          ),
+        )
+      } else {
+        promises.push(addMeasurementLog(measurements, dateValue, user))
+      }
+    } else if (editingMeasurementLog) {
+      // Cleared measurement fields while editing — remove the log
+      promises.push(deleteMeasurementLog(editingMeasurementLog.id, user))
+    }
+
     await Promise.all(promises)
 
     setHealthModalVisible(false)
     setEditingWeightLog(null)
     setEditingCalorieLog(null)
+    setEditingMeasurementLog(null)
     setWeightInput('')
     setCalorieInput('')
+    setWaistInput('')
+    setNeckInput('')
+    setHipInput('')
   }
 
   const handleDeleteHealth = async () => {
@@ -262,13 +362,20 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     if (editingCalorieLog) {
       promises.push(deleteCalorieLog(editingCalorieLog.id, user))
     }
+    if (editingMeasurementLog) {
+      promises.push(deleteMeasurementLog(editingMeasurementLog.id, user))
+    }
     await Promise.all(promises)
 
     setHealthModalVisible(false)
     setEditingWeightLog(null)
     setEditingCalorieLog(null)
+    setEditingMeasurementLog(null)
     setWeightInput('')
     setCalorieInput('')
+    setWaistInput('')
+    setNeckInput('')
+    setHipInput('')
   }
 
   const formatDate = (date: Date): string => {
@@ -558,7 +665,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
           <StyledView className="flex-1 justify-center items-center px-4 bg-black/60">
             <StyledView className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
               <StyledText className="text-white text-xl font-black mb-1 text-center">
-                {editingWeightLog || editingCalorieLog
+                {editingWeightLog || editingCalorieLog || editingMeasurementLog
                   ? 'Edit Daily Stats'
                   : 'Log Daily Stats'}
               </StyledText>
@@ -595,6 +702,48 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
               />
+
+              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                Measurements ({tdeeConfig?.measurementUnit === 'cm' ? 'cm' : 'in'}
+                , optional)
+              </StyledText>
+              <StyledView className="flex-row gap-3 mb-4">
+                <StyledTextInput
+                  testID="health-waist-input"
+                  className="flex-1 bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                  keyboardType="numeric"
+                  value={waistInput}
+                  onChangeText={setWaistInput}
+                  placeholder="Waist"
+                  placeholderTextColor="#52525b"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+                <StyledTextInput
+                  testID="health-neck-input"
+                  className="flex-1 bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                  keyboardType="numeric"
+                  value={neckInput}
+                  onChangeText={setNeckInput}
+                  placeholder="Neck"
+                  placeholderTextColor="#52525b"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+                {tdeeConfig?.gender === 'female' && (
+                  <StyledTextInput
+                    testID="health-hip-input"
+                    className="flex-1 bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                    keyboardType="numeric"
+                    value={hipInput}
+                    onChangeText={setHipInput}
+                    placeholder="Hips"
+                    placeholderTextColor="#52525b"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                )}
+              </StyledView>
 
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
                 Date
@@ -666,7 +815,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 </StyledTouchableOpacity>
               </StyledView>
 
-              {(editingWeightLog || editingCalorieLog) && (
+              {(editingWeightLog ||
+                editingCalorieLog ||
+                editingMeasurementLog) && (
                 <StyledTouchableOpacity
                   testID="delete-health-button"
                   onPress={handleDeleteHealth}

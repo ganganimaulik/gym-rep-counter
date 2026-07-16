@@ -98,8 +98,13 @@ describe('ProgressScreen', () => {
       addCalorieLog: jest.fn().mockResolvedValue(undefined),
       updateCalorieLog: jest.fn().mockResolvedValue(undefined),
       deleteCalorieLog: jest.fn().mockResolvedValue(undefined),
+      measurementLogs: [],
+      addMeasurementLog: jest.fn().mockResolvedValue(undefined),
+      updateMeasurementLog: jest.fn().mockResolvedValue(undefined),
+      deleteMeasurementLog: jest.fn().mockResolvedValue(undefined),
       fetchWeightLogs: jest.fn(),
       fetchCalorieLogs: jest.fn(),
+      fetchMeasurementLogs: jest.fn(),
       loadTDEEConfig: jest.fn(),
     }
   })

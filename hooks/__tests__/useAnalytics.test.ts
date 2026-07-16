@@ -85,6 +85,12 @@ describe('useAnalytics Hook', () => {
     updateCalorieLog: jest.fn(),
     deleteCalorieLog: jest.fn(),
     migrateGuestCalorieLogs: jest.fn(),
+    measurementLogs: [],
+    fetchMeasurementLogs: jest.fn(),
+    addMeasurementLog: jest.fn(),
+    updateMeasurementLog: jest.fn(),
+    deleteMeasurementLog: jest.fn(),
+    migrateGuestMeasurementLogs: jest.fn(),
     tdeeConfig: null,
     loadTDEEConfig: jest.fn(),
     saveTDEEConfig: jest.fn(),
@@ -94,6 +100,9 @@ describe('useAnalytics Hook', () => {
     addJournalEntry: jest.fn(),
     updateJournalEntry: jest.fn(),
     deleteJournalEntry: jest.fn(),
+    saveActiveSession: jest.fn(),
+    loadActiveSession: jest.fn(),
+    clearActiveSession: jest.fn(),
     ...overrides,
   })
 
