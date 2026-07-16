@@ -16,7 +16,6 @@ import {
   updateDoc,
   deleteDoc,
   collection,
-  addDoc,
   query,
   where,
   orderBy,
@@ -88,6 +87,89 @@ interface SerializedMeasurementLog {
   date: {
     seconds: number
     nanoseconds: number
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Offline write support
+//
+// Firestore uses a memory-only cache here (see utils/firebase.ts): while
+// offline its write promises neither resolve nor reject — they hang until
+// connectivity returns. Signed-in writes therefore commit to local state and
+// AsyncStorage first, and the server write runs in the background. Anything
+// the background write hasn't confirmed is retried from the persisted queues
+// by syncOfflineQueue.
+// ---------------------------------------------------------------------------
+
+type LogCollection =
+  | 'weightLogs'
+  | 'calorieLogs'
+  | 'measurementLogs'
+  | 'journalEntries'
+
+type UserDocField = 'settings' | 'workouts' | 'tdeeConfig'
+
+type PendingOp =
+  | {
+      kind: 'set'
+      coll: LogCollection
+      id: string
+      data: Record<string, unknown>
+    }
+  | { kind: 'delete'; coll: LogCollection; id: string }
+  | { kind: 'userDoc'; field: UserDocField; data: unknown }
+
+const OFFLINE_QUEUE_KEY = 'offlineQueue'
+const PENDING_OPS_KEY = 'pendingOps'
+
+// Firestore rejects undefined values
+const stripUndefined = (data: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined))
+
+const isSerializedTimestamp = (
+  v: unknown,
+): v is { seconds: number; nanoseconds: number } =>
+  typeof v === 'object' &&
+  v !== null &&
+  typeof (v as { seconds?: unknown }).seconds === 'number' &&
+  typeof (v as { nanoseconds?: unknown }).nanoseconds === 'number'
+
+// Timestamps read back from AsyncStorage are plain {seconds, nanoseconds}
+// objects; convert them back so Firestore stores real timestamps.
+const reviveTimestamps = (data: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [
+      k,
+      v instanceof Timestamp
+        ? v
+        : isSerializedTimestamp(v)
+          ? new Timestamp(v.seconds, v.nanoseconds)
+          : v,
+    ]),
+  )
+
+// Whether two ops target the same document (or user-doc field) — the newer
+// op supersedes the older one in the pending queue.
+const samePendingTarget = (a: PendingOp, b: PendingOp): boolean => {
+  if (a.kind === 'userDoc' || b.kind === 'userDoc') {
+    return a.kind === 'userDoc' && b.kind === 'userDoc' && a.field === b.field
+  }
+  return a.coll === b.coll && a.id === b.id
+}
+
+const persistOfflineQueue = (queue: WorkoutSet[]) => {
+  if (queue.length === 0) {
+    AsyncStorage.removeItem(OFFLINE_QUEUE_KEY)
+  } else {
+    AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue))
+  }
+}
+
+const persistPendingOps = (ops: PendingOp[]) => {
+  if (ops.length === 0) {
+    AsyncStorage.removeItem(PENDING_OPS_KEY)
+  } else {
+    AsyncStorage.setItem(PENDING_OPS_KEY, JSON.stringify(ops))
   }
 }
 
@@ -254,10 +336,7 @@ export interface DataHook {
   setWorkouts: Dispatch<SetStateAction<Workout[]>>
   setSettings: Dispatch<SetStateAction<Settings>>
   setOfflineQueue: Dispatch<SetStateAction<WorkoutSet[]>>
-  saveActiveSession: (
-    workoutId: string,
-    exerciseIndex: number,
-  ) => Promise<void>
+  saveActiveSession: (workoutId: string, exerciseIndex: number) => Promise<void>
   loadActiveSession: () => Promise<{
     workoutId: string
     exerciseIndex: number
@@ -305,13 +384,92 @@ export const useData = (): DataHook => {
   )
   const [todaysCompletions, setTodaysCompletions] = useState<WorkoutSet[]>([])
   const [offlineQueue, setOfflineQueue] = useState<WorkoutSet[]>([])
+  const [pendingOps, setPendingOps] = useState<PendingOp[]>([])
   const [historyVersion, setHistoryVersion] = useState(0)
   const submittedKeysRef = useRef<Set<string>>(new Set())
   const offlineSyncInFlightRef = useRef(false)
 
+  // Mirror of offlineQueue so stable callbacks (fetches) can read the latest
+  // queue without depending on it and changing identity on every write.
+  const offlineQueueRef = useRef<WorkoutSet[]>([])
+  useEffect(() => {
+    offlineQueueRef.current = offlineQueue
+  }, [offlineQueue])
+
+  const enqueueOfflineEntry = useCallback((entry: WorkoutSet) => {
+    setOfflineQueue((prev) => {
+      const updated = [...prev, entry]
+      persistOfflineQueue(updated)
+      return updated
+    })
+  }, [])
+
+  const removeFromOfflineQueue = useCallback((ids: string[]) => {
+    const idSet = new Set(ids)
+    setOfflineQueue((prev) => {
+      const remaining = prev.filter((entry) => !idSet.has(entry.id))
+      if (remaining.length === prev.length) return prev
+      persistOfflineQueue(remaining)
+      return remaining
+    })
+  }, [])
+
+  const updateOfflineQueueEntry = useCallback(
+    (entryId: string, updates: Partial<WorkoutSet>) => {
+      setOfflineQueue((prev) => {
+        if (!prev.some((entry) => entry.id === entryId)) return prev
+        const updated = prev.map((entry) =>
+          entry.id === entryId ? { ...entry, ...updates } : entry,
+        )
+        persistOfflineQueue(updated)
+        return updated
+      })
+    },
+    [],
+  )
+
+  const enqueuePendingOp = useCallback((op: PendingOp): PendingOp => {
+    setPendingOps((prev) => {
+      const updated = [
+        ...prev.filter((existing) => !samePendingTarget(existing, op)),
+        op,
+      ]
+      persistPendingOps(updated)
+      return updated
+    })
+    return op
+  }, [])
+
+  const removePendingOp = useCallback((op: PendingOp) => {
+    setPendingOps((prev) => {
+      if (!prev.includes(op)) return prev
+      const remaining = prev.filter((existing) => existing !== op)
+      persistPendingOps(remaining)
+      return remaining
+    })
+  }, [])
+
+  // Sets queued locally but not yet confirmed by the server. They drive the
+  // set-completion UI, so they must survive refetches and app restarts.
+  const getQueuedTodaysCompletions = useCallback(
+    (queue: WorkoutSet[], exerciseId?: string): WorkoutSet[] => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const cutoff = today.getTime()
+      return queue.filter(
+        (entry) =>
+          entry.date &&
+          typeof entry.date.toMillis === 'function' &&
+          entry.date.toMillis() >= cutoff &&
+          (!exerciseId || entry.exerciseId === exerciseId),
+      )
+    },
+    [],
+  )
+
   const loadOfflineQueue = useCallback(async () => {
     try {
-      const queue = await AsyncStorage.getItem('offlineQueue')
+      const queue = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY)
       if (queue) {
         const parsedQueue = JSON.parse(queue)
         if (Array.isArray(parsedQueue)) {
@@ -323,18 +481,128 @@ export const useData = (): DataHook => {
             .map((item: SerializedWorkoutSetData) => ({
               ...item,
               date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+              startTime: isSerializedTimestamp(item.startTime)
+                ? new Timestamp(
+                    item.startTime.seconds,
+                    item.startTime.nanoseconds,
+                  )
+                : null,
             }))
-          setOfflineQueue(validQueue)
+          // Entries queued before this load finished must survive it.
+          setOfflineQueue((prev) => {
+            const merged = [
+              ...validQueue.filter((l) => !prev.some((p) => p.id === l.id)),
+              ...prev,
+            ]
+            if (prev.length > 0) persistOfflineQueue(merged)
+            return merged
+          })
+          // Surface today's unconfirmed sets even if a completions fetch
+          // already ran (or can't run because we're offline).
+          const todaysQueued = getQueuedTodaysCompletions(validQueue)
+          if (todaysQueued.length > 0) {
+            setTodaysCompletions((prev) => {
+              const additions = todaysQueued.filter(
+                (q) => !prev.some((p) => p.id === q.id),
+              )
+              return additions.length > 0 ? [...prev, ...additions] : prev
+            })
+          }
         }
       }
     } catch (e) {
       console.error('Failed to load offline queue.', e)
     }
+  }, [getQueuedTodaysCompletions])
+
+  const loadPendingOps = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(PENDING_OPS_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return
+      const validOps = (parsed as PendingOp[]).filter(
+        (op) =>
+          op &&
+          ((op.kind === 'set' &&
+            typeof op.coll === 'string' &&
+            typeof op.id === 'string' &&
+            op.data != null) ||
+            (op.kind === 'delete' &&
+              typeof op.coll === 'string' &&
+              typeof op.id === 'string') ||
+            (op.kind === 'userDoc' && typeof op.field === 'string')),
+      )
+      // Ops queued before this load finished are newer and win on conflict.
+      setPendingOps((prev) => {
+        const merged = [
+          ...validOps.filter((l) => !prev.some((p) => samePendingTarget(p, l))),
+          ...prev,
+        ]
+        if (prev.length > 0) persistPendingOps(merged)
+        return merged
+      })
+    } catch (e) {
+      console.error('Failed to load pending ops.', e)
+    }
   }, [])
 
   useEffect(() => {
     loadOfflineQueue()
-  }, [loadOfflineQueue])
+    loadPendingOps()
+  }, [loadOfflineQueue, loadPendingOps])
+
+  // Queue the op, then echo it to Firestore in the background. The queued
+  // copy is dropped once the server confirms; until then syncOfflineQueue
+  // retries it whenever connectivity returns.
+  const syncLogDoc = useCallback(
+    (
+      user: FirebaseUser,
+      op: Extract<PendingOp, { kind: 'set' | 'delete' }>,
+    ) => {
+      enqueuePendingOp(op)
+      void (async () => {
+        try {
+          const docRef = doc(db, 'users', user.uid, op.coll, op.id)
+          if (op.kind === 'set') {
+            await setDoc(docRef, stripUndefined(op.data))
+          } else {
+            await deleteDoc(docRef)
+          }
+          removePendingOp(op)
+        } catch (e) {
+          console.error(
+            `Failed to sync ${op.coll} write, will retry when online.`,
+            e,
+          )
+        }
+      })()
+    },
+    [enqueuePendingOp, removePendingOp],
+  )
+
+  const syncUserDocField = useCallback(
+    (user: FirebaseUser, field: UserDocField, data: unknown) => {
+      const op = enqueuePendingOp({ kind: 'userDoc', field, data })
+      void (async () => {
+        try {
+          const userDocRef = doc(db, 'users', user.uid)
+          if (data === null) {
+            await updateDoc(userDocRef, { [field]: deleteField() })
+          } else {
+            await setDoc(userDocRef, { [field]: data }, { merge: true })
+          }
+          removePendingOp(op)
+        } catch (e) {
+          console.error(
+            `Failed to sync ${field} to Firestore, will retry when online.`,
+            e,
+          )
+        }
+      })()
+    },
+    [enqueuePendingOp, removePendingOp],
+  )
 
   const loadSettings = useCallback(async (): Promise<Settings> => {
     try {
@@ -364,14 +632,13 @@ export const useData = (): DataHook => {
         )
 
         if (user) {
-          const userDocRef = doc(db, 'users', user.uid)
-          await setDoc(userDocRef, { settings: newSettings }, { merge: true })
+          syncUserDocField(user, 'settings', newSettings)
         }
       } catch (e) {
         console.error('Failed to save settings.', e)
       }
     },
-    [],
+    [syncUserDocField],
   )
 
   const fetchAllTodaysCompletions = useCallback(
@@ -398,13 +665,18 @@ export const useData = (): DataHook => {
           id: doc.id,
           ...doc.data(),
         })) as WorkoutSet[]
-        setTodaysCompletions(todaysSets)
+        const queued = getQueuedTodaysCompletions(
+          offlineQueueRef.current,
+        ).filter((q) => !todaysSets.some((s) => s.id === q.id))
+        setTodaysCompletions([...todaysSets, ...queued])
       } catch (e) {
         console.error("Failed to fetch all of today's completions", e)
-        setTodaysCompletions([])
+        setTodaysCompletions(
+          getQueuedTodaysCompletions(offlineQueueRef.current),
+        )
       }
     },
-    [],
+    [getQueuedTodaysCompletions],
   )
 
   const loadWorkouts = useCallback(async (): Promise<Workout[]> => {
@@ -435,14 +707,13 @@ export const useData = (): DataHook => {
         setWorkouts(newWorkouts)
         await AsyncStorage.setItem('workouts', JSON.stringify(newWorkouts))
         if (user) {
-          const userDocRef = doc(db, 'users', user.uid)
-          await setDoc(userDocRef, { workouts: newWorkouts }, { merge: true })
+          syncUserDocField(user, 'workouts', newWorkouts)
         }
       } catch (e) {
         console.error('Failed to save workouts', e)
       }
     },
-    [],
+    [syncUserDocField],
   )
 
   const addHistoryEntry = useCallback(
@@ -468,33 +739,29 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const historyCollectionRef = collection(
-            db,
-            'users',
-            user.uid,
-            'history',
-          )
-          const docRef = await addDoc(historyCollectionRef, newEntryBase)
-          setTodaysCompletions((prev) => [
-            ...prev,
-            { ...newEntryBase, id: docRef.id },
-          ])
-          setHistoryVersion((v) => v + 1)
-        } catch (e) {
-          console.error('Failed to save history entry, queuing offline.', e)
-          const offlineEntry: WorkoutSet = {
-            ...newEntryBase,
-            id: `${Date.now()}-${entry.exerciseId}-${set}`,
+        // Local-first: commit to state and the persisted offline queue before
+        // any network I/O. Offline, the Firestore write below hangs without
+        // rejecting, so a set that isn't stored locally first is lost if the
+        // app is killed before connectivity returns.
+        const docRef = doc(collection(db, 'users', user.uid, 'history'))
+        const newEntry: WorkoutSet = { ...newEntryBase, id: docRef.id }
+        setTodaysCompletions((prev) => [...prev, newEntry])
+        setHistoryVersion((v) => v + 1)
+        enqueueOfflineEntry(newEntry)
+
+        // Background sync: on server ack drop the queued copy; otherwise
+        // syncOfflineQueue retries the write at the same doc id (idempotent).
+        void (async () => {
+          try {
+            await setDoc(docRef, newEntryBase)
+            removeFromOfflineQueue([docRef.id])
+          } catch (e) {
+            console.error(
+              'Failed to sync history entry, will retry when online.',
+              e,
+            )
           }
-          setTodaysCompletions((prev) => [...prev, offlineEntry])
-          setHistoryVersion((v) => v + 1)
-          setOfflineQueue((prev) => {
-            const updatedQueue = [...prev, offlineEntry]
-            AsyncStorage.setItem('offlineQueue', JSON.stringify(updatedQueue))
-            return updatedQueue
-          })
-        }
+        })()
       } else {
         // Guest user
         try {
@@ -531,7 +798,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [enqueueOfflineEntry, removeFromOfflineQueue],
   )
 
   const updateHistoryEntry = useCallback(
@@ -550,6 +817,9 @@ export const useData = (): DataHook => {
         )
 
       if (user) {
+        // Keep any queued copy in sync so a later flush doesn't resurrect
+        // stale data.
+        updateOfflineQueueEntry(entryId, updates)
         try {
           const docRef = doc(db, 'users', user.uid, 'history', entryId)
           await updateDoc(docRef, updates)
@@ -594,7 +864,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [updateOfflineQueueEntry],
   )
 
   const deleteHistoryEntry = useCallback(
@@ -607,6 +877,8 @@ export const useData = (): DataHook => {
         )
 
       if (user) {
+        // Drop any queued copy so a later flush doesn't resurrect the entry.
+        removeFromOfflineQueue([entryId])
         try {
           const docRef = doc(db, 'users', user.uid, 'history', entryId)
           await deleteDoc(docRef)
@@ -651,7 +923,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [removeFromOfflineQueue],
   )
 
   const fetchHistory = useCallback(
@@ -747,10 +1019,16 @@ export const useData = (): DataHook => {
             id: doc.id,
             ...doc.data(),
           })) as WorkoutSet[]
-          setTodaysCompletions(todaysSets)
+          const queued = getQueuedTodaysCompletions(
+            offlineQueueRef.current,
+            exerciseId,
+          ).filter((q) => !todaysSets.some((s) => s.id === q.id))
+          setTodaysCompletions([...todaysSets, ...queued])
         } catch (e) {
           console.error("Failed to fetch today's completions", e)
-          setTodaysCompletions([])
+          setTodaysCompletions(
+            getQueuedTodaysCompletions(offlineQueueRef.current, exerciseId),
+          )
         }
       } else {
         // Guest user
@@ -777,7 +1055,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [getQueuedTodaysCompletions],
   )
 
   const isSetCompleted = useCallback(
@@ -842,6 +1120,9 @@ export const useData = (): DataHook => {
           (c) => c.exerciseId === exerciseId && c.set >= setNumber,
         )
         if (setsToRemove.length === 0) return
+
+        // Drop queued copies so a later flush doesn't resurrect reset sets.
+        removeFromOfflineQueue(setsToRemove.map((s) => s.id))
 
         try {
           const batch = writeBatch(db)
@@ -910,7 +1191,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [todaysCompletions],
+    [todaysCompletions, removeFromOfflineQueue],
   )
 
   const migrateGuestHistory = useCallback(
@@ -1175,39 +1456,59 @@ export const useData = (): DataHook => {
 
   const syncOfflineQueue = useCallback(
     async (user: FirebaseUser) => {
-      if (offlineQueue.length === 0) return
+      const entriesToSync = offlineQueue
+      const opsToSync = pendingOps
+      if (entriesToSync.length === 0 && opsToSync.length === 0) return
       // Two triggers (connectivity effect + login sync) can overlap; a second
-      // flush of the same entries would create duplicate history docs.
+      // flush of the same entries would double-write.
       if (offlineSyncInFlightRef.current) return
       offlineSyncInFlightRef.current = true
 
-      const entriesToSync = offlineQueue
-      console.log(`Syncing ${entriesToSync.length} offline entries...`)
+      console.log(
+        `Syncing ${entriesToSync.length} offline entries and ${opsToSync.length} pending ops...`,
+      )
       const batch = writeBatch(db)
       const historyCollectionRef = collection(db, 'users', user.uid, 'history')
 
+      // History entries flush at their pre-assigned doc ids, so this stays
+      // idempotent with a direct write that is still hanging for the same set.
       entriesToSync.forEach((entry) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...dataToUpload } = entry
-        // Strip undefined values — Firestore rejects them
-        const sanitized = Object.fromEntries(
-          Object.entries(dataToUpload).filter(([, v]) => v !== undefined),
+        batch.set(
+          doc(historyCollectionRef, entry.id),
+          stripUndefined(reviveTimestamps(dataToUpload)),
         )
-        const docRef = doc(historyCollectionRef) // Create a new doc with a new ID
-        batch.set(docRef, sanitized)
       })
+
+      // Coalesce user-doc field ops into a single merge write; batches apply
+      // per-doc writes in order but one write is simpler and cheaper.
+      const userDocUpdates: Record<string, unknown> = {}
+      opsToSync.forEach((op) => {
+        if (op.kind === 'set') {
+          batch.set(
+            doc(db, 'users', user.uid, op.coll, op.id),
+            stripUndefined(reviveTimestamps(op.data)),
+          )
+        } else if (op.kind === 'delete') {
+          batch.delete(doc(db, 'users', user.uid, op.coll, op.id))
+        } else {
+          userDocUpdates[op.field] = op.data === null ? deleteField() : op.data
+        }
+      })
+      if (Object.keys(userDocUpdates).length > 0) {
+        batch.set(doc(db, 'users', user.uid), userDocUpdates, { merge: true })
+      }
 
       try {
         await batch.commit()
-        // Only drop what was flushed — entries queued mid-commit must survive.
-        const flushedIds = new Set(entriesToSync.map((entry) => entry.id))
-        setOfflineQueue((prev) => {
-          const remaining = prev.filter((entry) => !flushedIds.has(entry.id))
-          if (remaining.length === 0) {
-            AsyncStorage.removeItem('offlineQueue')
-          } else {
-            AsyncStorage.setItem('offlineQueue', JSON.stringify(remaining))
-          }
+        // Only drop what was flushed — entries/ops queued mid-commit must
+        // survive.
+        removeFromOfflineQueue(entriesToSync.map((entry) => entry.id))
+        setPendingOps((prev) => {
+          const remaining = prev.filter((op) => !opsToSync.includes(op))
+          if (remaining.length === prev.length) return prev
+          persistPendingOps(remaining)
           return remaining
         })
         console.log('Offline queue synced successfully.')
@@ -1217,7 +1518,7 @@ export const useData = (): DataHook => {
         offlineSyncInFlightRef.current = false
       }
     },
-    [offlineQueue],
+    [offlineQueue, pendingOps, removeFromOfflineQueue],
   )
 
   const syncUserData = useCallback(
@@ -1427,21 +1728,22 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const collRef = collection(db, 'users', user.uid, 'weightLogs')
-          const docRef = await addDoc(collRef, newLogBase)
-          const newEntry = {
-            id: docRef.id,
-            ...newLogBase,
-          }
-          setWeightLogs((prev) =>
-            [newEntry, ...prev].sort(
-              (a, b) => b.date.toMillis() - a.date.toMillis(),
-            ),
-          )
-        } catch (e) {
-          console.error('Failed to add weight log', e)
+        const docRef = doc(collection(db, 'users', user.uid, 'weightLogs'))
+        const newEntry = {
+          id: docRef.id,
+          ...newLogBase,
         }
+        setWeightLogs((prev) =>
+          [newEntry, ...prev].sort(
+            (a, b) => b.date.toMillis() - a.date.toMillis(),
+          ),
+        )
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'weightLogs',
+          id: docRef.id,
+          data: newLogBase,
+        })
       } else {
         // Guest user
         try {
@@ -1472,7 +1774,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const updateWeightLog = useCallback(
@@ -1488,17 +1790,17 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'weightLogs', id)
-          await updateDoc(docRef, updates)
-          setWeightLogs((prev) =>
-            prev
-              .map((item) => (item.id === id ? { ...item, ...updates } : item))
-              .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
-          )
-        } catch (e) {
-          console.error('Failed to update weight log', e)
-        }
+        setWeightLogs((prev) =>
+          prev
+            .map((item) => (item.id === id ? { ...item, ...updates } : item))
+            .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+        )
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'weightLogs',
+          id,
+          data: updates,
+        })
       } else {
         // Guest user
         try {
@@ -1528,19 +1830,14 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const deleteWeightLog = useCallback(
     async (id: string, user: FirebaseUser | null) => {
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'weightLogs', id)
-          await deleteDoc(docRef)
-          setWeightLogs((prev) => prev.filter((item) => item.id !== id))
-        } catch (e) {
-          console.error('Failed to delete weight log', e)
-        }
+        setWeightLogs((prev) => prev.filter((item) => item.id !== id))
+        syncLogDoc(user, { kind: 'delete', coll: 'weightLogs', id })
       } else {
         // Guest user
         try {
@@ -1570,7 +1867,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const fetchCalorieLogs = useCallback(
@@ -1630,21 +1927,22 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const collRef = collection(db, 'users', user.uid, 'calorieLogs')
-          const docRef = await addDoc(collRef, newLogBase)
-          const newEntry = {
-            id: docRef.id,
-            ...newLogBase,
-          }
-          setCalorieLogs((prev) =>
-            [newEntry, ...prev].sort(
-              (a, b) => b.date.toMillis() - a.date.toMillis(),
-            ),
-          )
-        } catch (e) {
-          console.error('Failed to add calorie log', e)
+        const docRef = doc(collection(db, 'users', user.uid, 'calorieLogs'))
+        const newEntry = {
+          id: docRef.id,
+          ...newLogBase,
         }
+        setCalorieLogs((prev) =>
+          [newEntry, ...prev].sort(
+            (a, b) => b.date.toMillis() - a.date.toMillis(),
+          ),
+        )
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'calorieLogs',
+          id: docRef.id,
+          data: newLogBase,
+        })
       } else {
         // Guest user
         try {
@@ -1675,7 +1973,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const updateCalorieLog = useCallback(
@@ -1691,17 +1989,17 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'calorieLogs', id)
-          await updateDoc(docRef, updates)
-          setCalorieLogs((prev) =>
-            prev
-              .map((item) => (item.id === id ? { ...item, ...updates } : item))
-              .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
-          )
-        } catch (e) {
-          console.error('Failed to update calorie log', e)
-        }
+        setCalorieLogs((prev) =>
+          prev
+            .map((item) => (item.id === id ? { ...item, ...updates } : item))
+            .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+        )
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'calorieLogs',
+          id,
+          data: updates,
+        })
       } else {
         // Guest user
         try {
@@ -1731,19 +2029,14 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const deleteCalorieLog = useCallback(
     async (id: string, user: FirebaseUser | null) => {
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'calorieLogs', id)
-          await deleteDoc(docRef)
-          setCalorieLogs((prev) => prev.filter((item) => item.id !== id))
-        } catch (e) {
-          console.error('Failed to delete calorie log', e)
-        }
+        setCalorieLogs((prev) => prev.filter((item) => item.id !== id))
+        syncLogDoc(user, { kind: 'delete', coll: 'calorieLogs', id })
       } else {
         // Guest user
         try {
@@ -1773,7 +2066,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const fetchMeasurementLogs = useCallback(
@@ -1840,21 +2133,22 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const collRef = collection(db, 'users', user.uid, 'measurementLogs')
-          const docRef = await addDoc(collRef, newLogBase)
-          const newEntry = {
-            id: docRef.id,
-            ...newLogBase,
-          }
-          setMeasurementLogs((prev) =>
-            [newEntry, ...prev].sort(
-              (a, b) => b.date.toMillis() - a.date.toMillis(),
-            ),
-          )
-        } catch (e) {
-          console.error('Failed to add measurement log', e)
+        const docRef = doc(collection(db, 'users', user.uid, 'measurementLogs'))
+        const newEntry = {
+          id: docRef.id,
+          ...newLogBase,
         }
+        setMeasurementLogs((prev) =>
+          [newEntry, ...prev].sort(
+            (a, b) => b.date.toMillis() - a.date.toMillis(),
+          ),
+        )
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'measurementLogs',
+          id: docRef.id,
+          data: newLogBase,
+        })
       } else {
         // Guest user
         try {
@@ -1885,7 +2179,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const updateMeasurementLog = useCallback(
@@ -1903,23 +2197,21 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'measurementLogs', id)
-          // Remove a previously-saved hip when the update no longer has one
-          await updateDoc(docRef, {
-            ...updates,
-            ...(measurements.hip === undefined ? { hip: deleteField() } : {}),
-          })
-          setMeasurementLogs((prev) =>
-            prev
-              .map((item) =>
-                item.id === id ? { id: item.id, ...updates } : item,
-              )
-              .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
-          )
-        } catch (e) {
-          console.error('Failed to update measurement log', e)
-        }
+        setMeasurementLogs((prev) =>
+          prev
+            .map((item) =>
+              item.id === id ? { id: item.id, ...updates } : item,
+            )
+            .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+        )
+        // Full-document set: also removes a previously-saved hip when the
+        // update no longer has one.
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'measurementLogs',
+          id,
+          data: updates,
+        })
       } else {
         // Guest user
         try {
@@ -1950,19 +2242,14 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const deleteMeasurementLog = useCallback(
     async (id: string, user: FirebaseUser | null) => {
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'measurementLogs', id)
-          await deleteDoc(docRef)
-          setMeasurementLogs((prev) => prev.filter((item) => item.id !== id))
-        } catch (e) {
-          console.error('Failed to delete measurement log', e)
-        }
+        setMeasurementLogs((prev) => prev.filter((item) => item.id !== id))
+        syncLogDoc(user, { kind: 'delete', coll: 'measurementLogs', id })
       } else {
         // Guest user
         try {
@@ -1992,7 +2279,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   // TDEE Config persistence
@@ -2039,18 +2326,13 @@ export const useData = (): DataHook => {
         await AsyncStorage.setItem('tdeeConfig', JSON.stringify(config))
 
         if (user) {
-          try {
-            const docRef = doc(db, 'users', user.uid)
-            await setDoc(docRef, { tdeeConfig: config }, { merge: true })
-          } catch (e) {
-            console.error('Failed to sync TDEE config to Firestore', e)
-          }
+          syncUserDocField(user, 'tdeeConfig', config)
         }
       } catch (e) {
         console.error('Failed to save TDEE config', e)
       }
     },
-    [],
+    [syncUserDocField],
   )
 
   const deleteTDEEConfig = useCallback(
@@ -2059,18 +2341,13 @@ export const useData = (): DataHook => {
         setTdeeConfig(null)
         await AsyncStorage.removeItem('tdeeConfig')
         if (user) {
-          try {
-            const docRef = doc(db, 'users', user.uid)
-            await updateDoc(docRef, { tdeeConfig: deleteField() })
-          } catch (e) {
-            console.error('Failed to delete TDEE config from Firestore', e)
-          }
+          syncUserDocField(user, 'tdeeConfig', null)
         }
       } catch (e) {
         console.error('Failed to delete TDEE config', e)
       }
     },
-    [],
+    [syncUserDocField],
   )
 
   const fetchJournalEntries = useCallback(
@@ -2136,21 +2413,22 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const collRef = collection(db, 'users', user.uid, 'journalEntries')
-          const docRef = await addDoc(collRef, newEntryBase)
-          const newEntry = {
-            id: docRef.id,
-            ...newEntryBase,
-          }
-          setJournalEntries((prev) =>
-            [newEntry, ...prev].sort(
-              (a, b) => b.date.toMillis() - a.date.toMillis(),
-            ),
-          )
-        } catch (e) {
-          console.error('Failed to add journal entry', e)
+        const docRef = doc(collection(db, 'users', user.uid, 'journalEntries'))
+        const newEntry = {
+          id: docRef.id,
+          ...newEntryBase,
         }
+        setJournalEntries((prev) =>
+          [newEntry, ...prev].sort(
+            (a, b) => b.date.toMillis() - a.date.toMillis(),
+          ),
+        )
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'journalEntries',
+          id: docRef.id,
+          data: newEntryBase,
+        })
       } else {
         // Guest user
         try {
@@ -2181,7 +2459,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const updateJournalEntry = useCallback(
@@ -2199,17 +2477,17 @@ export const useData = (): DataHook => {
       }
 
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'journalEntries', id)
-          await updateDoc(docRef, updates)
-          setJournalEntries((prev) =>
-            prev
-              .map((item) => (item.id === id ? { ...item, ...updates } : item))
-              .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
-          )
-        } catch (e) {
-          console.error('Failed to update journal entry', e)
-        }
+        setJournalEntries((prev) =>
+          prev
+            .map((item) => (item.id === id ? { ...item, ...updates } : item))
+            .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
+        )
+        syncLogDoc(user, {
+          kind: 'set',
+          coll: 'journalEntries',
+          id,
+          data: updates,
+        })
       } else {
         // Guest user
         try {
@@ -2240,19 +2518,14 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const deleteJournalEntry = useCallback(
     async (id: string, user: FirebaseUser | null) => {
       if (user) {
-        try {
-          const docRef = doc(db, 'users', user.uid, 'journalEntries', id)
-          await deleteDoc(docRef)
-          setJournalEntries((prev) => prev.filter((item) => item.id !== id))
-        } catch (e) {
-          console.error('Failed to delete journal entry', e)
-        }
+        setJournalEntries((prev) => prev.filter((item) => item.id !== id))
+        syncLogDoc(user, { kind: 'delete', coll: 'journalEntries', id })
       } else {
         // Guest user
         try {
@@ -2282,7 +2555,7 @@ export const useData = (): DataHook => {
         }
       }
     },
-    [],
+    [syncLogDoc],
   )
 
   const ACTIVE_SESSION_KEY = 'activeWorkoutSession'
@@ -2309,7 +2582,11 @@ export const useData = (): DataHook => {
       const raw = await AsyncStorage.getItem(ACTIVE_SESSION_KEY)
       if (raw) {
         const parsed = JSON.parse(raw)
-        if (parsed && typeof parsed.workoutId === 'string' && typeof parsed.exerciseIndex === 'number') {
+        if (
+          parsed &&
+          typeof parsed.workoutId === 'string' &&
+          typeof parsed.exerciseIndex === 'number'
+        ) {
           return parsed
         }
       }

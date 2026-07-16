@@ -4,7 +4,6 @@ import {
   doc,
   setDoc,
   getDoc,
-  addDoc,
   getDocs,
   updateDoc,
   deleteDoc,
@@ -227,7 +226,6 @@ describe('useData Hook', () => {
 
     it('should add a history entry and update todaysCompletions', async () => {
       const { result } = renderHook(() => useData())
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
 
       const entry = {
         workoutId,
@@ -249,8 +247,8 @@ describe('useData Hook', () => {
         )
       })
 
-      expect(addDoc).toHaveBeenCalledWith(
-        undefined,
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ ...entry, set: setNumber }),
       )
       expect(result.current.todaysCompletions).toHaveLength(1)
@@ -286,7 +284,6 @@ describe('useData Hook', () => {
       const startTime = Date.now()
 
       await act(async () => {
-        ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc1' })
         await result.current.addHistoryEntry(
           {
             workoutId,
@@ -366,12 +363,6 @@ describe('useData Hook', () => {
     it('should reset sets from a given set number', async () => {
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
-
-      // Mock addDoc to return unique IDs for each call
-      ;(addDoc as jest.Mock)
-        .mockResolvedValueOnce({ id: 'doc1' })
-        .mockResolvedValueOnce({ id: 'doc2' })
-        .mockResolvedValueOnce({ id: 'doc3' })
 
       await act(async () => {
         await result.current.addHistoryEntry(
@@ -477,7 +468,6 @@ describe('useData Hook', () => {
 
     it('should handle undefined or invalid startTime gracefully', async () => {
       const { result } = renderHook(() => useData())
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const now = Date.now()
 
       // Case 1: 0 startTime — should be saved as null (Firestore rejects undefined)
@@ -497,9 +487,9 @@ describe('useData Hook', () => {
         )
       })
 
-      expect(addDoc).toHaveBeenNthCalledWith(
+      expect(setDoc).toHaveBeenNthCalledWith(
         1,
-        undefined, // first arg is collection ref (mocked or ignored usually)
+        expect.anything(), // first arg is the pre-generated doc ref
         expect.objectContaining({ startTime: null }),
       )
 
@@ -519,17 +509,16 @@ describe('useData Hook', () => {
           mockUser,
         )
       })
-      expect(addDoc).toHaveBeenCalledTimes(2)
-      expect(addDoc).toHaveBeenNthCalledWith(
+      expect(setDoc).toHaveBeenCalledTimes(2)
+      expect(setDoc).toHaveBeenNthCalledWith(
         2,
-        undefined,
+        expect.anything(),
         expect.objectContaining({ startTime: null }),
       )
     })
 
     it('should prevent duplicate addHistoryEntry calls with same dedup key', async () => {
       const { result } = renderHook(() => useData())
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc-1' })
       const startTime = Date.now()
       const endTime = startTime + 1000
 
@@ -550,7 +539,7 @@ describe('useData Hook', () => {
         )
       })
 
-      expect(addDoc).toHaveBeenCalledTimes(1)
+      expect(setDoc).toHaveBeenCalledTimes(1)
       expect(result.current.todaysCompletions).toHaveLength(1)
 
       // Second call with same exerciseId, set, and endTime should be blocked
@@ -570,17 +559,14 @@ describe('useData Hook', () => {
         )
       })
 
-      // addDoc should still have been called only once
-      expect(addDoc).toHaveBeenCalledTimes(1)
+      // setDoc should still have been called only once
+      expect(setDoc).toHaveBeenCalledTimes(1)
       // todaysCompletions should still have only one entry
       expect(result.current.todaysCompletions).toHaveLength(1)
     })
 
     it('should allow different sets with same endTime (no false dedup)', async () => {
       const { result } = renderHook(() => useData())
-      ;(addDoc as jest.Mock)
-        .mockResolvedValueOnce({ id: 'doc-1' })
-        .mockResolvedValueOnce({ id: 'doc-2' })
       const startTime = Date.now()
       const endTime = startTime + 1000
 
@@ -618,13 +604,12 @@ describe('useData Hook', () => {
         )
       })
 
-      expect(addDoc).toHaveBeenCalledTimes(2)
+      expect(setDoc).toHaveBeenCalledTimes(2)
       expect(result.current.todaysCompletions).toHaveLength(2)
     })
 
     it('should allow saving history without a workoutId', async () => {
       const { result } = renderHook(() => useData())
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'doc-no-workout' })
       const startTime = Date.now()
 
       await act(async () => {
@@ -643,8 +628,8 @@ describe('useData Hook', () => {
         )
       })
 
-      expect(addDoc).toHaveBeenCalledWith(
-        undefined,
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ workoutId: null }),
       )
     })
@@ -1029,8 +1014,8 @@ describe('useData Hook', () => {
   })
 
   describe('Offline Queue', () => {
-    it('should add entry to offline queue when firestore fails', async () => {
-      ;(addDoc as jest.Mock).mockRejectedValue(
+    it('should keep entry in offline queue when firestore fails', async () => {
+      ;(setDoc as jest.Mock).mockRejectedValueOnce(
         new Error('Firestore unavailable'),
       )
       const consoleErrorSpy = jest
@@ -1064,9 +1049,121 @@ describe('useData Hook', () => {
         expect.any(String),
       )
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to save history entry, queuing offline.',
+        'Failed to sync history entry, will retry when online.',
         expect.any(Error),
       )
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('should queue entry locally before the server write resolves', async () => {
+      // Simulate offline: Firestore writes hang without rejecting.
+      ;(setDoc as jest.Mock).mockImplementationOnce(() => new Promise(() => {}))
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
+      })
+
+      // Set is visible and durably queued even though the write never settled
+      expect(result.current.todaysCompletions).toHaveLength(1)
+      expect(result.current.offlineQueue).toHaveLength(1)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'offlineQueue',
+        expect.any(String),
+      )
+    })
+
+    it('should drop entry from offline queue once the server confirms', async () => {
+      const { result } = renderHook(() => useData())
+      const startTime = Date.now()
+
+      await act(async () => {
+        await result.current.addHistoryEntry(
+          {
+            workoutId: 'w1',
+            exerciseId: 'ex1',
+            exerciseName: 'Test Exercise',
+            reps: 10,
+            weight: 50,
+          },
+          1,
+          startTime,
+          startTime + 1000,
+          mockUser,
+        )
+      })
+
+      expect(setDoc).toHaveBeenCalledTimes(1)
+      expect(result.current.todaysCompletions).toHaveLength(1)
+      expect(result.current.offlineQueue).toHaveLength(0)
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('offlineQueue')
+    })
+
+    it('should flush pending log ops via syncOfflineQueue when writes hang', async () => {
+      // Simulate offline for the direct write
+      ;(setDoc as jest.Mock).mockImplementationOnce(() => new Promise(() => {}))
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.addWeightLog(80, new Date(), mockUser)
+      })
+
+      // Log is visible locally and the op is persisted
+      expect(result.current.weightLogs).toHaveLength(1)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'pendingOps',
+        expect.stringContaining('weightLogs'),
+      )
+
+      await act(async () => {
+        await result.current.syncOfflineQueue(mockUser)
+      })
+
+      expect(mockBatch.set).toHaveBeenCalledTimes(1)
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1)
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('pendingOps')
+    })
+
+    it('should fall back to queued sets when the completions fetch fails', async () => {
+      ;(getDocs as jest.Mock).mockRejectedValueOnce(new Error('offline'))
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+      const { result } = renderHook(() => useData())
+
+      const queuedEntry: any = {
+        id: 'queued-1',
+        exerciseId: 'ex1',
+        set: 1,
+        date: {
+          seconds: Math.floor(Date.now() / 1000),
+          nanoseconds: 0,
+          toMillis: () => Date.now(),
+        },
+      }
+      await act(async () => {
+        result.current.setOfflineQueue([queuedEntry])
+      })
+
+      await act(async () => {
+        await result.current.fetchAllTodaysCompletions(mockUser)
+      })
+
+      expect(result.current.todaysCompletions).toHaveLength(1)
+      expect(result.current.todaysCompletions[0].id).toBe('queued-1')
       consoleErrorSpy.mockRestore()
     })
 
@@ -1299,7 +1396,6 @@ describe('useData Hook', () => {
       ;(deleteDoc as jest.Mock).mockRejectedValueOnce(
         new Error('Delete failed'),
       )
-      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
 
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
@@ -1323,17 +1419,18 @@ describe('useData Hook', () => {
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {})
+      const entryId = result.current.todaysCompletions[0].id
 
       // Attempt update
       await act(async () => {
-        await result.current.updateHistoryEntry('doc1', { reps: 20 }, mockUser)
+        await result.current.updateHistoryEntry(entryId, { reps: 20 }, mockUser)
       })
 
       expect(result.current.todaysCompletions[0].reps).toBe(10)
 
       // Attempt delete
       await act(async () => {
-        await result.current.deleteHistoryEntry('doc1', mockUser)
+        await result.current.deleteHistoryEntry(entryId, mockUser)
       })
 
       expect(result.current.todaysCompletions).toHaveLength(1)
@@ -1376,7 +1473,6 @@ describe('useData Hook', () => {
     })
 
     it('should reflect entry updates in todaysCompletions for authenticated user', async () => {
-      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
 
@@ -1398,7 +1494,7 @@ describe('useData Hook', () => {
 
       await act(async () => {
         await result.current.updateHistoryEntry(
-          'doc1',
+          result.current.todaysCompletions[0].id,
           { reps: 15, weight: 60 },
           mockUser,
         )
@@ -1410,7 +1506,6 @@ describe('useData Hook', () => {
     })
 
     it('should remove a deleted entry from todaysCompletions for authenticated user', async () => {
-      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
 
@@ -1432,7 +1527,10 @@ describe('useData Hook', () => {
       expect(result.current.isSetCompleted('ex1', 1)).toBe(true)
 
       await act(async () => {
-        await result.current.deleteHistoryEntry('doc1', mockUser)
+        await result.current.deleteHistoryEntry(
+          result.current.todaysCompletions[0].id,
+          mockUser,
+        )
       })
 
       expect(result.current.todaysCompletions).toHaveLength(0)
@@ -1504,7 +1602,6 @@ describe('useData Hook', () => {
     it('should bump historyVersion so the history screen refreshes', async () => {
       // An earlier test leaves commit mocked as rejected; restore success
       mockBatch.commit.mockResolvedValue(undefined)
-      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
 
@@ -1607,10 +1704,6 @@ describe('useData Hook', () => {
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
 
-      ;(addDoc as jest.Mock)
-        .mockResolvedValueOnce({ id: 'doc1' })
-        .mockResolvedValueOnce({ id: 'doc2' })
-
       await act(async () => {
         await result.current.addHistoryEntry(
           {
@@ -1649,8 +1742,6 @@ describe('useData Hook', () => {
     it('should return false when a previous set is missing', async () => {
       const { result } = renderHook(() => useData())
       const startTime = Date.now()
-
-      ;(addDoc as jest.Mock).mockResolvedValueOnce({ id: 'doc1' })
 
       // Complete set 1, skip set 2
       await act(async () => {
@@ -1832,16 +1923,15 @@ describe('useData Hook', () => {
     })
 
     it('should add weight log for logged-in user in firestore', async () => {
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
 
       await act(async () => {
         await result.current.addWeightLog(78, new Date(), mockUser)
       })
 
-      expect(addDoc).toHaveBeenCalled()
+      expect(setDoc).toHaveBeenCalled()
       expect(result.current.weightLogs).toHaveLength(1)
-      expect(result.current.weightLogs[0].id).toBe('new-doc-id')
+      expect(result.current.weightLogs[0].id).toEqual(expect.any(String))
       expect(result.current.weightLogs[0].weight).toBe(78)
     })
 
@@ -1871,7 +1961,6 @@ describe('useData Hook', () => {
     })
 
     it('should update weight log for logged-in user in firestore', async () => {
-      ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
       const dbLogs = [
         {
           id: '1',
@@ -1896,7 +1985,7 @@ describe('useData Hook', () => {
         await result.current.updateWeightLog('1', 83, new Date(), mockUser)
       })
 
-      expect(updateDoc).toHaveBeenCalled()
+      expect(setDoc).toHaveBeenCalled()
       expect(result.current.weightLogs[0].weight).toBe(83)
     })
 
@@ -2047,12 +2136,11 @@ describe('useData Hook', () => {
     })
 
     it('should add calorie log for authenticated user', async () => {
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
       await act(async () => {
         await result.current.addCalorieLog(2300, new Date(), mockUser)
       })
-      expect(addDoc).toHaveBeenCalled()
+      expect(setDoc).toHaveBeenCalled()
       expect(result.current.calorieLogs[0].calories).toBe(2300)
     })
 
@@ -2078,7 +2166,6 @@ describe('useData Hook', () => {
     })
 
     it('should update calorie log for authenticated user', async () => {
-      ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
       const dbLogs = [
         {
           id: '1',
@@ -2099,7 +2186,7 @@ describe('useData Hook', () => {
       await act(async () => {
         await result.current.updateCalorieLog('1', 2400, new Date(), mockUser)
       })
-      expect(updateDoc).toHaveBeenCalled()
+      expect(setDoc).toHaveBeenCalled()
       expect(result.current.calorieLogs[0].calories).toBe(2400)
     })
 
@@ -2314,7 +2401,6 @@ describe('useData Hook', () => {
     })
 
     it('should add journal entry for authenticated user', async () => {
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
       await act(async () => {
         await result.current.addJournalEntry(
@@ -2323,12 +2409,11 @@ describe('useData Hook', () => {
           mockUser,
         )
       })
-      expect(addDoc).toHaveBeenCalled()
+      expect(setDoc).toHaveBeenCalled()
       expect(result.current.journalEntries[0].note).toBe('New db note')
     })
 
     it('should add journal entry with supplements for authenticated user', async () => {
-      ;(addDoc as jest.Mock).mockResolvedValue({ id: 'new-doc-id' })
       const { result } = renderHook(() => useData())
       const supplements = [{ name: 'Whey Protein', dosage: '1 scoop' }]
       await act(async () => {
@@ -2339,8 +2424,8 @@ describe('useData Hook', () => {
           supplements,
         )
       })
-      expect(addDoc).toHaveBeenCalledWith(
-        undefined,
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           note: 'New db note with supps',
           supplements: supplements,
@@ -2415,7 +2500,6 @@ describe('useData Hook', () => {
     })
 
     it('should update journal entry for authenticated user', async () => {
-      ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
       const dbEntries = [
         {
           id: '1',
@@ -2441,12 +2525,11 @@ describe('useData Hook', () => {
           mockUser,
         )
       })
-      expect(updateDoc).toHaveBeenCalled()
+      expect(setDoc).toHaveBeenCalled()
       expect(result.current.journalEntries[0].note).toBe('Updated DB note')
     })
 
     it('should update journal entry with supplements for authenticated user', async () => {
-      ;(updateDoc as jest.Mock).mockResolvedValue(undefined)
       const dbEntries = [
         {
           id: '1',
@@ -2474,7 +2557,7 @@ describe('useData Hook', () => {
           supplements,
         )
       })
-      expect(updateDoc).toHaveBeenCalledWith(
+      expect(setDoc).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({
           note: 'Updated DB note with supps',
@@ -2696,7 +2779,7 @@ describe('useData Hook', () => {
       )
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to sync TDEE config to Firestore',
+        'Failed to sync tdeeConfig to Firestore, will retry when online.',
         expect.any(Error),
       )
       consoleErrorSpy.mockRestore()
