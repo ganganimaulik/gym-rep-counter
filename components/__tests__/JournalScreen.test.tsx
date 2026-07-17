@@ -416,6 +416,7 @@ describe('JournalScreen', () => {
     const pastDate = new Date()
     pastDate.setDate(pastDate.getDate() - 1) // yesterday
     const dateKey = `${pastDate.getFullYear()}-${(pastDate.getMonth() + 1).toString().padStart(2, '0')}-${pastDate.getDate().toString().padStart(2, '0')}`
+    const activatedDate = '2020-01-01' // activated long ago
     const mockTimestamp: any = {
       toDate: () => pastDate,
       toMillis: () => pastDate.getTime(),
@@ -425,9 +426,24 @@ describe('JournalScreen', () => {
       ...mockDataHook,
       settings: {
         supplementSuggestions: [
-          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
-          { name: 'Fish Oil', defaultDosage: '1 cap', schedule: 'daily' },
-          { name: 'Vitamin D', defaultDosage: '2000 IU', schedule: 'daily' },
+          {
+            name: 'Creatine',
+            defaultDosage: '5g',
+            schedule: 'daily',
+            scheduleActivatedDate: activatedDate,
+          },
+          {
+            name: 'Fish Oil',
+            defaultDosage: '1 cap',
+            schedule: 'daily',
+            scheduleActivatedDate: activatedDate,
+          },
+          {
+            name: 'Vitamin D',
+            defaultDosage: '2000 IU',
+            schedule: 'daily',
+            scheduleActivatedDate: activatedDate,
+          },
         ],
       },
       journalEntries: [
@@ -459,6 +475,7 @@ describe('JournalScreen', () => {
     const pastDate = new Date()
     pastDate.setDate(pastDate.getDate() - 1) // yesterday
     const dateKey = `${pastDate.getFullYear()}-${(pastDate.getMonth() + 1).toString().padStart(2, '0')}-${pastDate.getDate().toString().padStart(2, '0')}`
+    const activatedDate = '2020-01-01' // activated long ago
     const mockTimestamp: any = {
       toDate: () => pastDate,
       toMillis: () => pastDate.getTime(),
@@ -468,8 +485,18 @@ describe('JournalScreen', () => {
       ...mockDataHook,
       settings: {
         supplementSuggestions: [
-          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
-          { name: 'Fish Oil', defaultDosage: '1 cap', schedule: 'daily' },
+          {
+            name: 'Creatine',
+            defaultDosage: '5g',
+            schedule: 'daily',
+            scheduleActivatedDate: activatedDate,
+          },
+          {
+            name: 'Fish Oil',
+            defaultDosage: '1 cap',
+            schedule: 'daily',
+            scheduleActivatedDate: activatedDate,
+          },
         ],
       },
       journalEntries: [
@@ -495,5 +522,101 @@ describe('JournalScreen', () => {
 
     // Missed supplements section should NOT appear
     expect(queryByTestId(`missed-supplements-${dateKey}`)).toBeNull()
+  })
+
+  test('does not show missed supplements for dates before scheduleActivatedDate', async () => {
+    const pastDate = new Date()
+    pastDate.setDate(pastDate.getDate() - 3) // 3 days ago
+    const dateKey = `${pastDate.getFullYear()}-${(pastDate.getMonth() + 1).toString().padStart(2, '0')}-${pastDate.getDate().toString().padStart(2, '0')}`
+    // Activation date is yesterday — the entry from 3 days ago should not show missed
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const activatedDate = `${yesterday.getFullYear()}-${(yesterday.getMonth() + 1).toString().padStart(2, '0')}-${yesterday.getDate().toString().padStart(2, '0')}`
+    const mockTimestamp: any = {
+      toDate: () => pastDate,
+      toMillis: () => pastDate.getTime(),
+    }
+
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          {
+            name: 'Creatine',
+            defaultDosage: '5g',
+            schedule: 'daily',
+            scheduleActivatedDate: activatedDate,
+          },
+          {
+            name: 'Fish Oil',
+            defaultDosage: '1 cap',
+            schedule: 'daily',
+            scheduleActivatedDate: activatedDate,
+          },
+        ],
+      },
+      journalEntries: [
+        {
+          id: 'old-entry',
+          note: 'Entry from 3 days ago',
+          date: mockTimestamp,
+          supplements: [], // No supplements taken, but schedule wasn't active yet
+        },
+      ],
+    }
+
+    const { queryByTestId } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Missed supplements section should NOT appear because schedule was activated after this date
+    expect(queryByTestId(`missed-supplements-${dateKey}`)).toBeNull()
+  })
+
+  test('migrates existing scheduled supplements without scheduleActivatedDate on mount', async () => {
+    const migrationSaveSettings = jest.fn().mockResolvedValue(undefined)
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' }, // no scheduleActivatedDate
+          { name: 'Fish Oil', defaultDosage: '1 cap' }, // not scheduled, no migration needed
+        ],
+      },
+      saveSettings: migrationSaveSettings,
+    }
+
+    render(<JournalScreen user={null} visible={true} dataHook={dataHook} />)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Migration should have fired saveSettings with scheduleActivatedDate set to today
+    expect(migrationSaveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supplementSuggestions: expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Creatine',
+            schedule: 'daily',
+            scheduleActivatedDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+          }),
+          expect.objectContaining({
+            name: 'Fish Oil',
+          }),
+        ]),
+      }),
+      null,
+    )
+
+    // Fish Oil should NOT have scheduleActivatedDate
+    const savedSuggestions =
+      migrationSaveSettings.mock.calls[0][0].supplementSuggestions
+    const fishOil = savedSuggestions.find((s: any) => s.name === 'Fish Oil')
+    expect(fishOil.scheduleActivatedDate).toBeUndefined()
   })
 })

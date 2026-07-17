@@ -153,6 +153,61 @@ describe('supplementSchedule', () => {
       }
       expect(isSupplementDueOnDate(supp, new Date('2026-07-05'))).toBe(false)
     })
+
+    test('returns false for daily schedule on dates before scheduleActivatedDate', () => {
+      const supp: SupplementSuggestion = {
+        name: 'Creatine',
+        defaultDosage: '5g',
+        schedule: 'daily',
+        scheduleActivatedDate: '2026-07-10',
+      }
+      // Before activation date
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-09'))).toBe(false)
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-01'))).toBe(false)
+      // On activation date
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-10'))).toBe(true)
+      // After activation date
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-11'))).toBe(true)
+    })
+
+    test('returns false for specific_days schedule on dates before scheduleActivatedDate', () => {
+      const supp: SupplementSuggestion = {
+        name: 'Fish Oil',
+        defaultDosage: '1 cap',
+        schedule: 'specific_days',
+        scheduleDays: [0, 3], // Sunday and Wednesday
+        scheduleActivatedDate: '2026-07-08', // Activated on Wed July 8
+      }
+      // Sunday July 5 is before activation — should be false even though it's a scheduled day
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-05'))).toBe(false)
+      // Wednesday July 8 is the activation date and a scheduled day — should be true
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-08'))).toBe(true)
+    })
+
+    test('returns false for every_other_day schedule on dates before scheduleActivatedDate', () => {
+      const supp: SupplementSuggestion = {
+        name: 'Zinc',
+        defaultDosage: '50mg',
+        schedule: 'every_other_day',
+        scheduleStartDate: '2026-07-06',
+        scheduleActivatedDate: '2026-07-08',
+      }
+      // July 6 is the anchor but before activation — should be false
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-06'))).toBe(false)
+      // July 8 is on activation date and even offset from anchor — should be true
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-08'))).toBe(true)
+    })
+
+    test('daily schedule works normally when no scheduleActivatedDate is set', () => {
+      const supp: SupplementSuggestion = {
+        name: 'Creatine',
+        defaultDosage: '5g',
+        schedule: 'daily',
+      }
+      // Should be due on any date (backwards compatible)
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-01'))).toBe(true)
+      expect(isSupplementDueOnDate(supp, new Date('2020-01-01'))).toBe(true)
+    })
   })
 
   describe('getSupplementsDueToday', () => {

@@ -105,6 +105,27 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   const [manageModalVisible, setManageModalVisible] = useState(false)
   const suggestions = dataHook.settings.supplementSuggestions || []
 
+  // Migrate existing scheduled supplements that don't have a scheduleActivatedDate
+  useEffect(() => {
+    const needsMigration = suggestions.some(
+      (s) => s.schedule && s.schedule !== 'none' && !s.scheduleActivatedDate,
+    )
+    if (needsMigration) {
+      const now = new Date()
+      const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+      const migrated = suggestions.map((s) => {
+        if (s.schedule && s.schedule !== 'none' && !s.scheduleActivatedDate) {
+          return { ...s, scheduleActivatedDate: todayStr }
+        }
+        return s
+      })
+      dataHook.saveSettings(
+        { ...dataHook.settings, supplementSuggestions: migrated },
+        user,
+      )
+    }
+  }, [])  
+
   // Today's supplement status
   const today = useMemo(() => new Date(), [])
   const supplementsDueToday = useMemo(
@@ -189,6 +210,13 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
             updated.scheduleStartDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
           } else if (schedule !== 'every_other_day') {
             delete updated.scheduleStartDate
+          }
+          // Track when the schedule was activated (only set if not already present)
+          if (schedule !== 'none' && !s.scheduleActivatedDate) {
+            const now = new Date()
+            updated.scheduleActivatedDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+          } else if (schedule === 'none') {
+            delete updated.scheduleActivatedDate
           }
           return updated
         }

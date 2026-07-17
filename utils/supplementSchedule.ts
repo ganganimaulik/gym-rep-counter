@@ -13,6 +13,7 @@ export interface SupplementSuggestion {
   schedule?: SupplementScheduleType // default: 'none' (suggestion only, not tracked)
   scheduleDays?: number[] // for 'specific_days': [0=Sun, 1=Mon, ..., 6=Sat]
   scheduleStartDate?: string // for 'every_other_day': ISO date anchor (YYYY-MM-DD)
+  scheduleActivatedDate?: string // ISO date (YYYY-MM-DD) when schedule was first activated
 }
 
 /**
@@ -57,6 +58,16 @@ export function isSupplementDueOnDate(
   journalEntries?: JournalEntry[],
 ): boolean {
   const schedule = supplement.schedule ?? 'none'
+
+  // If a schedule activation date exists, don't consider this supplement
+  // as due on dates before it was activated
+  if (schedule !== 'none' && supplement.scheduleActivatedDate) {
+    const activatedKey = supplement.scheduleActivatedDate
+    const dateKey = getLocalDateKey(date)
+    if (dateKey < activatedKey) {
+      return false
+    }
+  }
 
   switch (schedule) {
     case 'none':
