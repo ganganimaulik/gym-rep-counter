@@ -121,6 +121,7 @@ const App: React.FC = () => {
     saveActiveSession,
     loadActiveSession,
     clearActiveSession,
+    clearUserScopedCache,
   } = dataHook
 
   const onAuthSuccess = useCallback(
@@ -163,7 +164,7 @@ const App: React.FC = () => {
     isSigningIn,
     onGoogleButtonPress,
     disconnectAccount,
-  } = useAuth(onAuthSuccess)
+  } = useAuth(onAuthSuccess, clearUserScopedCache)
 
   const audioHandler = useAudio(settings)
   const activeExercise = currentWorkout?.exercises[currentExerciseIndex]
@@ -413,10 +414,60 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, saveActiveSession])
 
+  // Reconcile the active workout with the source list. currentWorkout is a
+  // (reordered) copy, so deleting its routine must clear it and editing its
+  // routine must rebuild it — otherwise sets keep logging against a stale
+  // snapshot and saveActiveSession keeps persisting a dead workout id.
+  useEffect(() => {
+    if (!currentWorkout) return
+    const source = workouts.find((w: Workout) => w.id === currentWorkout.id)
+    if (!source) {
+      stopWorkout()
+      setCurrentWorkout(null)
+      setCurrentExerciseIndex(0)
+      clearActiveSession()
+      return
+    }
+
+    // currentWorkout.exercises is a completion-ordered permutation of the
+    // source's, so compare them order-insensitively to detect real edits.
+    const key = (e: Exercise) => `${e.id}|${e.name}|${e.sets}|${e.reps}`
+    const sameContent =
+      source.name === currentWorkout.name &&
+      source.exercises.length === currentWorkout.exercises.length &&
+      source.exercises.map(key).sort().join('\n') ===
+        currentWorkout.exercises.map(key).sort().join('\n')
+    if (sameContent) return
+
+    const activeId = currentWorkout.exercises[currentExerciseIndex]?.id
+    const { ordered, completed } = orderExercisesByCompletion(source.exercises)
+    const activeIdx = ordered.findIndex((e) => e.id === activeId)
+    if (activeIdx < 0) {
+      // The exercise being performed was removed from the routine.
+      stopWorkout()
+    }
+    setCurrentWorkout({ ...source, exercises: ordered })
+    setCurrentExerciseIndex(
+      activeIdx >= 0
+        ? activeIdx
+        : completed.length < ordered.length
+          ? completed.length
+          : 0,
+    )
+  }, [
+    workouts,
+    currentWorkout,
+    currentExerciseIndex,
+    stopWorkout,
+    clearActiveSession,
+    orderExercisesByCompletion,
+  ])
+
   // Restore active workout session on initial mount once workouts are loaded
   const sessionRestoredRef = useRef(false)
   useEffect(() => {
-    if (!workoutsLoaded || sessionRestoredRef.current || workouts.length === 0) return
+    if (!workoutsLoaded || sessionRestoredRef.current || workouts.length === 0)
+      return
     sessionRestoredRef.current = true
 
     const restore = async () => {
@@ -437,13 +488,22 @@ const App: React.FC = () => {
 
       // Use the saved exercise index if it's still valid, otherwise fall back
       // to the first uncompleted exercise
-      const validIndex = session.exerciseIndex < ordered.length
-        ? session.exerciseIndex
-        : (completed.length < ordered.length ? completed.length : 0)
+      const validIndex =
+        session.exerciseIndex < ordered.length
+          ? session.exerciseIndex
+          : completed.length < ordered.length
+            ? completed.length
+            : 0
       setCurrentExerciseIndex(validIndex)
     }
     restore()
-  }, [workoutsLoaded, workouts, loadActiveSession, clearActiveSession, orderExercisesByCompletion])
+  }, [
+    workoutsLoaded,
+    workouts,
+    loadActiveSession,
+    clearActiveSession,
+    orderExercisesByCompletion,
+  ])
 
   const selectWorkout = useCallback(
     (workoutId: string | null) => {

@@ -21,7 +21,10 @@ export interface AuthHook {
 
 type OnAuthSuccessCallback = (user: FirebaseUser | null) => Promise<void>
 
-export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
+export const useAuth = (
+  onAuthSuccess: OnAuthSuccessCallback,
+  onSignOut?: () => Promise<void>,
+): AuthHook => {
   const [user, setUser] = useState<FirebaseUser | null>(null)
 
   const [initializing, setInitializing] = useState<boolean>(true)
@@ -31,6 +34,8 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
   const initializingRef = useRef(true)
   const onAuthSuccessRef = useRef(onAuthSuccess)
   onAuthSuccessRef.current = onAuthSuccess
+  const onSignOutRef = useRef(onSignOut)
+  onSignOutRef.current = onSignOut
 
   useEffect(() => {
     if (Platform.OS === 'web' && process.env.EXPO_PUBLIC_PLAYWRIGHT === '1') {
@@ -109,6 +114,9 @@ export const useAuth = (onAuthSuccess: OnAuthSuccessCallback): AuthHook => {
 
   const disconnectAccount = useCallback(async () => {
     try {
+      // Clear this account's cached data before the auth state flips to
+      // null, so the guest reload (and any future sign-in) can't read it.
+      await onSignOutRef.current?.()
       if (Platform.OS === 'web' && process.env.EXPO_PUBLIC_PLAYWRIGHT === '1') {
         localStorage.removeItem('PLAYWRIGHT_MOCK_USER')
         setUser(null)

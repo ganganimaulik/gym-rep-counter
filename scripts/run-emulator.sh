@@ -35,7 +35,7 @@ case "$1" in
     ;;
   clear)
     echo "Clearing Firestore data..."
-    curl -X DELETE "http://localhost:8080/emulator/v1/projects/gym-rep-counter/databases/(default)/documents"
+    curl -X DELETE "http://localhost:8080/emulator/v1/projects/gym-rep-counter/databases/default/documents"
     echo "Clearing Auth accounts..."
     curl -X DELETE "http://localhost:9099/emulator/v1/projects/gym-rep-counter/accounts"
     echo "Emulator databases cleared."

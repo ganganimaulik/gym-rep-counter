@@ -704,44 +704,50 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
               />
 
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
-                Measurements ({tdeeConfig?.measurementUnit === 'cm' ? 'cm' : 'in'}
-                , optional)
+                Measurements (
+                {tdeeConfig?.measurementUnit === 'cm' ? 'cm' : 'in'}, optional)
               </StyledText>
               <StyledView className="flex-row gap-3 mb-4">
-                <StyledTextInput
-                  testID="health-waist-input"
-                  className="flex-1 bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                  keyboardType="numeric"
-                  value={waistInput}
-                  onChangeText={setWaistInput}
-                  placeholder="Waist"
-                  placeholderTextColor="#52525b"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                />
-                <StyledTextInput
-                  testID="health-neck-input"
-                  className="flex-1 bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                  keyboardType="numeric"
-                  value={neckInput}
-                  onChangeText={setNeckInput}
-                  placeholder="Neck"
-                  placeholderTextColor="#52525b"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                />
-                {tdeeConfig?.gender === 'female' && (
+                <StyledView className="flex-1">
                   <StyledTextInput
-                    testID="health-hip-input"
-                    className="flex-1 bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                    testID="health-waist-input"
+                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                     keyboardType="numeric"
-                    value={hipInput}
-                    onChangeText={setHipInput}
-                    placeholder="Hips"
+                    value={waistInput}
+                    onChangeText={setWaistInput}
+                    placeholder="Waist"
                     placeholderTextColor="#52525b"
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
                   />
+                </StyledView>
+                <StyledView className="flex-1">
+                  <StyledTextInput
+                    testID="health-neck-input"
+                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                    keyboardType="numeric"
+                    value={neckInput}
+                    onChangeText={setNeckInput}
+                    placeholder="Neck"
+                    placeholderTextColor="#52525b"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+                </StyledView>
+                {tdeeConfig?.gender === 'female' && (
+                  <StyledView className="flex-1">
+                    <StyledTextInput
+                      testID="health-hip-input"
+                      className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
+                      keyboardType="numeric"
+                      value={hipInput}
+                      onChangeText={setHipInput}
+                      placeholder="Hips"
+                      placeholderTextColor="#52525b"
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
+                    />
+                  </StyledView>
                 )}
               </StyledView>
 

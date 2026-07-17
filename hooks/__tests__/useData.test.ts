@@ -705,14 +705,14 @@ describe('useData Hook', () => {
       expect(setDocCall[1]).toHaveProperty('workouts', localWorkouts)
     })
 
-    it('should migrate guest TDEE config to Firestore on sync', async () => {
+    it('should migrate guest TDEE config to Firestore on sync and delete the guest key', async () => {
       const mockTDEEConfig = {
         gender: 'male',
         weight: 80,
         height: 180,
       }
       ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
-        if (key === 'tdeeConfig')
+        if (key === 'guestTdeeConfig')
           return Promise.resolve(JSON.stringify(mockTDEEConfig))
         return Promise.resolve(null)
       })
@@ -726,6 +726,29 @@ describe('useData Hook', () => {
       expect(setDoc).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({ tdeeConfig: mockTDEEConfig }),
+        { merge: true },
+      )
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('guestTdeeConfig')
+    })
+
+    it('should not push the signed-in tdeeConfig cache to Firestore on sync', async () => {
+      const cachedConfig = { gender: 'male', weight: 80, height: 180 }
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        // Signed-in cache from a previous session — not guest data.
+        if (key === 'tdeeConfig')
+          return Promise.resolve(JSON.stringify(cachedConfig))
+        return Promise.resolve(null)
+      })
+      ;(getDoc as jest.Mock).mockResolvedValue({ exists: () => false })
+
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.syncUserData(mockUser, {} as Settings, [])
+      })
+
+      expect(setDoc).not.toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ tdeeConfig: cachedConfig }),
         { merge: true },
       )
     })
@@ -2718,6 +2741,26 @@ describe('useData Hook', () => {
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
     })
 
+    it('should move a legacy guest config to the guest key on load', async () => {
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        // Config saved by a version that kept guest data under 'tdeeConfig'.
+        if (key === 'tdeeConfig')
+          return Promise.resolve(JSON.stringify(mockTDEEConfig))
+        return Promise.resolve(null)
+      })
+      const { result } = renderHook(() => useData())
+      let config
+      await act(async () => {
+        config = await result.current.loadTDEEConfig(null)
+      })
+      expect(config).toEqual(mockTDEEConfig)
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        'guestTdeeConfig',
+        JSON.stringify(mockTDEEConfig),
+      )
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('tdeeConfig')
+    })
+
     it('should handle load TDEE config error', async () => {
       ;(AsyncStorage.getItem as jest.Mock).mockRejectedValue(
         new Error('Load error'),
@@ -2738,13 +2781,13 @@ describe('useData Hook', () => {
       consoleErrorSpy.mockRestore()
     })
 
-    it('should save TDEE config for guest user', async () => {
+    it('should save TDEE config for guest user under the guest key', async () => {
       const { result } = renderHook(() => useData())
       await act(async () => {
         await result.current.saveTDEEConfig(mockTDEEConfig as any, null)
       })
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        'tdeeConfig',
+        'guestTdeeConfig',
         JSON.stringify(mockTDEEConfig),
       )
       expect(result.current.tdeeConfig).toEqual(mockTDEEConfig)
@@ -2790,7 +2833,7 @@ describe('useData Hook', () => {
       await act(async () => {
         await result.current.deleteTDEEConfig(null)
       })
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('tdeeConfig')
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('guestTdeeConfig')
       expect(result.current.tdeeConfig).toBeNull()
     })
 
@@ -2806,6 +2849,58 @@ describe('useData Hook', () => {
         { tdeeConfig: 'deleteField()' },
       )
       expect(result.current.tdeeConfig).toBeNull()
+    })
+  })
+
+  describe('clearUserScopedCache', () => {
+    it('removes signed-in caches and resets in-memory state', async () => {
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.saveTDEEConfig({ gender: 'male' } as any, mockUser)
+        await result.current.saveSettings(
+          { ...defaultSettings, maxReps: 99 },
+          mockUser,
+        )
+        await result.current.saveWorkouts(
+          [{ id: 'user-w1', name: 'User Routine', exercises: [] }],
+          mockUser,
+        )
+      })
+      expect(result.current.tdeeConfig).not.toBeNull()
+      expect(result.current.settings.maxReps).toBe(99)
+      expect(result.current.workouts[0].id).toBe('user-w1')
+
+      await act(async () => {
+        await result.current.clearUserScopedCache()
+      })
+
+      expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
+        'repCounterSettings',
+        'workouts',
+        'tdeeConfig',
+        'offlineQueue',
+        'pendingOps',
+        'activeWorkoutSession',
+      ])
+      expect(result.current.tdeeConfig).toBeNull()
+      expect(result.current.offlineQueue).toEqual([])
+      expect(result.current.todaysCompletions).toEqual([])
+      // In-memory settings/workouts must not survive sign-out either —
+      // otherwise the UI shows the signed-out account's data until the
+      // guest reload finishes.
+      expect(result.current.settings).toEqual(defaultSettings)
+      expect(result.current.workouts).toEqual(mockDefaultWorkouts)
+    })
+
+    it('does not touch guest data keys', async () => {
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.clearUserScopedCache()
+      })
+      const removed = (AsyncStorage.multiRemove as jest.Mock).mock.calls.flat(2)
+      expect(removed).not.toContain('guestTdeeConfig')
+      expect(removed).not.toContain('guestWeightLogs')
+      expect(removed).not.toContain('workoutHistory')
     })
   })
 

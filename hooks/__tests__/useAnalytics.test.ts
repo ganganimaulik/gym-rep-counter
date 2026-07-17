@@ -103,6 +103,7 @@ describe('useAnalytics Hook', () => {
     saveActiveSession: jest.fn(),
     loadActiveSession: jest.fn(),
     clearActiveSession: jest.fn(),
+    clearUserScopedCache: jest.fn(),
     ...overrides,
   })
 

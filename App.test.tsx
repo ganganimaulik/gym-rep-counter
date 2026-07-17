@@ -50,14 +50,7 @@ jest.mock('react-native-toast-message', () => {
   return mockToast
 })
 
-// Mock hooks
-const mockUseAuth = jest.fn(() => ({
-  user: null,
-  initializing: false,
-  isSigningIn: false,
-  onGoogleButtonPress: jest.fn(),
-  disconnectAccount: jest.fn(),
-}))
+const mockUseAuth = jest.fn()
 jest.mock('./hooks/useAuth', () => ({
   useAuth: (onSuccess: any) => mockUseAuth(onSuccess),
 }))
@@ -171,6 +164,20 @@ jest.mock('./components/JournalScreen', () => {
 describe('App Component', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockUseAuth.mockImplementation((onSuccess?: any) => {
+      React.useEffect(() => {
+        if (onSuccess) {
+          onSuccess(null)
+        }
+      }, [onSuccess])
+      return {
+        user: null,
+        initializing: false,
+        isSigningIn: false,
+        onGoogleButtonPress: jest.fn(),
+        disconnectAccount: jest.fn(),
+      }
+    })
   })
 
   it('renders splash screen and transitions to main app content when not initializing', async () => {

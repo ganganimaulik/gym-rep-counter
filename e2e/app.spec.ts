@@ -20,7 +20,7 @@ test.describe('Gym Rep Counter E2E Tests', () => {
     // Clear Firestore emulator database
     try {
       await request.delete(
-        'http://127.0.0.1:8080/emulator/v1/projects/gym-rep-counter/databases/(default)/documents',
+        'http://127.0.0.1:8080/emulator/v1/projects/gym-rep-counter/databases/default/documents',
       )
     } catch (e) {
       console.warn('Failed to clear firestore emulator', e)

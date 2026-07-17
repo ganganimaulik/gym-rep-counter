@@ -141,6 +141,27 @@ describe('useAuth Hook', () => {
     expect(auth.signOut).toHaveBeenCalled()
   })
 
+  it('should run the onSignOut cleanup before signing out', async () => {
+    const callOrder: string[] = []
+    const mockOnSignOut = jest.fn(async () => {
+      callOrder.push('cleanup')
+    })
+    ;(auth.signOut as jest.Mock).mockImplementation(async () => {
+      callOrder.push('signOut')
+    })
+
+    const { result } = renderHook(() =>
+      useAuth(mockOnAuthSuccess, mockOnSignOut),
+    )
+
+    await act(async () => {
+      await result.current.disconnectAccount()
+    })
+
+    expect(mockOnSignOut).toHaveBeenCalled()
+    expect(callOrder).toEqual(['cleanup', 'signOut'])
+  })
+
   it('should handle errors during Google Sign-Out', async () => {
     const error = new Error('Google SignOut error')
     ;(GoogleSignin.signOut as jest.Mock).mockRejectedValue(error)

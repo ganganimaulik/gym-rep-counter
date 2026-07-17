@@ -1,11 +1,121 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{documents=**} {
-      allow read, write: if request.auth.uid == userId;
+
+    // Helper functions for validation
+    
+    // Check if the settings map has valid fields and types
+    function isValidSettings(s) {
+      return s is map &&
+        s.countdownSeconds is int &&
+        s.restSeconds is int &&
+        s.maxReps is int &&
+        s.maxSets is int &&
+        s.concentricSeconds is int &&
+        s.eccentricSeconds is int &&
+        s.eccentricCountdownEnabled is bool &&
+        s.countdownAnnouncementThreshold is int &&
+        s.volume is number &&
+        (!('supplementSuggestions' in s) || s.supplementSuggestions is list) &&
+        (!('statRemindersEnabled' in s) || s.statRemindersEnabled is bool) &&
+        (!('statRemindersUseAutoSleep' in s) || s.statRemindersUseAutoSleep is bool) &&
+        (!('statRemindersSleepStart' in s) || s.statRemindersSleepStart is int) &&
+        (!('statRemindersSleepEnd' in s) || s.statRemindersSleepEnd is int);
     }
-    match /users/{userId}/history/{document=**} {
-      allow read, write: if request.auth.uid == userId;
+
+    // Check if the TDEEConfig map has valid fields and types
+    function isValidTdeeConfig(t) {
+      return t is map &&
+        t.weightUnit in ['lb', 'kg'] &&
+        t.energyUnit in ['cal', 'kj'] &&
+        t.smoothingWindowWeeks is int &&
+        (!('goalWeight' in t) || t.goalWeight is number || t.goalWeight == null) &&
+        (!('goalWeeklyRate' in t) || t.goalWeeklyRate is number || t.goalWeeklyRate == null) &&
+        (!('gender' in t) || t.gender in ['male', 'female'] || t.gender == null) &&
+        (!('heightValue' in t) || t.heightValue is number || t.heightValue == null) &&
+        (!('measurementUnit' in t) || t.measurementUnit in ['inch', 'cm'] || t.measurementUnit == null) &&
+        (!('waistValue' in t) || t.waistValue is number || t.waistValue == null) &&
+        (!('neckValue' in t) || t.neckValue is number || t.neckValue == null) &&
+        (!('hipValue' in t) || t.hipValue is number || t.hipValue == null);
+    }
+
+    // Rule for matching user documents and subcollections
+    // User documents read/write permissions
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['email', 'name', 'settings', 'workouts', 'tdeeConfig']) &&
+        (!('email' in request.resource.data) || request.resource.data.email is string || request.resource.data.email == null) &&
+        (!('name' in request.resource.data) || request.resource.data.name is string || request.resource.data.name == null) &&
+        (!('settings' in request.resource.data) || isValidSettings(request.resource.data.settings)) &&
+        (!('workouts' in request.resource.data) || request.resource.data.workouts is list) &&
+        (!('tdeeConfig' in request.resource.data) || isValidTdeeConfig(request.resource.data.tdeeConfig));
+      allow update: if request.auth.uid == userId &&
+        (!('email' in request.resource.data) || request.resource.data.email is string || request.resource.data.email == null) &&
+        (!('name' in request.resource.data) || request.resource.data.name is string || request.resource.data.name == null) &&
+        (!('settings' in request.resource.data) || isValidSettings(request.resource.data.settings)) &&
+        (!('workouts' in request.resource.data) || request.resource.data.workouts is list) &&
+        (!('tdeeConfig' in request.resource.data) || isValidTdeeConfig(request.resource.data.tdeeConfig));
+      allow delete: if request.auth.uid == userId;
+
+      // history subcollection
+      match /history/{entryId} {
+        allow read: if request.auth.uid == userId;
+        allow create, update: if request.auth.uid == userId &&
+          request.resource.data.id == entryId &&
+          request.resource.data.workoutId is string &&
+          request.resource.data.exerciseId is string &&
+          request.resource.data.exerciseName is string &&
+          request.resource.data.reps is int &&
+          request.resource.data.weight is number &&
+          request.resource.data.set is int &&
+          (!('startTime' in request.resource.data) || request.resource.data.startTime is timestamp || request.resource.data.startTime == null) &&
+          request.resource.data.date is timestamp;
+        allow delete: if request.auth.uid == userId;
+      }
+
+      // weightLogs subcollection
+      match /weightLogs/{logId} {
+        allow read: if request.auth.uid == userId;
+        allow create, update: if request.auth.uid == userId &&
+          request.resource.data.id == logId &&
+          request.resource.data.weight is number &&
+          request.resource.data.date is timestamp;
+        allow delete: if request.auth.uid == userId;
+      }
+
+      // calorieLogs subcollection
+      match /calorieLogs/{logId} {
+        allow read: if request.auth.uid == userId;
+        allow create, update: if request.auth.uid == userId &&
+          request.resource.data.id == logId &&
+          request.resource.data.calories is number &&
+          request.resource.data.date is timestamp;
+        allow delete: if request.auth.uid == userId;
+      }
+
+      // measurementLogs subcollection
+      match /measurementLogs/{logId} {
+        allow read: if request.auth.uid == userId;
+        allow create, update: if request.auth.uid == userId &&
+          request.resource.data.id == logId &&
+          request.resource.data.waist is number &&
+          request.resource.data.neck is number &&
+          (!('hip' in request.resource.data) || request.resource.data.hip is number || request.resource.data.hip == null) &&
+          request.resource.data.date is timestamp;
+        allow delete: if request.auth.uid == userId;
+      }
+
+      // journalEntries subcollection
+      match /journalEntries/{entryId} {
+        allow read: if request.auth.uid == userId;
+        allow create, update: if request.auth.uid == userId &&
+          request.resource.data.id == entryId &&
+          request.resource.data.note is string &&
+          request.resource.data.date is timestamp &&
+          (!('supplements' in request.resource.data) || request.resource.data.supplements is list);
+        allow delete: if request.auth.uid == userId;
+      }
     }
   }
 }
