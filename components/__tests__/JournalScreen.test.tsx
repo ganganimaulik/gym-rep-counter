@@ -411,4 +411,89 @@ describe('JournalScreen', () => {
       [],
     )
   })
+
+  test('shows missed supplements section footer for a day with untaken scheduled supplements', async () => {
+    const pastDate = new Date()
+    pastDate.setDate(pastDate.getDate() - 1) // yesterday
+    const dateKey = `${pastDate.getFullYear()}-${(pastDate.getMonth() + 1).toString().padStart(2, '0')}-${pastDate.getDate().toString().padStart(2, '0')}`
+    const mockTimestamp: any = {
+      toDate: () => pastDate,
+      toMillis: () => pastDate.getTime(),
+    }
+
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+          { name: 'Fish Oil', defaultDosage: '1 cap', schedule: 'daily' },
+          { name: 'Vitamin D', defaultDosage: '2000 IU', schedule: 'daily' },
+        ],
+      },
+      journalEntries: [
+        {
+          id: 'past-entry',
+          note: 'Yesterday workout',
+          date: mockTimestamp,
+          supplements: [{ name: 'Creatine', dosage: '5g' }], // Only took Creatine
+        },
+      ],
+    }
+
+    const { getByTestId, getAllByText } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Missed supplements section should appear
+    expect(getByTestId(`missed-supplements-${dateKey}`)).toBeTruthy()
+    // Should show missed Fish Oil and Vitamin D (may appear in Today panel too)
+    expect(getAllByText('Fish Oil').length).toBeGreaterThanOrEqual(1)
+    expect(getAllByText('Vitamin D').length).toBeGreaterThanOrEqual(1)
+  })
+
+  test('does not show missed supplements section when all scheduled supplements were taken', async () => {
+    const pastDate = new Date()
+    pastDate.setDate(pastDate.getDate() - 1) // yesterday
+    const dateKey = `${pastDate.getFullYear()}-${(pastDate.getMonth() + 1).toString().padStart(2, '0')}-${pastDate.getDate().toString().padStart(2, '0')}`
+    const mockTimestamp: any = {
+      toDate: () => pastDate,
+      toMillis: () => pastDate.getTime(),
+    }
+
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+          { name: 'Fish Oil', defaultDosage: '1 cap', schedule: 'daily' },
+        ],
+      },
+      journalEntries: [
+        {
+          id: 'past-entry',
+          note: 'All supps taken',
+          date: mockTimestamp,
+          supplements: [
+            { name: 'Creatine', dosage: '5g' },
+            { name: 'Fish Oil', dosage: '1 cap' },
+          ],
+        },
+      ],
+    }
+
+    const { queryByTestId } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Missed supplements section should NOT appear
+    expect(queryByTestId(`missed-supplements-${dateKey}`)).toBeNull()
+  })
 })

@@ -35,6 +35,7 @@ import {
   SupplementScheduleType,
   getSupplementsDueToday,
   getSupplementsTakenOnDate,
+  getUntakenSupplements,
   hasJournalEntryForDate,
 } from '../utils/supplementSchedule'
 
@@ -457,6 +458,32 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     )
   }
 
+  // Compute missed supplements for a given date key (YYYY-MM-DD)
+  const getMissedSupplementsForDate = useCallback(
+    (dateKey: string): SupplementSuggestion[] => {
+      const parts = dateKey.split('-')
+      const year = parseInt(parts[0], 10)
+      const month = parseInt(parts[1], 10) - 1
+      const day = parseInt(parts[2], 10)
+      const date = new Date(year, month, day)
+
+      // Only show missed for past days and today
+      const now = new Date()
+      const todayKey = getLocalDateKey(now)
+      if (dateKey > todayKey) return []
+
+      const dueSupplements = getSupplementsDueToday(
+        suggestions,
+        date,
+        journalEntries,
+      )
+      if (dueSupplements.length === 0) return []
+
+      return getUntakenSupplements(dueSupplements, journalEntries, date)
+    },
+    [suggestions, journalEntries],
+  )
+
   const sections = useMemo(() => {
     const grouped = journalEntries
       .filter((item) => item.date && typeof item.date.toDate === 'function')
@@ -611,6 +638,39 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                   )}
                 </StyledView>
               )}
+            </StyledView>
+          )
+        }}
+        renderSectionFooter={({ section: { title } }) => {
+          const missed = getMissedSupplementsForDate(title)
+          if (missed.length === 0) return null
+
+          return (
+            <StyledView
+              testID={`missed-supplements-${title}`}
+              className="bg-red-950/15 border border-red-900/20 rounded-2xl p-3 mb-3 mt-1">
+              <StyledView className="flex-row items-center gap-1.5 mb-2">
+                <AlertTriangle color="#ef4444" size={10} />
+                <StyledText className="text-red-400 text-[10px] font-black tracking-[0.15em] uppercase">
+                  Missed Supplements
+                </StyledText>
+              </StyledView>
+              <StyledView className="flex-row flex-wrap gap-1.5">
+                {missed.map((supp) => (
+                  <StyledView
+                    key={supp.name}
+                    className="bg-red-500/10 border border-red-500/20 px-2.5 py-0.5 rounded-lg flex-row items-center">
+                    <StyledText className="text-red-400 font-semibold text-[10px] tracking-wide">
+                      {supp.name}
+                    </StyledText>
+                    {supp.defaultDosage ? (
+                      <StyledText className="text-red-300 text-[9px] font-medium ml-1">
+                        {supp.defaultDosage}
+                      </StyledText>
+                    ) : null}
+                  </StyledView>
+                ))}
+              </StyledView>
             </StyledView>
           )
         }}
