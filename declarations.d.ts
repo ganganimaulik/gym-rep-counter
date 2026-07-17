@@ -96,13 +96,13 @@ export interface TDEEConfig {
   weightUnit: 'lb' | 'kg'
   energyUnit: 'cal' | 'kj'
   smoothingWindowWeeks: number // default 12
-  goalWeight?: number
-  goalWeeklyRate?: number // lb or kg per week
+  goalWeight?: number | null
+  goalWeeklyRate?: number | null // lb or kg per week
   // Body fat inputs (optional)
-  gender?: 'male' | 'female'
-  heightValue?: number
-  measurementUnit?: 'inch' | 'cm'
-  waistValue?: number
-  neckValue?: number
-  hipValue?: number
+  gender?: 'male' | 'female' | null
+  heightValue?: number | null
+  measurementUnit?: 'inch' | 'cm' | null
+  waistValue?: number | null
+  neckValue?: number | null
+  hipValue?: number | null
 }

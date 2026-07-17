@@ -121,6 +121,13 @@ type PendingOp =
 
 const OFFLINE_QUEUE_KEY = 'offlineQueue'
 const PENDING_OPS_KEY = 'pendingOps'
+const ACTIVE_SESSION_KEY = 'activeWorkoutSession'
+
+// Guest TDEE config lives under its own key: 'tdeeConfig' is the signed-in
+// cache (a mirror of the server), and treating it as guest data to migrate
+// would push a stale cache over Firestore on every launch.
+const GUEST_TDEE_CONFIG_KEY = 'guestTdeeConfig'
+const TDEE_CONFIG_CACHE_KEY = 'tdeeConfig'
 
 // Firestore rejects undefined values
 const stripUndefined = (data: Record<string, unknown>) =>
@@ -342,6 +349,7 @@ export interface DataHook {
     exerciseIndex: number
   } | null>
   clearActiveSession: () => Promise<void>
+  clearUserScopedCache: () => Promise<void>
 }
 
 const defaultSettings: Settings = {
@@ -1440,12 +1448,12 @@ export const useData = (): DataHook => {
   const migrateGuestTDEEConfig = useCallback(
     async (user: FirebaseUser): Promise<void> => {
       try {
-        const key = 'tdeeConfig'
-        const saved = await AsyncStorage.getItem(key)
+        const saved = await AsyncStorage.getItem(GUEST_TDEE_CONFIG_KEY)
         if (saved) {
           const parsed = JSON.parse(saved) as TDEEConfig
           const docRef = doc(db, 'users', user.uid)
           await setDoc(docRef, { tdeeConfig: parsed }, { merge: true })
+          await AsyncStorage.removeItem(GUEST_TDEE_CONFIG_KEY)
         }
       } catch (e) {
         console.error('Failed to migrate guest TDEE config', e)
@@ -1582,7 +1590,7 @@ export const useData = (): DataHook => {
           if (userData.tdeeConfig) {
             setTdeeConfig(userData.tdeeConfig)
             await AsyncStorage.setItem(
-              'tdeeConfig',
+              TDEE_CONFIG_CACHE_KEY,
               JSON.stringify(userData.tdeeConfig),
             )
           }
@@ -2288,26 +2296,51 @@ export const useData = (): DataHook => {
   const loadTDEEConfig = useCallback(
     async (user?: FirebaseUser | null): Promise<TDEEConfig | null> => {
       try {
-        const saved = await AsyncStorage.getItem('tdeeConfig')
-        if (saved) {
-          const parsed = JSON.parse(saved) as TDEEConfig
-          setTdeeConfig(parsed)
-          return parsed
-        }
-
         if (user) {
-          const userDocRef = doc(db, 'users', user.uid)
-          const userDoc = await getDoc(userDocRef)
-          if (userDoc.exists()) {
-            const userData = userDoc.data()
-            if (userData && userData.tdeeConfig) {
-              setTdeeConfig(userData.tdeeConfig)
-              await AsyncStorage.setItem(
-                'tdeeConfig',
-                JSON.stringify(userData.tdeeConfig),
-              )
-              return userData.tdeeConfig
+          // Always fetch from Firestore for signed-in users to ensure
+          // cross-device changes are picked up.
+          try {
+            const userDocRef = doc(db, 'users', user.uid)
+            const userDoc = await getDoc(userDocRef)
+            if (userDoc.exists()) {
+              const userData = userDoc.data()
+              if (userData && userData.tdeeConfig) {
+                setTdeeConfig(userData.tdeeConfig)
+                await AsyncStorage.setItem(
+                  TDEE_CONFIG_CACHE_KEY,
+                  JSON.stringify(userData.tdeeConfig),
+                )
+                return userData.tdeeConfig
+              }
             }
+          } catch (networkError) {
+            // Firestore fetch failed (likely offline) — fall back to cache
+            console.warn(
+              'Failed to fetch TDEE config from Firestore, using cache',
+              networkError,
+            )
+            const saved = await AsyncStorage.getItem(TDEE_CONFIG_CACHE_KEY)
+            if (saved) {
+              const parsed = JSON.parse(saved) as TDEEConfig
+              setTdeeConfig(parsed)
+              return parsed
+            }
+          }
+        } else {
+          let saved = await AsyncStorage.getItem(GUEST_TDEE_CONFIG_KEY)
+          if (!saved) {
+            // One-time move of guest configs saved before the guest key was
+            // split from the signed-in cache.
+            saved = await AsyncStorage.getItem(TDEE_CONFIG_CACHE_KEY)
+            if (saved) {
+              await AsyncStorage.setItem(GUEST_TDEE_CONFIG_KEY, saved)
+              await AsyncStorage.removeItem(TDEE_CONFIG_CACHE_KEY)
+            }
+          }
+          if (saved) {
+            const parsed = JSON.parse(saved) as TDEEConfig
+            setTdeeConfig(parsed)
+            return parsed
           }
         }
         return null
@@ -2323,7 +2356,10 @@ export const useData = (): DataHook => {
     async (config: TDEEConfig, user: FirebaseUser | null): Promise<void> => {
       try {
         setTdeeConfig(config)
-        await AsyncStorage.setItem('tdeeConfig', JSON.stringify(config))
+        await AsyncStorage.setItem(
+          user ? TDEE_CONFIG_CACHE_KEY : GUEST_TDEE_CONFIG_KEY,
+          JSON.stringify(config),
+        )
 
         if (user) {
           syncUserDocField(user, 'tdeeConfig', config)
@@ -2339,7 +2375,9 @@ export const useData = (): DataHook => {
     async (user: FirebaseUser | null): Promise<void> => {
       try {
         setTdeeConfig(null)
-        await AsyncStorage.removeItem('tdeeConfig')
+        await AsyncStorage.removeItem(
+          user ? TDEE_CONFIG_CACHE_KEY : GUEST_TDEE_CONFIG_KEY,
+        )
         if (user) {
           syncUserDocField(user, 'tdeeConfig', null)
         }
@@ -2558,8 +2596,6 @@ export const useData = (): DataHook => {
     [syncLogDoc],
   )
 
-  const ACTIVE_SESSION_KEY = 'activeWorkoutSession'
-
   const saveActiveSession = useCallback(
     async (workoutId: string, exerciseIndex: number) => {
       try {
@@ -2601,6 +2637,31 @@ export const useData = (): DataHook => {
       await AsyncStorage.removeItem(ACTIVE_SESSION_KEY)
     } catch (e) {
       console.error('Failed to clear active session', e)
+    }
+  }, [])
+
+  // Sign-out cleanup: drop caches and queues that belong to the signed-in
+  // account so they can't seed the next account (or guest session) on a
+  // shared device. Guest data ('guest*' keys, workoutHistory,
+  // todaysCompletions-*) is device-local and survives.
+  const clearUserScopedCache = useCallback(async () => {
+    setSettings(defaultSettings)
+    setWorkouts(getDefaultWorkouts())
+    setOfflineQueue([])
+    setPendingOps([])
+    setTdeeConfig(null)
+    setTodaysCompletions([])
+    try {
+      await AsyncStorage.multiRemove([
+        'repCounterSettings',
+        'workouts',
+        TDEE_CONFIG_CACHE_KEY,
+        OFFLINE_QUEUE_KEY,
+        PENDING_OPS_KEY,
+        ACTIVE_SESSION_KEY,
+      ])
+    } catch (e) {
+      console.error('Failed to clear user-scoped cache', e)
     }
   }, [])
 
@@ -2663,6 +2724,7 @@ export const useData = (): DataHook => {
       saveActiveSession,
       loadActiveSession,
       clearActiveSession,
+      clearUserScopedCache,
     }),
     [
       settings,
@@ -2722,6 +2784,7 @@ export const useData = (): DataHook => {
       saveActiveSession,
       loadActiveSession,
       clearActiveSession,
+      clearUserScopedCache,
     ],
   )
 }

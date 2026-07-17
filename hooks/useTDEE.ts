@@ -223,11 +223,11 @@ export function useTDEE(
       weightUnit: tdeeConfig.weightUnit,
       energyUnit: tdeeConfig.energyUnit,
       smoothingWindowWeeks: tdeeConfig.smoothingWindowWeeks,
-      goalWeight: tdeeConfig.goalWeight,
-      goalWeeklyRate: tdeeConfig.goalWeeklyRate,
-      gender: tdeeConfig.gender,
-      height: tdeeConfig.heightValue,
-      measurementUnit: tdeeConfig.measurementUnit,
+      goalWeight: tdeeConfig.goalWeight ?? undefined,
+      goalWeeklyRate: tdeeConfig.goalWeeklyRate ?? undefined,
+      gender: tdeeConfig.gender ?? undefined,
+      height: tdeeConfig.heightValue ?? undefined,
+      measurementUnit: tdeeConfig.measurementUnit ?? undefined,
     }
 
     // Run the pipeline

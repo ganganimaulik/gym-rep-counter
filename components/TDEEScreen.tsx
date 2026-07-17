@@ -378,30 +378,24 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       measurementUnit: setupMeasurementUnit,
     }
 
-    if (gw !== undefined) updatedConfig.goalWeight = gw
-    else delete updatedConfig.goalWeight
+    updatedConfig.goalWeight = gw !== undefined ? gw : null
 
-    if (rate !== undefined) updatedConfig.goalWeeklyRate = rate
-    else delete updatedConfig.goalWeeklyRate
+    updatedConfig.goalWeeklyRate = rate !== undefined ? rate : null
 
     const h = setupHeight.trim() ? parseFloat(setupHeight) : undefined
-    if (h !== undefined) updatedConfig.heightValue = h
-    else delete updatedConfig.heightValue
+    updatedConfig.heightValue = h !== undefined ? h : null
 
     const w = setupWaist.trim() ? parseFloat(setupWaist) : undefined
-    if (w !== undefined) updatedConfig.waistValue = w
-    else delete updatedConfig.waistValue
+    updatedConfig.waistValue = w !== undefined ? w : null
 
     const n = setupNeck.trim() ? parseFloat(setupNeck) : undefined
-    if (n !== undefined) updatedConfig.neckValue = n
-    else delete updatedConfig.neckValue
+    updatedConfig.neckValue = n !== undefined ? n : null
 
     const hp =
       setupGender === 'female' && setupHip.trim()
         ? parseFloat(setupHip)
         : undefined
-    if (hp !== undefined) updatedConfig.hipValue = hp
-    else delete updatedConfig.hipValue
+    updatedConfig.hipValue = hp !== undefined ? hp : null
 
     await saveTDEEConfig(updatedConfig, user)
     Alert.alert('Saved', 'Settings updated successfully.')
@@ -466,12 +460,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const isConfigured = tdeeConfig !== null
 
   const isDeficit =
-    tdeeConfig?.goalWeight !== undefined &&
+    tdeeConfig?.goalWeight != null &&
     tdeeData.currentWeight !== null &&
     tdeeConfig.goalWeight < tdeeData.currentWeight
 
   const isSurplus =
-    tdeeConfig?.goalWeight !== undefined &&
+    tdeeConfig?.goalWeight != null &&
     tdeeData.currentWeight !== null &&
     tdeeConfig.goalWeight > tdeeData.currentWeight
 
