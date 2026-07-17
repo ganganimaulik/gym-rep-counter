@@ -20,6 +20,7 @@ case "$1" in
       -p 8080:8080 \
       -p 9099:9099 \
       -v "$(pwd):/app" \
+      -v "gym-rep-counter-emulator-cache:/root/.cache" \
       "$IMAGE_NAME"
     
     echo "Firebase Emulator starting in container '$CONTAINER_NAME'."

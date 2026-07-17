@@ -1,12 +1,15 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Gym Rep Counter E2E Tests', () => {
+  let isEmulatorRunning = false
+
   test.beforeAll(async ({ request }) => {
     // Wait up to 10 seconds for the emulators to become ready
     for (let i = 0; i < 10; i++) {
       try {
         const response = await request.get('http://127.0.0.1:4000/')
         if (response.ok()) {
+          isEmulatorRunning = true
           break
         }
       } catch {
@@ -14,25 +17,39 @@ test.describe('Gym Rep Counter E2E Tests', () => {
       }
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }
+
+    if (!isEmulatorRunning) {
+      console.warn(
+        'Firebase emulator is offline. Skipping database clearing before tests.',
+      )
+    }
   })
 
   test.beforeEach(async ({ page, request }) => {
-    // Clear Firestore emulator database
-    try {
-      await request.delete(
-        'http://127.0.0.1:8080/emulator/v1/projects/gym-rep-counter/databases/default/documents',
-      )
-    } catch (e) {
-      console.warn('Failed to clear firestore emulator', e)
-    }
+    if (isEmulatorRunning) {
+      // Clear Firestore emulator database
+      try {
+        await request.delete(
+          'http://127.0.0.1:8080/emulator/v1/projects/gym-rep-counter/databases/default/documents',
+        )
+      } catch (e) {
+        console.warn(
+          'Failed to clear firestore emulator:',
+          e instanceof Error ? e.message : String(e),
+        )
+      }
 
-    // Clear Auth emulator database
-    try {
-      await request.delete(
-        'http://127.0.0.1:9099/emulator/v1/projects/gym-rep-counter/accounts',
-      )
-    } catch (e) {
-      console.warn('Failed to clear auth emulator', e)
+      // Clear Auth emulator database
+      try {
+        await request.delete(
+          'http://127.0.0.1:9099/emulator/v1/projects/gym-rep-counter/accounts',
+        )
+      } catch (e) {
+        console.warn(
+          'Failed to clear auth emulator:',
+          e instanceof Error ? e.message : String(e),
+        )
+      }
     }
 
     // Load page and clear local storage to ensure clean state
