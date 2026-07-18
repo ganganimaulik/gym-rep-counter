@@ -34,7 +34,6 @@ import {
   SupplementSuggestion,
   SupplementScheduleType,
   getSupplementsDueToday,
-  getSupplementsTakenOnDate,
   getUntakenSupplements,
   hasJournalEntryForDate,
 } from '../utils/supplementSchedule'
@@ -124,7 +123,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         user,
       )
     }
-  }, [])  
+  }, [])
 
   // Today's supplement status
   const today = useMemo(() => new Date(), [])
@@ -132,9 +131,9 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     () => getSupplementsDueToday(suggestions, today, journalEntries),
     [suggestions, today, journalEntries],
   )
-  const takenNamesToday = useMemo(
-    () => getSupplementsTakenOnDate(journalEntries, today),
-    [journalEntries, today],
+  const untakenSupplementsToday = useMemo(
+    () => getUntakenSupplements(supplementsDueToday, journalEntries, today),
+    [supplementsDueToday, journalEntries, today],
   )
   const hasJournalToday = useMemo(
     () => hasJournalEntryForDate(journalEntries, today),
@@ -495,10 +494,11 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
       const day = parseInt(parts[2], 10)
       const date = new Date(year, month, day)
 
-      // Only show missed for past days and today
+      // Only show missed for past days. Today is handled by the
+      // clickable "Today's Supplements" panel at the top of the screen.
       const now = new Date()
       const todayKey = getLocalDateKey(now)
-      if (dateKey > todayKey) return []
+      if (dateKey >= todayKey) return []
 
       const dueSupplements = getSupplementsDueToday(
         suggestions,
@@ -558,73 +558,58 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         </StyledTouchableOpacity>
       </StyledView>
 
-      {/* Today's Supplements Status Panel */}
-      {supplementsDueToday.length > 0 && (
-        <StyledView
-          testID="supplement-status-panel"
-          className="bg-zinc-900 border border-zinc-800/85 rounded-2xl p-4 mb-4">
-          <StyledView className="flex-row justify-between items-center mb-3">
-            <StyledText className="text-zinc-400 text-[10px] font-black tracking-[0.15em] uppercase">
-              {"Today's Supplements"}
-            </StyledText>
-            {!hasJournalToday && (
-              <StyledView
-                testID="journal-reminder-badge"
-                className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg flex-row items-center gap-1">
-                <StyledText className="text-amber-400 text-[9px] font-bold">
-                  📓 No journal entry
-                </StyledText>
-              </StyledView>
-            )}
-          </StyledView>
-          <StyledView className="flex-row flex-wrap gap-2">
-            {supplementsDueToday.map((supp) => {
-              const isTaken = takenNamesToday.includes(supp.name.toLowerCase())
-              return (
-                <StyledTouchableOpacity
-                  key={supp.name}
-                  testID={`supplement-status-${supp.name.replace(/\s+/g, '-').toLowerCase()}`}
-                  onPress={() =>
-                    handleToggleSupplementToday(supp.name, supp.defaultDosage)
-                  }
-                  activeOpacity={0.7}
-                  className={`px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5 border ${
-                    isTaken
-                      ? 'bg-emerald-500/10 border-emerald-500/20'
-                      : 'bg-amber-500/10 border-amber-500/30'
-                  }`}>
-                  {isTaken ? (
-                    <Check color="#10b981" size={10} />
-                  ) : (
-                    <AlertTriangle color="#f59e0b" size={10} />
-                  )}
-                  <StyledText
-                    className={`text-[10px] font-semibold tracking-wide ${
-                      isTaken ? 'text-emerald-400' : 'text-amber-400'
-                    }`}>
-                    {supp.name}
-                  </StyledText>
-                  {supp.defaultDosage ? (
-                    <StyledText
-                      className={`text-[9px] font-medium ${
-                        isTaken ? 'text-emerald-300' : 'text-amber-300'
-                      }`}>
-                      {supp.defaultDosage}
-                    </StyledText>
-                  ) : null}
-                </StyledTouchableOpacity>
-              )
-            })}
-          </StyledView>
-        </StyledView>
-      )}
-
       <SectionList
         sections={sections}
         renderItem={renderItem}
         extraData={{ weightLookup, calorieLookup }}
         stickySectionHeadersEnabled={false}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          /* Today's Supplements Status Panel — untaken only, tap to log.
+             Rendered as the list header so it scrolls away with content. */
+          untakenSupplementsToday.length > 0 ? (
+            <StyledView
+              testID="supplement-status-panel"
+              className="bg-zinc-900 border border-zinc-800/85 rounded-2xl p-4 mb-4">
+              <StyledView className="flex-row justify-between items-center mb-3">
+                <StyledText className="text-zinc-400 text-[10px] font-black tracking-[0.15em] uppercase">
+                  {"Today's Supplements"}
+                </StyledText>
+                {!hasJournalToday && (
+                  <StyledView
+                    testID="journal-reminder-badge"
+                    className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg flex-row items-center gap-1">
+                    <StyledText className="text-amber-400 text-[9px] font-bold">
+                      📓 No journal entry
+                    </StyledText>
+                  </StyledView>
+                )}
+              </StyledView>
+              <StyledView className="flex-row flex-wrap gap-2">
+                {untakenSupplementsToday.map((supp) => (
+                  <StyledTouchableOpacity
+                    key={supp.name}
+                    testID={`supplement-status-${supp.name.replace(/\s+/g, '-').toLowerCase()}`}
+                    onPress={() =>
+                      handleToggleSupplementToday(supp.name, supp.defaultDosage)
+                    }
+                    activeOpacity={0.7}
+                    className="px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5 border bg-amber-500/10 border-amber-500/30">
+                    <AlertTriangle color="#f59e0b" size={10} />
+                    <StyledText className="text-[10px] font-semibold tracking-wide text-amber-400">
+                      {supp.name}
+                    </StyledText>
+                    {supp.defaultDosage ? (
+                      <StyledText className="text-[9px] font-medium text-amber-300">
+                        {supp.defaultDosage}
+                      </StyledText>
+                    ) : null}
+                  </StyledTouchableOpacity>
+                ))}
+              </StyledView>
+            </StyledView>
+          ) : null
+        }
         renderSectionHeader={({ section: { title } }) => {
           const parts = title.split('-')
           const year = parseInt(parts[0], 10)

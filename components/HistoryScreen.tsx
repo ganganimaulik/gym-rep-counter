@@ -402,9 +402,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
                         key={v}
                         testID={`edit-log-variant-${v}`}
                         onPress={() =>
-                          setEditVariant((prev) =>
-                            prev === v ? undefined : v,
-                          )
+                          setEditVariant((prev) => (prev === v ? undefined : v))
                         }
                         activeOpacity={0.7}
                         className={`px-3 py-2 rounded-xl border ${

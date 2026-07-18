@@ -229,7 +229,7 @@ describe('JournalScreen', () => {
       ],
     }
 
-    const { getByTestId } = render(
+    const { getByTestId, queryByTestId } = render(
       <JournalScreen
         user={null}
         visible={true}
@@ -241,11 +241,12 @@ describe('JournalScreen', () => {
       await Promise.resolve()
     })
 
-    // Panel should be visible
+    // Panel should be visible (Fish Oil is still untaken)
     expect(getByTestId('supplement-status-panel')).toBeTruthy()
 
-    // Creatine should be shown (taken)
-    expect(getByTestId('supplement-status-creatine')).toBeTruthy()
+    // Creatine was already taken — it should NOT appear in the panel
+    // (the panel only lists untaken supplements)
+    expect(queryByTestId('supplement-status-creatine')).toBeNull()
 
     // Fish Oil should be shown (untaken)
     expect(getByTestId('supplement-status-fish-oil')).toBeTruthy()
@@ -367,8 +368,7 @@ describe('JournalScreen', () => {
     )
   })
 
-  test('toggles supplement as untaken (removes from entry) when already taken', async () => {
-    const mockUpdateJournalEntry = jest.fn().mockResolvedValue(undefined)
+  test('hides the panel once all due supplements have been taken today', async () => {
     const today = new Date()
     const mockTimestamp: any = {
       toDate: () => today,
@@ -389,10 +389,9 @@ describe('JournalScreen', () => {
           supplements: [{ name: 'Creatine', dosage: '5g' }],
         },
       ],
-      updateJournalEntry: mockUpdateJournalEntry,
     }
 
-    const { getByTestId } = render(
+    const { queryByTestId } = render(
       <JournalScreen user={null} visible={true} dataHook={dataHook} />,
     )
 
@@ -400,16 +399,10 @@ describe('JournalScreen', () => {
       await Promise.resolve()
     })
 
-    const badge = getByTestId('supplement-status-creatine')
-    fireEvent.press(badge)
-
-    expect(mockUpdateJournalEntry).toHaveBeenCalledWith(
-      'existing-entry-id',
-      'My morning notes',
-      expect.any(Date),
-      null,
-      [],
-    )
+    // The only scheduled supplement was already taken, so the panel — which
+    // lists only untaken supplements — should not render at all.
+    expect(queryByTestId('supplement-status-panel')).toBeNull()
+    expect(queryByTestId('supplement-status-creatine')).toBeNull()
   })
 
   test('shows missed supplements section footer for a day with untaken scheduled supplements', async () => {

@@ -152,10 +152,14 @@ test.describe('Journal Screen', () => {
     // Wait a brief moment and verify that a new journal entry with "Logged supplements" is created in the list
     await expect(page.locator('text=Logged supplements').first()).toBeVisible()
 
-    // Click it again to toggle it off (untake it)
-    await creatineBadge.dispatchEvent('click')
+    // Click the journal entry to open the edit modal
+    await page.locator('text=Logged supplements').first().click()
 
-    // Let's verify that the list entry update propagates
-    await page.waitForTimeout(500)
+    // Click the delete button in the modal to remove the entry (untake the supplement)
+    await page.locator('[data-testid="journal-note-delete-button"]').click()
+
+    // Verify that the supplement is untaken again and reappears in the panel
+    await expect(creatineBadge).toBeVisible()
   })
 })
+
