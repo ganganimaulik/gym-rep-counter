@@ -32,6 +32,7 @@ import { getDefaultWorkouts } from '../utils/defaultWorkouts'
 import type { User as FirebaseUser } from 'firebase/auth'
 import type {
   WorkoutSet,
+  WeightUnit,
   WeightLog,
   CalorieLog,
   MeasurementLog,
@@ -203,12 +204,42 @@ export interface Exercise {
   name: string
   sets: number
   reps: number
+  // Default unit for logging this exercise's weight ('kg' when absent).
+  // Omit rather than store undefined — the workouts array is written to
+  // Firestore as-is, and Firestore rejects undefined values.
+  weightUnit?: WeightUnit
+  // Selectable variants (e.g. ["Standing", "Sitting"]); omit when none.
+  variants?: string[]
 }
 
 export interface Workout {
   id: string
   name: string
   exercises: Exercise[]
+}
+
+// Editable fields of a logged set. `variant: null` means "remove the
+// variant" (undefined means "leave unchanged").
+export interface HistoryEntryUpdates {
+  reps?: number
+  weight?: number
+  weightUnit?: WeightUnit
+  variant?: string | null
+}
+
+// Merge edits into a logged set, honoring variant removal.
+const mergeHistoryUpdates = <T extends WorkoutSet>(
+  item: T,
+  updates: HistoryEntryUpdates,
+): T => {
+  const { variant, ...rest } = updates
+  const merged: T = { ...item, ...rest }
+  if (variant === null) {
+    delete merged.variant
+  } else if (variant !== undefined) {
+    merged.variant = variant
+  }
+  return merged
 }
 
 export interface DataHook {
@@ -240,7 +271,7 @@ export interface DataHook {
   ) => Promise<void>
   updateHistoryEntry: (
     entryId: string,
-    updates: { reps?: number; weight?: number },
+    updates: HistoryEntryUpdates,
     user: FirebaseUser | null,
   ) => Promise<void>
   deleteHistoryEntry: (
@@ -423,11 +454,11 @@ export const useData = (): DataHook => {
   }, [])
 
   const updateOfflineQueueEntry = useCallback(
-    (entryId: string, updates: Partial<WorkoutSet>) => {
+    (entryId: string, updates: HistoryEntryUpdates) => {
       setOfflineQueue((prev) => {
         if (!prev.some((entry) => entry.id === entryId)) return prev
         const updated = prev.map((entry) =>
-          entry.id === entryId ? { ...entry, ...updates } : entry,
+          entry.id === entryId ? mergeHistoryUpdates(entry, updates) : entry,
         )
         persistOfflineQueue(updated)
         return updated
@@ -812,7 +843,7 @@ export const useData = (): DataHook => {
   const updateHistoryEntry = useCallback(
     async (
       entryId: string,
-      updates: { reps?: number; weight?: number },
+      updates: HistoryEntryUpdates,
       user: FirebaseUser | null,
     ) => {
       // Keep today's completions in sync so the workout screen reflects
@@ -820,7 +851,7 @@ export const useData = (): DataHook => {
       const syncTodaysCompletions = () =>
         setTodaysCompletions((prev) =>
           prev.map((item) =>
-            item.id === entryId ? { ...item, ...updates } : item,
+            item.id === entryId ? mergeHistoryUpdates(item, updates) : item,
           ),
         )
 
@@ -830,7 +861,15 @@ export const useData = (): DataHook => {
         updateOfflineQueueEntry(entryId, updates)
         try {
           const docRef = doc(db, 'users', user.uid, 'history', entryId)
-          await updateDoc(docRef, updates)
+          // variant: null means "remove" — translate to a field delete.
+          const { variant, ...rest } = updates
+          const firestoreUpdates: Record<string, unknown> = { ...rest }
+          if (variant === null) {
+            firestoreUpdates.variant = deleteField()
+          } else if (variant !== undefined) {
+            firestoreUpdates.variant = variant
+          }
+          await updateDoc(docRef, firestoreUpdates)
           syncTodaysCompletions()
         } catch (e) {
           console.error('Failed to update history entry', e)
@@ -844,7 +883,7 @@ export const useData = (): DataHook => {
           if (savedHistoryRaw) {
             const allHistory = JSON.parse(savedHistoryRaw)
             const updatedHistory = allHistory.map((item: WorkoutSet) =>
-              item.id === entryId ? { ...item, ...updates } : item,
+              item.id === entryId ? mergeHistoryUpdates(item, updates) : item,
             )
             await AsyncStorage.setItem(
               historyKey,
@@ -858,7 +897,7 @@ export const useData = (): DataHook => {
           if (savedCompletionsRaw) {
             const allCompletions = JSON.parse(savedCompletionsRaw)
             const updatedCompletions = allCompletions.map((item: WorkoutSet) =>
-              item.id === entryId ? { ...item, ...updates } : item,
+              item.id === entryId ? mergeHistoryUpdates(item, updates) : item,
             )
             await AsyncStorage.setItem(
               todayKey,

@@ -56,6 +56,7 @@ import MainDisplay from './components/layout/MainDisplay'
 import Controls from './components/layout/Controls'
 import RepJumper from './components/layout/RepJumper'
 import AddSetDetailsModal from './components/AddSetDetailsModal'
+import type { WeightUnit } from './declarations'
 import Toast from 'react-native-toast-message'
 import HistoryScreen from './components/HistoryScreen'
 import ProgressScreen from './components/ProgressScreen'
@@ -578,7 +579,12 @@ const App: React.FC = () => {
   )
 
   const handleAddSetDetails = useCallback(
-    async (reps: number, weight: number) => {
+    async (
+      reps: number,
+      weight: number,
+      weightUnit?: WeightUnit,
+      variant?: string,
+    ) => {
       const setData = completedSetData
       // Hide the modal immediately, whether the user is logged in or not,
       // and even if the data saving fails, to not block the UI flow.
@@ -593,6 +599,9 @@ const App: React.FC = () => {
             exerciseName: completedExercise.name,
             reps,
             weight,
+            weightUnit: weightUnit ?? completedExercise.weightUnit ?? 'kg',
+            // Firestore rejects undefined values — omit variant when unset.
+            ...(variant ? { variant } : {}),
           },
           setData.set,
           setData.startTime,
@@ -891,6 +900,8 @@ const App: React.FC = () => {
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
         exerciseName={completedExercise?.name ?? ''}
+        defaultWeightUnit={completedExercise?.weightUnit ?? 'kg'}
+        variants={completedExercise?.variants}
       />
       <Toast topOffset={60} />
     </StyledSafeAreaView>

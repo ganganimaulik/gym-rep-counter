@@ -35,6 +35,7 @@ describe('HistoryScreen', () => {
       updateHistoryEntry: jest.fn().mockResolvedValue(undefined),
       deleteHistoryEntry: jest.fn().mockResolvedValue(undefined),
       historyVersion: 0,
+      workouts: [],
     }
   })
 
@@ -208,10 +209,142 @@ describe('HistoryScreen', () => {
     await waitFor(() => {
       expect(mockDataHook.updateHistoryEntry).toHaveBeenCalledWith(
         'h1',
-        { reps: 12, weight: 65.25 },
+        { reps: 12, weight: 65.25, weightUnit: 'kg', variant: null },
         mockUser,
       )
     })
+  })
+
+  it('allows switching the weight unit from the edit modal', async () => {
+    const today = new Date('2026-07-13T10:00:00')
+    const item = {
+      id: 'h1',
+      exerciseId: 'ex1',
+      exerciseName: 'Calf Raise',
+      reps: 15,
+      weight: 40,
+      weightUnit: 'kg',
+      date: createMockTimestamp(today),
+      startTime: null,
+    }
+
+    mockDataHook.fetchHistory.mockResolvedValueOnce([item])
+
+    const { getByText, getByTestId } = render(
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
+    )
+
+    await waitFor(() => {
+      expect(getByText('Calf Raise')).toBeTruthy()
+    })
+
+    fireEvent.press(getByText('Calf Raise'))
+    fireEvent.press(getByTestId('edit-log-unit-plates'))
+    fireEvent.changeText(getByTestId('edit-log-weight'), '4')
+    fireEvent.press(getByTestId('edit-log-save-button'))
+
+    await waitFor(() => {
+      expect(mockDataHook.updateHistoryEntry).toHaveBeenCalledWith(
+        'h1',
+        { reps: 15, weight: 4, weightUnit: 'plates', variant: null },
+        mockUser,
+      )
+    })
+
+    // List reflects the new unit
+    expect(getByText('15 reps @ 4 plates')).toBeTruthy()
+  })
+
+  it('allows changing and removing the variant from the edit modal', async () => {
+    const today = new Date('2026-07-13T10:00:00')
+    const item = {
+      id: 'h1',
+      exerciseId: 'ex1',
+      exerciseName: 'Calf Raise',
+      reps: 15,
+      weight: 40,
+      variant: 'Standing',
+      date: createMockTimestamp(today),
+      startTime: null,
+    }
+
+    mockDataHook.workouts = [
+      {
+        id: 'w1',
+        name: 'Day 1',
+        exercises: [
+          {
+            id: 'ex1',
+            name: 'Calf Raise',
+            sets: 3,
+            reps: 15,
+            variants: ['Standing', 'Sitting'],
+          },
+        ],
+      },
+    ]
+    mockDataHook.fetchHistory.mockResolvedValueOnce([item])
+
+    const { getByText, getByTestId } = render(
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
+    )
+
+    await waitFor(() => {
+      expect(getByText(/Calf Raise/)).toBeTruthy()
+    })
+
+    // Switch variant to Sitting
+    fireEvent.press(getByText(/Calf Raise/))
+    fireEvent.press(getByTestId('edit-log-variant-Sitting'))
+    fireEvent.press(getByTestId('edit-log-save-button'))
+
+    await waitFor(() => {
+      expect(mockDataHook.updateHistoryEntry).toHaveBeenCalledWith(
+        'h1',
+        { reps: 15, weight: 40, weightUnit: 'kg', variant: 'Sitting' },
+        mockUser,
+      )
+    })
+
+    // Re-open and deselect the variant entirely
+    fireEvent.press(getByText(/Calf Raise/))
+    fireEvent.press(getByTestId('edit-log-variant-Sitting'))
+    fireEvent.press(getByTestId('edit-log-save-button'))
+
+    await waitFor(() => {
+      expect(mockDataHook.updateHistoryEntry).toHaveBeenLastCalledWith(
+        'h1',
+        { reps: 15, weight: 40, weightUnit: 'kg', variant: null },
+        mockUser,
+      )
+    })
+  })
+
+  it('offers the entry variant as an option even if removed from the routine', async () => {
+    const today = new Date('2026-07-13T10:00:00')
+    const item = {
+      id: 'h1',
+      exerciseId: 'ex-gone',
+      exerciseName: 'Old Exercise',
+      reps: 10,
+      weight: 20,
+      variant: 'Standing',
+      date: createMockTimestamp(today),
+      startTime: null,
+    }
+
+    mockDataHook.fetchHistory.mockResolvedValueOnce([item])
+
+    const { getByText, getByTestId } = render(
+      <HistoryScreen visible={true} user={mockUser} dataHook={mockDataHook} />,
+    )
+
+    await waitFor(() => {
+      expect(getByText(/Old Exercise/)).toBeTruthy()
+    })
+
+    fireEvent.press(getByText(/Old Exercise/))
+    expect(getByTestId('edit-log-variant-Standing')).toBeTruthy()
   })
 
   it('deletes history entry and removes it from list', async () => {

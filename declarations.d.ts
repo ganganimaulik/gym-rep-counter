@@ -1,5 +1,9 @@
 import { Timestamp } from 'firebase/firestore'
 
+// Unit the weight of a set was logged in. Sets saved before this existed
+// have no unit field and are treated as 'kg'.
+export type WeightUnit = 'kg' | 'plates'
+
 export interface WorkoutSet {
   id: string
   workoutId: string
@@ -7,6 +11,8 @@ export interface WorkoutSet {
   exerciseName: string
   reps: number
   weight: number
+  weightUnit?: WeightUnit
+  variant?: string // e.g. "Standing" vs "Sitting" calf raise
   set: number
   startTime?: Timestamp | null // When the set started (optional for backward compat)
   date: Timestamp // When the set ended/was completed
@@ -49,6 +55,7 @@ export interface PRRecord {
   exerciseId: string
   exerciseName: string
   maxWeight: number
+  weightUnit?: WeightUnit
   repsAtMax: number
   date: Timestamp
 }

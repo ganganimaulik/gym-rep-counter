@@ -1328,6 +1328,60 @@ describe('useData Hook', () => {
       expect(updateDoc).toHaveBeenCalled()
     })
 
+    it('should translate variant removal to a field delete for authenticated user', async () => {
+      ;(deleteField as jest.Mock).mockReturnValue('deleteField()')
+      const { result } = renderHook(() => useData())
+
+      await act(async () => {
+        await result.current.updateHistoryEntry(
+          'entry-id',
+          { reps: 12, weight: 4, weightUnit: 'plates', variant: null },
+          mockUser,
+        )
+      })
+
+      expect(updateDoc).toHaveBeenCalledWith(expect.anything(), {
+        reps: 12,
+        weight: 4,
+        weightUnit: 'plates',
+        variant: 'deleteField()',
+      })
+    })
+
+    it('should strip the variant key from guest storage when variant is null', async () => {
+      const guestHistory = [
+        {
+          id: 'entry-1',
+          exerciseId: 'ex1',
+          reps: 10,
+          weight: 50,
+          variant: 'Standing',
+          date: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+        },
+      ]
+      ;(AsyncStorage.getItem as jest.Mock).mockImplementation((key) => {
+        if (key === 'guestHistory')
+          return Promise.resolve(JSON.stringify(guestHistory))
+        return Promise.resolve(null)
+      })
+
+      const { result } = renderHook(() => useData())
+      await act(async () => {
+        await result.current.updateHistoryEntry(
+          'entry-1',
+          { reps: 10, weight: 50, variant: null },
+          null,
+        )
+      })
+
+      const savedCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+        ([key]) => key === 'guestHistory',
+      )
+      expect(savedCall).toBeTruthy()
+      const saved = JSON.parse(savedCall[1])
+      expect(saved[0]).not.toHaveProperty('variant')
+    })
+
     it('should update guestHistory, todaysCompletions keys, and in-memory state for guest user', async () => {
       const guestHistory = [
         {

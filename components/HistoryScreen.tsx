@@ -16,7 +16,7 @@ import { Pencil, Trash2 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 
 import type { User as FirebaseUser } from 'firebase/auth'
-import type { WorkoutSet } from '../declarations'
+import type { WorkoutSet, WeightUnit } from '../declarations'
 import { DataHook } from '../hooks/useData'
 
 const StyledView = styled(View)
@@ -46,6 +46,7 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     updateHistoryEntry,
     deleteHistoryEntry,
     historyVersion,
+    workouts,
   } = dataHook
   const [history, setHistory] = useState<WorkoutSet[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -60,6 +61,8 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   })
   const [editReps, setEditReps] = useState('')
   const [editWeight, setEditWeight] = useState('')
+  const [editWeightUnit, setEditWeightUnit] = useState<WeightUnit>('kg')
+  const [editVariant, setEditVariant] = useState<string | undefined>(undefined)
 
   // Track the historyVersion we last loaded for, so we know when to refresh
   const lastLoadedVersionRef = useRef(-1)
@@ -128,8 +131,24 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
   const handleItemPress = (item: WorkoutSet) => {
     setEditReps(item.reps.toString())
     setEditWeight(item.weight.toString())
+    setEditWeightUnit(item.weightUnit ?? 'kg')
+    setEditVariant(item.variant)
     setEditModal({ visible: true, item })
   }
+
+  // Variant choices for the entry being edited: the exercise's configured
+  // variants plus the entry's own (in case the routine config changed).
+  const editVariantOptions = useMemo(() => {
+    if (!editModal.item) return []
+    const exercise = workouts
+      .flatMap((w) => w.exercises)
+      .find((ex) => ex.id === editModal.item!.exerciseId)
+    const options = [...(exercise?.variants ?? [])]
+    if (editModal.item.variant && !options.includes(editModal.item.variant)) {
+      options.unshift(editModal.item.variant)
+    }
+    return options
+  }, [editModal.item, workouts])
 
   const handleEditSave = async () => {
     if (!editModal.item) return
@@ -140,17 +159,33 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     if (!isNaN(repsNum)) {
       await updateHistoryEntry(
         editModal.item.id,
-        { reps: repsNum, weight: weightNum },
+        {
+          reps: repsNum,
+          weight: weightNum,
+          weightUnit: editWeightUnit,
+          // null removes a previously logged variant
+          variant: editVariant ?? null,
+        },
         user,
       )
 
       // Update local history state
       setHistory((prev) =>
-        prev.map((h) =>
-          h.id === editModal.item!.id
-            ? { ...h, reps: repsNum, weight: weightNum }
-            : h,
-        ),
+        prev.map((h) => {
+          if (h.id !== editModal.item!.id) return h
+          const updated: WorkoutSet = {
+            ...h,
+            reps: repsNum,
+            weight: weightNum,
+            weightUnit: editWeightUnit,
+          }
+          if (editVariant) {
+            updated.variant = editVariant
+          } else {
+            delete updated.variant
+          }
+          return updated
+        }),
       )
     }
 
@@ -215,9 +250,15 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           <StyledView className="flex-1">
             <StyledText className="text-white font-black text-base">
               {item.exerciseName}
+              {item.variant ? (
+                <StyledText className="text-indigo-400 font-bold text-sm">
+                  {'  '}
+                  {item.variant}
+                </StyledText>
+              ) : null}
             </StyledText>
             <StyledText className="text-zinc-400 text-sm font-semibold mt-0.5">
-              {item.reps} reps @ {item.weight} kg
+              {item.reps} reps @ {item.weight} {item.weightUnit ?? 'kg'}
             </StyledText>
           </StyledView>
           <StyledView className="flex-row items-center">
@@ -350,6 +391,38 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
                   {editModal.item.exerciseName}
                 </StyledText>
               )}
+              {editVariantOptions.length > 0 && (
+                <>
+                  <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                    Variant
+                  </StyledText>
+                  <StyledView className="flex-row flex-wrap gap-2 mb-4">
+                    {editVariantOptions.map((v) => (
+                      <StyledTouchableOpacity
+                        key={v}
+                        testID={`edit-log-variant-${v}`}
+                        onPress={() =>
+                          setEditVariant((prev) =>
+                            prev === v ? undefined : v,
+                          )
+                        }
+                        activeOpacity={0.7}
+                        className={`px-3 py-2 rounded-xl border ${
+                          editVariant === v
+                            ? 'bg-indigo-600 border-indigo-500'
+                            : 'bg-zinc-950 border-zinc-800'
+                        }`}>
+                        <StyledText
+                          className={`text-xs font-bold ${
+                            editVariant === v ? 'text-white' : 'text-zinc-400'
+                          }`}>
+                          {v}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    ))}
+                  </StyledView>
+                </>
+              )}
               <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
                 Reps
               </StyledText>
@@ -362,9 +435,32 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
               />
-              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
-                Weight (kg)
-              </StyledText>
+              <StyledView className="flex-row justify-between items-center mb-1.5">
+                <StyledText className="text-zinc-400 text-xs font-bold uppercase tracking-wide">
+                  Weight ({editWeightUnit})
+                </StyledText>
+                <StyledView className="flex-row bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden">
+                  {(['kg', 'plates'] as WeightUnit[]).map((unit) => (
+                    <StyledTouchableOpacity
+                      key={unit}
+                      testID={`edit-log-unit-${unit}`}
+                      onPress={() => setEditWeightUnit(unit)}
+                      activeOpacity={0.7}
+                      className={`px-3 py-1 ${
+                        editWeightUnit === unit ? 'bg-indigo-600' : ''
+                      }`}>
+                      <StyledText
+                        className={`text-[10px] font-black uppercase tracking-wider ${
+                          editWeightUnit === unit
+                            ? 'text-white'
+                            : 'text-zinc-500'
+                        }`}>
+                        {unit}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  ))}
+                </StyledView>
+              </StyledView>
               <StyledTextInput
                 testID="edit-log-weight"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"

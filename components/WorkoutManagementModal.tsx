@@ -17,6 +17,7 @@ import DraggableFlatList, {
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { randomUUID } from 'expo-crypto'
 import { Workout, Exercise } from '../hooks/useData'
+import type { WeightUnit } from '../declarations'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -195,6 +196,8 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   const [editName, setEditName] = useState('')
   const [editSets, setEditSets] = useState('')
   const [editReps, setEditReps] = useState('')
+  const [editWeightUnit, setEditWeightUnit] = useState<WeightUnit>('kg')
+  const [editVariants, setEditVariants] = useState('')
 
   if (!visible) return null
 
@@ -203,6 +206,8 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
     setEditName(exercise.name)
     setEditSets(exercise.sets.toString())
     setEditReps(exercise.reps.toString())
+    setEditWeightUnit(exercise.weightUnit ?? 'kg')
+    setEditVariants((exercise.variants ?? []).join(', '))
   }
 
   const closeEditModal = () => {
@@ -210,25 +215,40 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
     setEditName('')
     setEditSets('')
     setEditReps('')
+    setEditWeightUnit('kg')
+    setEditVariants('')
   }
 
   const saveEditExercise = () => {
     if (!editExercise.exercise || !editName.trim()) return
 
+    const variants = editVariants
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+
     const updatedWorkouts = workouts.map((w) => {
       if (w.id === editExercise.workoutId) {
         return {
           ...w,
-          exercises: w.exercises.map((ex) =>
-            ex.id === editExercise.exercise!.id
-              ? {
-                  ...ex,
-                  name: editName.trim(),
-                  sets: parseInt(editSets, 10) || ex.sets,
-                  reps: parseInt(editReps, 10) || ex.reps,
-                }
-              : ex,
-          ),
+          exercises: w.exercises.map((ex) => {
+            if (ex.id !== editExercise.exercise!.id) return ex
+            const updated: Exercise = {
+              ...ex,
+              name: editName.trim(),
+              sets: parseInt(editSets, 10) || ex.sets,
+              reps: parseInt(editReps, 10) || ex.reps,
+              weightUnit: editWeightUnit,
+            }
+            // Workouts are synced to Firestore as-is, which rejects
+            // undefined values — drop the key entirely when empty.
+            if (variants.length > 0) {
+              updated.variants = variants
+            } else {
+              delete updated.variants
+            }
+            return updated
+          }),
         }
       }
       return w
@@ -417,6 +437,43 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                       />
                     </StyledView>
                   </StyledView>
+
+                  <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                    Weight Unit
+                  </StyledText>
+                  <StyledView className="flex-row bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden mb-4">
+                    {(['kg', 'plates'] as WeightUnit[]).map((unit) => (
+                      <StyledTouchableOpacity
+                        key={unit}
+                        testID={`edit-exercise-unit-${unit}`}
+                        onPress={() => setEditWeightUnit(unit)}
+                        activeOpacity={0.7}
+                        className={`flex-1 py-2.5 items-center ${
+                          editWeightUnit === unit ? 'bg-indigo-600' : ''
+                        }`}>
+                        <StyledText
+                          className={`text-xs font-black uppercase tracking-wider ${
+                            editWeightUnit === unit
+                              ? 'text-white'
+                              : 'text-zinc-500'
+                          }`}>
+                          {unit}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    ))}
+                  </StyledView>
+
+                  <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                    Variants (comma-separated, optional)
+                  </StyledText>
+                  <StyledTextInput
+                    testID="edit-exercise-variants"
+                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-semibold text-sm"
+                    placeholder="e.g. Standing, Sitting"
+                    placeholderTextColor="#52525b"
+                    value={editVariants}
+                    onChangeText={setEditVariants}
+                  />
 
                   <StyledView className="flex-row gap-3 mt-2">
                     <StyledTouchableOpacity

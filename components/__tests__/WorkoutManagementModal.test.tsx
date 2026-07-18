@@ -139,6 +139,99 @@ describe('WorkoutManagementModal', () => {
     ])
   })
 
+  test('saves weight unit and variants from the edit exercise overlay', () => {
+    const { getByText, getByTestId } = render(
+      <WorkoutManagementModal
+        visible={true}
+        onClose={mockOnClose}
+        workouts={mockWorkouts}
+        setWorkouts={mockSetWorkouts}
+      />,
+    )
+
+    // Open the edit overlay for the first exercise
+    fireEvent.press(getByText('1. Leg Press'))
+
+    fireEvent.press(getByTestId('edit-exercise-unit-plates'))
+    fireEvent.changeText(
+      getByTestId('edit-exercise-variants'),
+      'Standing, Sitting',
+    )
+    fireEvent.press(getByText('Save'))
+
+    expect(mockSetWorkouts).toHaveBeenCalledWith([
+      {
+        id: 'w1',
+        name: 'Test Workout',
+        exercises: [
+          {
+            id: 'ex1',
+            name: 'Leg Press',
+            sets: 4,
+            reps: 10,
+            weightUnit: 'plates',
+            variants: ['Standing', 'Sitting'],
+          },
+          { id: 'ex2', name: 'RDL', sets: 4, reps: 10 },
+        ],
+      },
+    ])
+  })
+
+  test('clearing the variants field removes variants from the exercise', () => {
+    const workoutsWithVariants: Workout[] = [
+      {
+        id: 'w1',
+        name: 'Test Workout',
+        exercises: [
+          {
+            id: 'ex1',
+            name: 'Calf Raise',
+            sets: 3,
+            reps: 15,
+            weightUnit: 'plates',
+            variants: ['Standing', 'Sitting'],
+          },
+        ],
+      },
+    ]
+
+    const { getByText, getByTestId } = render(
+      <WorkoutManagementModal
+        visible={true}
+        onClose={mockOnClose}
+        workouts={workoutsWithVariants}
+        setWorkouts={mockSetWorkouts}
+      />,
+    )
+
+    fireEvent.press(getByText('1. Calf Raise'))
+
+    // Existing config should be pre-filled
+    expect(getByTestId('edit-exercise-variants').props.value).toBe(
+      'Standing, Sitting',
+    )
+
+    fireEvent.changeText(getByTestId('edit-exercise-variants'), '')
+    fireEvent.press(getByText('Save'))
+
+    expect(mockSetWorkouts).toHaveBeenCalledWith([
+      {
+        id: 'w1',
+        name: 'Test Workout',
+        exercises: [
+          {
+            id: 'ex1',
+            name: 'Calf Raise',
+            sets: 3,
+            reps: 15,
+            weightUnit: 'plates',
+          },
+        ],
+      },
+    ])
+  })
+
   test('calls setWorkouts when deleting a workout', () => {
     const { getByTestId } = render(
       <WorkoutManagementModal

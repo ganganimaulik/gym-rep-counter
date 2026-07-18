@@ -5,6 +5,7 @@ import {
   Text,
   TextInput,
   Button,
+  TouchableOpacity,
   Keyboard,
   Platform,
   KeyboardAvoidingView,
@@ -12,10 +13,12 @@ import {
 } from 'react-native'
 import { BlurView } from 'expo-blur'
 import { styled } from 'nativewind'
+import type { WeightUnit } from '../declarations'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTextInput = styled(TextInput)
+const StyledTouchableOpacity = styled(TouchableOpacity)
 const StyledBlurView = styled(BlurView)
 const StyledKeyboardAvoidingView = styled(KeyboardAvoidingView)
 const StyledSafeAreaView = styled(SafeAreaView)
@@ -23,9 +26,19 @@ const StyledSafeAreaView = styled(SafeAreaView)
 interface AddSetDetailsModalProps {
   visible: boolean
   onClose: () => void
-  onSubmit: (reps: number, weight: number) => void
+  onSubmit: (
+    reps: number,
+    weight: number,
+    weightUnit: WeightUnit,
+    variant?: string,
+  ) => void
   initialReps: number
   exerciseName?: string
+  // Default unit for this exercise (from the routine config); the user can
+  // still switch units for an individual set.
+  defaultWeightUnit?: WeightUnit
+  // Variants configured on the exercise (e.g. ["Standing", "Sitting"]).
+  variants?: string[]
 }
 
 const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
@@ -34,9 +47,13 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
   onSubmit,
   initialReps,
   exerciseName,
+  defaultWeightUnit = 'kg',
+  variants,
 }) => {
   const [reps, setReps] = useState(initialReps.toString())
   const [weight, setWeight] = useState('')
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(defaultWeightUnit)
+  const [variant, setVariant] = useState<string | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = () => {
@@ -47,7 +64,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
       setIsSubmitting(true)
       // The parent hides the modal once the set is saved; calling onClose here
       // as well would trigger the dismiss path and log the set twice.
-      onSubmit(repsNum, weightNum)
+      onSubmit(repsNum, weightNum, weightUnit, variant)
       setWeight('') // Reset for next time
     }
   }
@@ -57,13 +74,15 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
     setReps(initialReps.toString())
   }, [initialReps])
 
-  // Reset isSubmitting and any leftover weight input when modal opens
+  // Reset per-set state when modal opens
   React.useEffect(() => {
     if (visible) {
       setIsSubmitting(false)
       setWeight('')
+      setWeightUnit(defaultWeightUnit)
+      setVariant(undefined)
     }
-  }, [visible])
+  }, [visible, defaultWeightUnit])
 
   return (
     <Modal
@@ -88,6 +107,36 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
                   {exerciseName}
                 </StyledText>
               ) : null}
+              {variants && variants.length > 0 ? (
+                <>
+                  <StyledText className="text-gray-300 mb-2">
+                    Variant
+                  </StyledText>
+                  <StyledView className="flex-row flex-wrap gap-2 mb-4">
+                    {variants.map((v) => (
+                      <StyledTouchableOpacity
+                        key={v}
+                        testID={`variant-option-${v}`}
+                        onPress={() =>
+                          setVariant((prev) => (prev === v ? undefined : v))
+                        }
+                        activeOpacity={0.7}
+                        className={`px-3 py-2 rounded-lg border ${
+                          variant === v
+                            ? 'bg-indigo-600 border-indigo-500'
+                            : 'bg-gray-700 border-gray-600'
+                        }`}>
+                        <StyledText
+                          className={`text-sm font-semibold ${
+                            variant === v ? 'text-white' : 'text-gray-300'
+                          }`}>
+                          {v}
+                        </StyledText>
+                      </StyledTouchableOpacity>
+                    ))}
+                  </StyledView>
+                </>
+              ) : null}
               <StyledText className="text-gray-300 mb-2">Reps</StyledText>
               <StyledTextInput
                 className="bg-gray-700 text-white p-3 rounded-lg mb-4 text-lg"
@@ -98,9 +147,30 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
                 onSubmitEditing={Keyboard.dismiss}
                 testID="reps-input"
               />
-              <StyledText className="text-gray-300 mb-2">
-                Weight (kg)
-              </StyledText>
+              <StyledView className="flex-row justify-between items-center mb-2">
+                <StyledText className="text-gray-300">
+                  Weight ({weightUnit})
+                </StyledText>
+                <StyledView className="flex-row bg-gray-700 rounded-lg overflow-hidden">
+                  {(['kg', 'plates'] as WeightUnit[]).map((unit) => (
+                    <StyledTouchableOpacity
+                      key={unit}
+                      testID={`weight-unit-${unit}`}
+                      onPress={() => setWeightUnit(unit)}
+                      activeOpacity={0.7}
+                      className={`px-3 py-1.5 ${
+                        weightUnit === unit ? 'bg-indigo-600' : ''
+                      }`}>
+                      <StyledText
+                        className={`text-xs font-bold uppercase ${
+                          weightUnit === unit ? 'text-white' : 'text-gray-400'
+                        }`}>
+                        {unit}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  ))}
+                </StyledView>
+              </StyledView>
               <StyledTextInput
                 className="bg-gray-700 text-white p-3 rounded-lg mb-4 text-lg"
                 keyboardType="decimal-pad"

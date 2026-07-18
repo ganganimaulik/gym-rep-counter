@@ -580,7 +580,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                     </StyledView>
                     <StyledView className="items-end">
                       <StyledText className="text-yellow-400 font-black text-base">
-                        {pr.maxWeight} kg
+                        {pr.maxWeight} {pr.weightUnit ?? 'kg'}
                       </StyledText>
                       <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
                         × {pr.repsAtMax} reps

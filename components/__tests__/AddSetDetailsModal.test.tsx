@@ -98,7 +98,7 @@ describe('AddSetDetailsModal', () => {
     fireEvent.changeText(weightInput, '50')
     fireEvent.press(saveButton)
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(12, 50)
+    expect(mockOnSubmit).toHaveBeenCalledWith(12, 50, 'kg', undefined)
     // The parent hides the modal after saving; the dismiss handler must not
     // fire on save or the set would be logged twice.
     expect(mockOnClose).not.toHaveBeenCalled()
@@ -120,7 +120,7 @@ describe('AddSetDetailsModal', () => {
     fireEvent.changeText(weightInput, '22.5')
     fireEvent.press(saveButton)
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(10, 22.5)
+    expect(mockOnSubmit).toHaveBeenCalledWith(10, 22.5, 'kg', undefined)
   })
 
   it('uses a decimal keyboard so fractional weights can be entered', () => {
@@ -151,7 +151,7 @@ describe('AddSetDetailsModal', () => {
     // Weight is empty by default
     fireEvent.press(saveButton)
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(8, 0)
+    expect(mockOnSubmit).toHaveBeenCalledWith(8, 0, 'kg', undefined)
     expect(mockOnClose).not.toHaveBeenCalled()
   })
 
@@ -236,10 +236,98 @@ describe('AddSetDetailsModal', () => {
     // First press should submit
     fireEvent.press(saveButton)
     expect(mockOnSubmit).toHaveBeenCalledTimes(1)
-    expect(mockOnSubmit).toHaveBeenCalledWith(10, 60)
+    expect(mockOnSubmit).toHaveBeenCalledWith(10, 60, 'kg', undefined)
 
     // Second press should be blocked by isSubmitting guard
     fireEvent.press(getByText('Saving...'))
     expect(mockOnSubmit).toHaveBeenCalledTimes(1) // Still only 1
+  })
+
+  it('submits with the selected weight unit when the user switches to plates', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+      />,
+    )
+
+    fireEvent.press(getByTestId('weight-unit-plates'))
+    expect(getByText('Weight (plates)')).toBeTruthy()
+
+    fireEvent.changeText(getByTestId('weight-input'), '4')
+    fireEvent.press(getByText('Save'))
+
+    expect(mockOnSubmit).toHaveBeenCalledWith(10, 4, 'plates', undefined)
+  })
+
+  it('defaults the unit to the exercise-configured weight unit', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+        defaultWeightUnit="plates"
+      />,
+    )
+
+    expect(getByText('Weight (plates)')).toBeTruthy()
+
+    fireEvent.changeText(getByTestId('weight-input'), '4')
+    fireEvent.press(getByText('Save'))
+
+    expect(mockOnSubmit).toHaveBeenCalledWith(10, 4, 'plates', undefined)
+  })
+
+  it('lets the user pick a variant and passes it to onSubmit', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={15}
+        exerciseName="Calf Raise"
+        variants={['Standing', 'Sitting']}
+      />,
+    )
+
+    fireEvent.press(getByTestId('variant-option-Sitting'))
+    fireEvent.changeText(getByTestId('weight-input'), '40')
+    fireEvent.press(getByText('Save'))
+
+    expect(mockOnSubmit).toHaveBeenCalledWith(15, 40, 'kg', 'Sitting')
+  })
+
+  it('tapping a selected variant deselects it', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={15}
+        variants={['Standing', 'Sitting']}
+      />,
+    )
+
+    fireEvent.press(getByTestId('variant-option-Standing'))
+    fireEvent.press(getByTestId('variant-option-Standing'))
+    fireEvent.press(getByText('Save'))
+
+    expect(mockOnSubmit).toHaveBeenCalledWith(15, 0, 'kg', undefined)
+  })
+
+  it('does not render variant options when the exercise has none', () => {
+    const { queryByText } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={10}
+      />,
+    )
+
+    expect(queryByText('Variant')).toBeNull()
   })
 })

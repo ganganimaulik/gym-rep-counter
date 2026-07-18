@@ -56,6 +56,7 @@ export function calculatePRs(
       exerciseId: set.exerciseId,
       exerciseName: set.exerciseName,
       maxWeight: set.weight,
+      ...(set.weightUnit ? { weightUnit: set.weightUnit } : {}),
       repsAtMax: set.reps,
       date: set.date,
     })
