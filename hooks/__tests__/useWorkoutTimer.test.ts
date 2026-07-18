@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native'
-import { useWorkoutTimer } from '../useWorkoutTimer'
+import { useWorkoutTimer, WorkoutTimerHook } from '../useWorkoutTimer'
 import { Settings, Exercise } from '../useData'
 import { AudioHandler } from '../useAudio'
 import * as Speech from 'expo-speech'
@@ -311,6 +311,32 @@ describe('useWorkoutTimer', () => {
       })
     })
 
+    it('starts the rest timer even when speech callbacks never fire', async () => {
+      // Simulate stuck TTS: the announcement is queued but never settles.
+      mockQueueSpeak.mockImplementationOnce(() => {})
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.continueToNextPhase()
+      })
+
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Rest')
+      })
+
+      // The rest countdown must tick regardless of the speech outcome.
+      act(() => jest.advanceTimersByTime(1100))
+      expect(result.current.statusText.value).toMatch(/^Rest: /)
+    })
+
     it('announces rest target even when a tick lands past the target second (timer throttling)', async () => {
       const { result } = renderHook(() =>
         useWorkoutTimer(
@@ -375,6 +401,55 @@ describe('useWorkoutTimer', () => {
         result.current.continueToNextPhase()
       })
 
+      await waitFor(() => {
+        expect(result.current.isExerciseComplete).toBe(true)
+        expect(result.current.statusText.value).toBe('Exercise Complete!')
+      })
+      // The final set must be announced too, not just intermediate ones
+      expect(mockQueueSpeak).toHaveBeenCalledWith('Set complete.', {
+        priority: true,
+      })
+    })
+
+    it('runs an extra set instead of completing when sets increase mid-exercise', async () => {
+      const { result, rerender } = renderHook<
+        WorkoutTimerHook,
+        { exercise: Exercise }
+      >(
+        ({ exercise }) =>
+          useWorkoutTimer(
+            defaultSettings,
+            mockAudioHandler,
+            exercise,
+            mockOnSetComplete,
+            activeExercise.sets, // Start on what was the last set
+          ),
+        { initialProps: { exercise: activeExercise } },
+      )
+
+      // User adds one more set while the (previously) final set is active
+      rerender({
+        exercise: { ...activeExercise, sets: activeExercise.sets + 1 },
+      })
+
+      act(() => {
+        result.current.continueToNextPhase()
+      })
+
+      // Should rest and advance to the extra set, not complete the exercise
+      await waitFor(() => {
+        expect(result.current.isExerciseComplete).toBe(false)
+        expect(result.current.currentSet.value).toBe(activeExercise.sets + 1)
+        expect(mockQueueSpeak).toHaveBeenCalledWith(
+          'Set complete. Rest now.',
+          expect.any(Object),
+        )
+      })
+
+      // Finishing the extra set completes the exercise
+      act(() => {
+        result.current.continueToNextPhase()
+      })
       await waitFor(() => {
         expect(result.current.isExerciseComplete).toBe(true)
         expect(result.current.statusText.value).toBe('Exercise Complete!')

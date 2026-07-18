@@ -49,6 +49,8 @@ describe('WorkoutSelector', () => {
   const mockJumpToSet = jest.fn()
   const mockResetSetsFrom = jest.fn()
   const mockArePreviousSetsCompleted = jest.fn()
+  const mockOnAddSet = jest.fn()
+  const mockOnSetLongPress = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -67,6 +69,9 @@ describe('WorkoutSelector', () => {
         nextExercise={mockNextExercise}
         isSetCompleted={mockIsSetCompleted}
         activeExerciseId="ex1"
+        totalSets={4}
+        onAddSet={mockOnAddSet}
+        onSetLongPress={mockOnSetLongPress}
         jumpToSet={mockJumpToSet}
         resetSetsFrom={mockResetSetsFrom}
         arePreviousSetsCompleted={mockArePreviousSetsCompleted}
@@ -91,6 +96,9 @@ describe('WorkoutSelector', () => {
         nextExercise={mockNextExercise}
         isSetCompleted={mockIsSetCompleted}
         activeExerciseId="ex1"
+        totalSets={4}
+        onAddSet={mockOnAddSet}
+        onSetLongPress={mockOnSetLongPress}
         jumpToSet={mockJumpToSet}
         resetSetsFrom={mockResetSetsFrom}
         arePreviousSetsCompleted={mockArePreviousSetsCompleted}
@@ -116,6 +124,9 @@ describe('WorkoutSelector', () => {
         nextExercise={mockNextExercise}
         isSetCompleted={mockIsSetCompleted}
         activeExerciseId="ex1"
+        totalSets={4}
+        onAddSet={mockOnAddSet}
+        onSetLongPress={mockOnSetLongPress}
         jumpToSet={mockJumpToSet}
         resetSetsFrom={mockResetSetsFrom}
         arePreviousSetsCompleted={mockArePreviousSetsCompleted}
@@ -145,6 +156,9 @@ describe('WorkoutSelector', () => {
         nextExercise={mockNextExercise}
         isSetCompleted={mockIsSetCompleted}
         activeExerciseId="ex1"
+        totalSets={4}
+        onAddSet={mockOnAddSet}
+        onSetLongPress={mockOnSetLongPress}
         jumpToSet={mockJumpToSet}
         resetSetsFrom={mockResetSetsFrom}
         arePreviousSetsCompleted={mockArePreviousSetsCompleted}
@@ -161,5 +175,65 @@ describe('WorkoutSelector', () => {
         text1: 'Cannot Skip Sets',
       }),
     )
+  })
+
+  it('renders a set circle per totalSets and calls onAddSet when "+" is pressed', () => {
+    const { getByTestId, queryByTestId } = render(
+      <WorkoutSelector
+        workouts={mockWorkouts as any}
+        currentWorkout={mockWorkouts[0] as any}
+        currentExerciseIndex={0}
+        settings={mockSettings as any}
+        selectWorkout={mockSelectWorkout}
+        setModalVisible={mockSetModalVisible}
+        prevExercise={mockPrevExercise}
+        nextExercise={mockNextExercise}
+        isSetCompleted={mockIsSetCompleted}
+        activeExerciseId="ex1"
+        totalSets={5}
+        onAddSet={mockOnAddSet}
+        onSetLongPress={mockOnSetLongPress}
+        jumpToSet={mockJumpToSet}
+        resetSetsFrom={mockResetSetsFrom}
+        arePreviousSetsCompleted={mockArePreviousSetsCompleted}
+      />,
+    )
+
+    // totalSets drives the circle count (5 here, exceeding the routine's 4)
+    expect(getByTestId('set-tracker-button-5')).toBeTruthy()
+    expect(queryByTestId('set-tracker-button-6')).toBeNull()
+
+    fireEvent.press(getByTestId('add-set-button'))
+    expect(mockOnAddSet).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onSetLongPress with the set number on long press', () => {
+    const { getByTestId } = render(
+      <WorkoutSelector
+        workouts={mockWorkouts as any}
+        currentWorkout={mockWorkouts[0] as any}
+        currentExerciseIndex={0}
+        settings={mockSettings as any}
+        selectWorkout={mockSelectWorkout}
+        setModalVisible={mockSetModalVisible}
+        prevExercise={mockPrevExercise}
+        nextExercise={mockNextExercise}
+        isSetCompleted={mockIsSetCompleted}
+        activeExerciseId="ex1"
+        totalSets={4}
+        onAddSet={mockOnAddSet}
+        onSetLongPress={mockOnSetLongPress}
+        jumpToSet={mockJumpToSet}
+        resetSetsFrom={mockResetSetsFrom}
+        arePreviousSetsCompleted={mockArePreviousSetsCompleted}
+      />,
+    )
+
+    fireEvent(getByTestId('set-tracker-button-3'), 'longPress')
+
+    expect(mockOnSetLongPress).toHaveBeenCalledWith(3)
+    // A long press must not trigger the tap behavior (redo-from-set)
+    expect(mockJumpToSet).not.toHaveBeenCalled()
+    expect(mockResetSetsFrom).not.toHaveBeenCalled()
   })
 })

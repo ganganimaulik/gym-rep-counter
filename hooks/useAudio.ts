@@ -19,6 +19,9 @@ interface SpeechQueueItem {
   options: SpeechOptions
 }
 
+// Longest app utterance is ~2s; a queue item not settled by now is stuck.
+const SPEECH_WATCHDOG_MS = 10000
+
 export interface AudioHandler {
   speak: (text: string, options?: Speech.SpeechOptions) => void
   speakEccentric: (text: string) => void
@@ -123,22 +126,32 @@ export const useAudio = (settings: Settings): AudioHandler => {
     const { text, options } = speechQueueRef.current.shift()!
     const { onDone: originalOnDone, ...restOptions } = options
 
+    // Web speechSynthesis can silently drop an utterance's events (e.g.
+    // after an interrupting cancel), which would jam the queue forever.
+    // Settle each utterance exactly once: onDone, onError, or the watchdog.
+    let settled = false
+    const settle = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(watchdog)
+      isSpeakingRef.current = false
+      if (typeof originalOnDone === 'function') {
+        originalOnDone()
+      }
+      setTimeout(() => processNextSpeech(), 50)
+    }
+    const watchdog = setTimeout(() => {
+      // A stuck utterance also blocks the native channel until a cancel.
+      Speech.stop()
+      settle()
+    }, SPEECH_WATCHDOG_MS)
+
     Speech.speak(text, {
       ...restOptions,
-      onDone: () => {
-        isSpeakingRef.current = false
-        if (typeof originalOnDone === 'function') {
-          originalOnDone()
-        }
-        setTimeout(() => processNextSpeech(), 50)
-      },
+      onDone: settle,
       onError: (error) => {
         console.error('Speech error occurred:', error)
-        isSpeakingRef.current = false
-        if (typeof originalOnDone === 'function') {
-          originalOnDone()
-        }
-        setTimeout(() => processNextSpeech(), 50)
+        settle()
       },
     })
   }, [])

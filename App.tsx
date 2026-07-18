@@ -37,6 +37,7 @@ import {
   disableBackgroundExecution,
 } from './utils/backgroundTimer'
 import { detectSleepWindow } from './utils/sleepDetection'
+import { evaluateSetDeletion } from './utils/setDeletion'
 import { setupReminders, cancelAllReminders } from './utils/notifications'
 import type { User as FirebaseUser } from 'firebase/auth'
 
@@ -90,6 +91,9 @@ const App: React.FC = () => {
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState<number>(0)
   const [workoutsLoaded, setWorkoutsLoaded] = useState<boolean>(false)
+  // Set-count adjustments made on the fly ("+" adds, long-press removes),
+  // keyed by exercise id. Session-only: never written back to the routine.
+  const [setDeltas, setSetDeltas] = useState<Record<string, number>>({})
 
   // Custom Hooks
   const { isConnected } = useNetInfo()
@@ -168,18 +172,30 @@ const App: React.FC = () => {
   } = useAuth(onAuthSuccess, clearUserScopedCache)
 
   const audioHandler = useAudio(settings)
-  const activeExercise = currentWorkout?.exercises[currentExerciseIndex]
+  const baseExercise = currentWorkout?.exercises[currentExerciseIndex]
+  // The exercise as performed this session: routine definition plus any
+  // extra sets added on the fly. Everything downstream (timer, set tracker,
+  // live activity) sees the bumped set count.
+  const activeExercise = useMemo(() => {
+    if (!baseExercise) return undefined
+    const delta = setDeltas[baseExercise.id] ?? 0
+    return delta !== 0
+      ? { ...baseExercise, sets: Math.max(1, baseExercise.sets + delta) }
+      : baseExercise
+  }, [baseExercise, setDeltas])
   const startingSet = activeExercise
     ? getNextUncompletedSet(activeExercise.id)
     : 1
 
-  // An exercise is "done" once every one of its sets has been logged today.
+  // An exercise is "done" once every one of its sets (as adjusted this
+  // session) has been logged today.
   const isExerciseDone = useCallback(
     (exercise: Exercise): boolean =>
-      Array.from({ length: exercise.sets }, (_, i) => i + 1).every(
-        (setNumber) => isSetCompleted(exercise.id, setNumber),
-      ),
-    [isSetCompleted],
+      Array.from(
+        { length: Math.max(1, exercise.sets + (setDeltas[exercise.id] ?? 0)) },
+        (_, i) => i + 1,
+      ).every((setNumber) => isSetCompleted(exercise.id, setNumber)),
+    [isSetCompleted, setDeltas],
   )
 
   // Partition exercises into completed-first / unfinished-last order,
@@ -360,53 +376,55 @@ const App: React.FC = () => {
     }
   }, [isConnected, user, syncOfflineQueue])
 
-  useEffect(() => {
-    if (!isExerciseComplete) return
-    if (currentWorkout && activeExercise) {
-      // The exercise that just finished counts as done even though its final
-      // set may not be persisted yet.
-      const { ordered, completed, remaining } = orderExercisesByCompletion(
-        currentWorkout.exercises,
-        activeExercise.id,
-      )
-      if (remaining.length === 0) {
-        // Every set of every exercise is done.
-        setStatusText('Workout Complete!')
-        audioHandler.speak('Workout Complete!')
-        clearActiveSession()
-      } else {
-        // Move completed exercises to the front and continue with the first
-        // unfinished one.
-        const nextIndex = completed.length
-        setCurrentWorkout({ ...currentWorkout, exercises: ordered })
-        setCurrentExerciseIndex(nextIndex)
-        audioHandler.speak(`Next exercise: ${ordered[nextIndex].name}`)
-      }
+  // Wraps up the active exercise: reorders the list, advances to the first
+  // unfinished exercise (or ends the workout) and announces it. Used when the
+  // timer finishes the final set and when a deletion removes the last
+  // remaining set.
+  const completeActiveExercise = useCallback(() => {
+    if (!currentWorkout || !activeExercise) return
+    // The exercise that just finished counts as done even though its final
+    // set may not be persisted yet.
+    const { ordered, completed, remaining } = orderExercisesByCompletion(
+      currentWorkout.exercises,
+      activeExercise.id,
+    )
+    if (remaining.length === 0) {
+      // Every set of every exercise is done.
+      setStatusText('Workout Complete!')
+      audioHandler.speak('Workout Complete!')
+      clearActiveSession()
+    } else {
+      // Move completed exercises to the front and continue with the first
+      // unfinished one.
+      const nextIndex = completed.length
+      setCurrentWorkout({ ...currentWorkout, exercises: ordered })
+      setCurrentExerciseIndex(nextIndex)
+      audioHandler.speak(`Next exercise: ${ordered[nextIndex].name}`)
     }
-    resetExerciseCompleteFlag()
   }, [
-    isExerciseComplete,
     currentWorkout,
     activeExercise,
     orderExercisesByCompletion,
     setStatusText,
     audioHandler,
-    resetExerciseCompleteFlag,
     clearActiveSession,
   ])
 
   useEffect(() => {
-    if (currentWorkout && currentWorkout.exercises.length > 0) {
-      const exercise = currentWorkout.exercises[currentExerciseIndex]
-      if (exercise) {
-        setDataSettings((prev: Settings) => ({
-          ...prev,
-          maxReps: exercise.reps,
-          maxSets: exercise.sets,
-        }))
-      }
+    if (!isExerciseComplete) return
+    completeActiveExercise()
+    resetExerciseCompleteFlag()
+  }, [isExerciseComplete, completeActiveExercise, resetExerciseCompleteFlag])
+
+  useEffect(() => {
+    if (activeExercise) {
+      setDataSettings((prev: Settings) => ({
+        ...prev,
+        maxReps: activeExercise.reps,
+        maxSets: activeExercise.sets,
+      }))
     }
-  }, [currentWorkout, currentExerciseIndex, setDataSettings])
+  }, [activeExercise, setDataSettings])
 
   // Persist active workout session to AsyncStorage whenever it changes
   useEffect(() => {
@@ -509,6 +527,7 @@ const App: React.FC = () => {
   const selectWorkout = useCallback(
     (workoutId: string | null) => {
       stopWorkout()
+      setSetDeltas({})
       if (workoutId === null) {
         setCurrentWorkout(null)
         setCurrentExerciseIndex(0)
@@ -653,6 +672,77 @@ const App: React.FC = () => {
     [resetSetsFrom, user],
   )
 
+  const addExtraSet = useCallback(() => {
+    if (!activeExercise) return
+    setSetDeltas((prev) => ({
+      ...prev,
+      [activeExercise.id]: (prev[activeExercise.id] ?? 0) + 1,
+    }))
+    Toast.show({
+      type: 'success',
+      text1: 'Set Added',
+      text2: `${activeExercise.name}: ${activeExercise.sets + 1} sets for this session.`,
+    })
+  }, [activeExercise])
+
+  const handleDeleteSet = useCallback(
+    (setNumber: number) => {
+      if (!activeExercise) return
+      const verdict = evaluateSetDeletion({
+        setNumber,
+        totalSets: activeExercise.sets,
+        completedSets: todaysCompletions
+          .filter((c) => c.exerciseId === activeExercise.id)
+          .map((c) => c.set),
+        isRunning,
+        currentSet: Math.round(currentSet.value),
+      })
+
+      if (!verdict.allowed) {
+        const messages = {
+          completed: {
+            text1: 'Set Already Logged',
+            text2: "Logged sets can't be removed. Tap one to redo from it.",
+          },
+          lastSet: {
+            text1: 'Cannot Remove Set',
+            text2: 'An exercise needs at least one set.',
+          },
+          inProgress: {
+            text1: 'Set In Progress',
+            text2: 'Finish or reset the current set before removing it.',
+          },
+        }
+        Toast.show({ type: 'error', ...messages[verdict.reason] })
+        return
+      }
+
+      setSetDeltas((prev) => ({
+        ...prev,
+        [activeExercise.id]: (prev[activeExercise.id] ?? 0) - 1,
+      }))
+      Toast.show({
+        type: 'success',
+        text1: 'Set Removed',
+        text2: `${activeExercise.name}: ${verdict.newTotal} sets for this session.`,
+      })
+      // Every remaining set is already logged (e.g. the user deleted the set
+      // they were resting toward), so end the exercise like the timer would.
+      if (verdict.completesExercise) {
+        stopWorkout()
+        completeActiveExercise()
+      }
+    },
+    [
+      activeExercise,
+      todaysCompletions,
+      isRunning,
+      currentSet,
+      stopWorkout,
+      completeActiveExercise,
+    ],
+  )
+
   const wrappedStartWorkout = useCallback(() => {
     if (activeExercise && isSetCompleted(activeExercise.id, startingSet)) {
       Toast.show({
@@ -713,6 +803,9 @@ const App: React.FC = () => {
                 nextExercise={nextExercise}
                 isSetCompleted={isSetCompleted}
                 activeExerciseId={activeExercise?.id}
+                totalSets={activeExercise?.sets ?? settings.maxSets}
+                onAddSet={addExtraSet}
+                onSetLongPress={handleDeleteSet}
                 jumpToSet={jumpToSet}
                 resetSetsFrom={handleResetSetsFrom}
                 arePreviousSetsCompleted={arePreviousSetsCompleted}

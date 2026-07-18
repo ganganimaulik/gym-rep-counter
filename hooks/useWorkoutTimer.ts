@@ -284,6 +284,8 @@ export function useWorkoutTimer(
         isExerciseComplete: true,
       })
       statusText.value = 'Exercise Complete!'
+      // Must come after fullReset(), whose clearTimer() stops speech.
+      queueSpeak('Set complete.', { priority: true })
     } else {
       wState.current.set = nextSet
       wState.current.rep = 0
@@ -298,11 +300,15 @@ export function useWorkoutTimer(
       })
       queueSpeak(`Set complete. Rest now.`, {
         priority: true,
-        onDone: startRest,
       })
+      // Deliberately not gated on the speech finishing (no onDone): if the
+      // utterance never completes (flaky web TTS, muted device) the rest
+      // timer must still run, and rest truly starts when the set ends.
+      startRest()
     }
   }, [
     settings,
+    activeExercise,
     fullReset,
     updateUI,
     displayRep,

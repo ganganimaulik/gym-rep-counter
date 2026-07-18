@@ -162,4 +162,3 @@ test.describe('Journal Screen', () => {
     await expect(creatineBadge).toBeVisible()
   })
 })
-

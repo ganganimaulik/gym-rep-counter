@@ -2,7 +2,13 @@ import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
 import Toast from 'react-native-toast-message'
-import { Edit, ChevronLeft, ChevronRight, Check } from 'lucide-react-native'
+import {
+  Edit,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Plus,
+} from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
 
@@ -14,12 +20,16 @@ interface SetTrackerProps {
   totalSets: number
   isSetCompleted: (setNumber: number) => boolean
   onSetPress: (setNumber: number) => void
+  onSetLongPress: (setNumber: number) => void
+  onAddSetPress: () => void
 }
 
 const SetTracker: React.FC<SetTrackerProps> = ({
   totalSets,
   isSetCompleted,
   onSetPress,
+  onSetLongPress,
+  onAddSetPress,
 }) => (
   <StyledView className="flex-row justify-end items-center flex-wrap gap-2">
     {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNumber) => {
@@ -29,6 +39,7 @@ const SetTracker: React.FC<SetTrackerProps> = ({
           key={setNumber}
           testID={`set-tracker-button-${setNumber}`}
           onPress={() => onSetPress(setNumber)}
+          onLongPress={() => onSetLongPress(setNumber)}
           activeOpacity={0.7}
           className={`w-8 h-8 rounded-full justify-center items-center ${
             completed
@@ -45,6 +56,13 @@ const SetTracker: React.FC<SetTrackerProps> = ({
         </StyledTouchableOpacity>
       )
     })}
+    <StyledTouchableOpacity
+      testID="add-set-button"
+      onPress={onAddSetPress}
+      activeOpacity={0.7}
+      className="w-8 h-8 rounded-full justify-center items-center bg-zinc-900 border border-dashed border-zinc-600">
+      <Plus color="#a1a1aa" size={16} strokeWidth={3} />
+    </StyledTouchableOpacity>
   </StyledView>
 )
 
@@ -59,6 +77,9 @@ interface WorkoutSelectorProps {
   nextExercise: () => void
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
   activeExerciseId: string | undefined
+  totalSets: number
+  onAddSet: () => void
+  onSetLongPress: (setNumber: number) => void
   jumpToSet: (set: number) => void
   resetSetsFrom: (exerciseId: string, setNumber: number) => void
   arePreviousSetsCompleted: (exerciseId: string, setNumber: number) => boolean
@@ -75,6 +96,9 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   nextExercise,
   isSetCompleted,
   activeExerciseId,
+  totalSets,
+  onAddSet,
+  onSetLongPress,
   jumpToSet,
   resetSetsFrom,
   arePreviousSetsCompleted,
@@ -114,7 +138,9 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               </StyledText>
             </StyledView>
             <SetTracker
-              totalSets={settings.maxSets}
+              totalSets={totalSets}
+              onAddSetPress={onAddSet}
+              onSetLongPress={onSetLongPress}
               isSetCompleted={(setNumber) =>
                 isSetCompleted(activeExerciseId ?? '', setNumber)
               }

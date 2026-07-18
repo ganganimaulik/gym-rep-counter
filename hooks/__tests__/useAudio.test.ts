@@ -276,6 +276,37 @@ describe('useAudio Hook', () => {
 
       expect(Speech.speak).toHaveBeenCalledWith('Second', expect.any(Object))
     })
+
+    it('recovers the queue when an utterance never settles (stuck web TTS)', async () => {
+      const { result } = await renderAndWait()
+
+      act(() => {
+        result.current.queueSpeak('First')
+        result.current.queueSpeak('Second')
+      })
+
+      expect(Speech.speak).toHaveBeenCalledWith('First', expect.any(Object))
+      expect(Speech.speak).toHaveBeenCalledTimes(1)
+
+      // Neither onDone nor onError ever fires for 'First'. The watchdog
+      // must clear the native channel and move on to 'Second'.
+      await act(async () => {
+        jest.advanceTimersByTime(10100)
+      })
+
+      expect(Speech.stop).toHaveBeenCalled()
+      expect(Speech.speak).toHaveBeenCalledWith('Second', expect.any(Object))
+      expect(Speech.speak).toHaveBeenCalledTimes(2)
+
+      // A late onDone from the stuck utterance must not advance the queue
+      // a second time.
+      const firstOptions = (Speech.speak as jest.Mock).mock.calls[0][1]
+      await act(async () => {
+        firstOptions.onDone()
+        await jest.runAllTimers()
+      })
+      expect(Speech.speak).toHaveBeenCalledTimes(2)
+    })
   })
 
   describe('Direct Speech', () => {
