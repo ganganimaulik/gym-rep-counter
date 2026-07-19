@@ -4,7 +4,37 @@ import type {
   StreakInfo,
   VolumeData,
   TrendData,
+  ExerciseTrendSeries,
+  WeightUnit,
 } from '../declarations'
+
+// Order units render in: kg first, then plates
+const UNIT_ORDER: WeightUnit[] = ['kg', 'plates']
+
+/**
+ * Unit a set was logged in; sets predating weight units are treated as kg.
+ */
+function getSetUnit(set: WorkoutSet): WeightUnit {
+  return set.weightUnit ?? 'kg'
+}
+
+/**
+ * Format a Date to a YYYY-MM-DD string in the system's local timezone.
+ */
+function toLocalYMD(date: Date): string {
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Parse a YYYY-MM-DD string into a local Date object.
+ */
+function parseLocalYMD(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
 
 /**
  * Get the start of a week (Monday) for a given date
@@ -25,11 +55,13 @@ function getWeekStart(date: Date): Date {
  */
 function getWeekKey(date: Date): string {
   const weekStart = getWeekStart(date)
-  return weekStart.toISOString().split('T')[0]
+  return toLocalYMD(weekStart)
 }
 
 /**
- * Calculate Personal Records (PRs) - max weight lifted per exercise
+ * Calculate Personal Records (PRs) - max weight lifted per exercise and unit.
+ * Kg and plates weights are never compared against each other, so an exercise
+ * logged in both units gets a separate PR per unit.
  */
 export function calculatePRs(
   history: WorkoutSet[],
@@ -39,13 +71,14 @@ export function calculatePRs(
     ? history.filter((h) => h.exerciseId === exerciseId)
     : history
 
-  // Group by exercise to find max weight for each
+  // Group by exercise + unit to find max weight for each
   const exerciseMap = new Map<string, { set: WorkoutSet; maxWeight: number }>()
 
   for (const set of filtered) {
-    const existing = exerciseMap.get(set.exerciseId)
+    const key = `${set.exerciseId}::${getSetUnit(set)}`
+    const existing = exerciseMap.get(key)
     if (!existing || set.weight > existing.maxWeight) {
-      exerciseMap.set(set.exerciseId, { set, maxWeight: set.weight })
+      exerciseMap.set(key, { set, maxWeight: set.weight })
     }
   }
 
@@ -56,14 +89,18 @@ export function calculatePRs(
       exerciseId: set.exerciseId,
       exerciseName: set.exerciseName,
       maxWeight: set.weight,
-      ...(set.weightUnit ? { weightUnit: set.weightUnit } : {}),
+      weightUnit: getSetUnit(set),
       repsAtMax: set.reps,
       date: set.date,
     })
   }
 
-  // Sort by max weight descending
-  return prs.sort((a, b) => b.maxWeight - a.maxWeight)
+  // Kg PRs first, then plates; heaviest first within each unit
+  return prs.sort((a, b) =>
+    a.weightUnit === b.weightUnit
+      ? b.maxWeight - a.maxWeight
+      : UNIT_ORDER.indexOf(a.weightUnit) - UNIT_ORDER.indexOf(b.weightUnit),
+  )
 }
 
 /**
@@ -86,14 +123,14 @@ export function calculateStreak(
   // Get unique workout dates
   const workoutDates = new Set<string>()
   for (const set of history) {
-    const dateStr = set.date.toDate().toISOString().split('T')[0]
+    const dateStr = toLocalYMD(set.date.toDate())
     workoutDates.add(dateStr)
   }
 
   // Group dates by week
   const weekWorkouts = new Map<string, Set<string>>()
   for (const dateStr of workoutDates) {
-    const date = new Date(dateStr)
+    const date = parseLocalYMD(dateStr)
     const weekKey = getWeekKey(date)
     if (!weekWorkouts.has(weekKey)) {
       weekWorkouts.set(weekKey, new Set())
@@ -112,7 +149,8 @@ export function calculateStreak(
 
   // Find last workout date
   const allDates = Array.from(workoutDates).sort().reverse()
-  const lastWorkoutDate = allDates.length > 0 ? new Date(allDates[0]) : null
+  const lastWorkoutDate =
+    allDates.length > 0 ? parseLocalYMD(allDates[0]) : null
 
   // Calculate streak (consecutive weeks with 5+ workouts)
   let currentStreak = 0
@@ -136,8 +174,8 @@ export function calculateStreak(
         tempStreak = 1
       } else {
         const prevWeekKey = sortedWeeks[i - 1]
-        const prevWeekStart = new Date(prevWeekKey)
-        const thisWeekStart = new Date(weekKey)
+        const prevWeekStart = parseLocalYMD(prevWeekKey)
+        const thisWeekStart = parseLocalYMD(weekKey)
         const diffDays = Math.round(
           (prevWeekStart.getTime() - thisWeekStart.getTime()) /
             (1000 * 60 * 60 * 24),
@@ -170,7 +208,7 @@ export function calculateStreak(
   currentStreak = 0
   if (sortedWeeks.length > 0) {
     const firstWeekKey = sortedWeeks[0]
-    const firstWeekDate = new Date(firstWeekKey)
+    const firstWeekDate = parseLocalYMD(firstWeekKey)
     const currentWeekDate = getWeekStart(now)
 
     // Check if the most recent week is current week or last week
@@ -184,7 +222,7 @@ export function calculateStreak(
       for (let i = 0; i < sortedWeeks.length; i++) {
         const wKey = sortedWeeks[i]
         const wDays = weekWorkouts.get(wKey)!.size
-        const wDate = new Date(wKey)
+        const wDate = parseLocalYMD(wKey)
 
         const expectedDiff = diffFromCurrent + i
         const actualDiff = Math.round(
@@ -228,8 +266,9 @@ export function calculateVolume(
     return []
   }
 
-  // Single pass: build a map of date string -> total volume for that day
-  const dailyVolume = new Map<string, number>()
+  // Single pass: build a map of date string -> per-unit volume for that day.
+  // Kg and plates volumes are kept apart — summing them would be meaningless.
+  const dailyVolume = new Map<string, { kg: number; plates: number }>()
   for (const set of history) {
     const d = set.date.toDate()
     const year = d.getFullYear()
@@ -237,7 +276,9 @@ export function calculateVolume(
     const day = d.getDate().toString().padStart(2, '0')
     const dateKey = `${year}-${month}-${day}`
     const volume = set.weight * set.reps
-    dailyVolume.set(dateKey, (dailyVolume.get(dateKey) || 0) + volume)
+    const bucket = dailyVolume.get(dateKey) || { kg: 0, plates: 0 }
+    bucket[getSetUnit(set)] += volume
+    dailyVolume.set(dateKey, bucket)
   }
 
   const now = new Date()
@@ -253,14 +294,19 @@ export function calculateVolume(
       weekEndDate.setHours(23, 59, 59, 999)
 
       // Sum volume for each day in this week from the pre-built map
-      let totalVolume = 0
+      let kgVolume = 0
+      let platesVolume = 0
       const cursor = new Date(weekStart)
       for (let d = 0; d < 7; d++) {
         const year = cursor.getFullYear()
         const month = (cursor.getMonth() + 1).toString().padStart(2, '0')
         const day = cursor.getDate().toString().padStart(2, '0')
         const dateKey = `${year}-${month}-${day}`
-        totalVolume += dailyVolume.get(dateKey) || 0
+        const bucket = dailyVolume.get(dateKey)
+        if (bucket) {
+          kgVolume += bucket.kg
+          platesVolume += bucket.plates
+        }
         cursor.setDate(cursor.getDate() + 1)
       }
 
@@ -268,7 +314,8 @@ export function calculateVolume(
         label: `W${count - i}`,
         startDate: weekStart,
         endDate: weekEndDate,
-        totalVolume,
+        kgVolume,
+        platesVolume,
       })
     }
   } else {
@@ -291,14 +338,19 @@ export function calculateVolume(
       )
 
       // Sum volume for each day in this month from the pre-built map
-      let totalVolume = 0
+      let kgVolume = 0
+      let platesVolume = 0
       const daysInMonth = monthEnd.getDate()
       for (let d = 1; d <= daysInMonth; d++) {
         const year = monthStart.getFullYear()
         const month = (monthStart.getMonth() + 1).toString().padStart(2, '0')
         const day = d.toString().padStart(2, '0')
         const dateKey = `${year}-${month}-${day}`
-        totalVolume += dailyVolume.get(dateKey) || 0
+        const bucket = dailyVolume.get(dateKey)
+        if (bucket) {
+          kgVolume += bucket.kg
+          platesVolume += bucket.plates
+        }
       }
 
       const monthNames = [
@@ -320,7 +372,8 @@ export function calculateVolume(
         label: monthNames[monthDate.getMonth()],
         startDate: monthStart,
         endDate: monthEnd,
-        totalVolume,
+        kgVolume,
+        platesVolume,
       })
     }
   }
@@ -329,26 +382,34 @@ export function calculateVolume(
 }
 
 /**
- * Calculate trends over time for a specific exercise
+ * Calculate trends over time for a specific exercise, one series per weight
+ * unit. Averaging kg and plates sets together would produce meaningless
+ * numbers, so days are aggregated within each unit only.
  */
 export function calculateTrends(
   history: WorkoutSet[],
   exerciseId: string,
-): TrendData[] {
+): ExerciseTrendSeries[] {
   const filtered = history.filter((h) => h.exerciseId === exerciseId)
 
   if (filtered.length === 0) {
     return []
   }
 
-  // Group by date
-  const dateMap = new Map<
-    string,
-    { totalWeight: number; totalReps: number; count: number }
+  // Group by unit, then by date
+  const unitDateMap = new Map<
+    WeightUnit,
+    Map<string, { totalWeight: number; totalReps: number; count: number }>
   >()
 
   for (const set of filtered) {
-    const dateStr = set.date.toDate().toISOString().split('T')[0]
+    const unit = getSetUnit(set)
+    let dateMap = unitDateMap.get(unit)
+    if (!dateMap) {
+      dateMap = new Map()
+      unitDateMap.set(unit, dateMap)
+    }
+    const dateStr = toLocalYMD(set.date.toDate())
     const existing = dateMap.get(dateStr) || {
       totalWeight: 0,
       totalReps: 0,
@@ -360,18 +421,29 @@ export function calculateTrends(
     dateMap.set(dateStr, existing)
   }
 
-  // Convert to sorted TrendData array
-  const trends: TrendData[] = []
-  for (const [dateStr, data] of dateMap) {
-    trends.push({
-      date: new Date(dateStr),
-      avgWeight: Math.round((data.totalWeight / data.count) * 10) / 10,
-      avgReps: Math.round((data.totalReps / data.count) * 10) / 10,
-      setCount: data.count,
+  // Convert to per-unit series with sorted TrendData arrays
+  const series: ExerciseTrendSeries[] = []
+  for (const unit of UNIT_ORDER) {
+    const dateMap = unitDateMap.get(unit)
+    if (!dateMap) continue
+
+    const trends: TrendData[] = []
+    for (const [dateStr, data] of dateMap) {
+      trends.push({
+        date: parseLocalYMD(dateStr),
+        avgWeight: Math.round((data.totalWeight / data.count) * 10) / 10,
+        avgReps: Math.round((data.totalReps / data.count) * 10) / 10,
+        setCount: data.count,
+      })
+    }
+
+    series.push({
+      weightUnit: unit,
+      data: trends.sort((a, b) => a.date.getTime() - b.date.getTime()),
     })
   }
 
-  return trends.sort((a, b) => a.date.getTime() - b.date.getTime())
+  return series
 }
 
 /**

@@ -46,19 +46,68 @@ const mockAnalytics = {
       exerciseName: 'Bench Press',
       repsAtMax: 10,
       maxWeight: 80,
+      weightUnit: 'kg',
+      date: createMockTimestamp(new Date('2026-07-13T10:00:00')),
+    },
+    {
+      exerciseId: 'ex2',
+      exerciseName: 'Leg Press',
+      repsAtMax: 8,
+      maxWeight: 12,
+      weightUnit: 'plates',
       date: createMockTimestamp(new Date('2026-07-13T10:00:00')),
     },
   ],
-  streak: 5,
+  streak: {
+    currentStreak: 5,
+    longestStreak: 6,
+    lastWorkoutDate: new Date('2026-07-13T10:00:00'),
+    currentWeekWorkouts: 3,
+  },
   weeklyVolume: [
-    { label: 'Week 1', value: 10000 },
-    { label: 'Week 2', value: 12000 },
+    { label: 'W1', kgVolume: 10000, platesVolume: 300 },
+    { label: 'W2', kgVolume: 12000, platesVolume: 350 },
   ],
-  exercises: ['Bench Press', 'Squat'],
-  getExerciseTrends: jest.fn(() => ({
-    labels: ['Week 1', 'Week 2'],
-    data: [75, 80],
-  })),
+  exercises: [
+    { id: 'ex1', name: 'Bench Press' },
+    { id: 'ex2', name: 'Leg Press' },
+  ],
+  getExerciseTrends: jest.fn(() => [
+    {
+      weightUnit: 'kg',
+      data: [
+        {
+          date: new Date('2026-07-06T10:00:00'),
+          avgWeight: 75,
+          avgReps: 10,
+          setCount: 3,
+        },
+        {
+          date: new Date('2026-07-13T10:00:00'),
+          avgWeight: 80,
+          avgReps: 10,
+          setCount: 3,
+        },
+      ],
+    },
+    {
+      weightUnit: 'plates',
+      data: [
+        {
+          date: new Date('2026-07-06T10:00:00'),
+          avgWeight: 10,
+          avgReps: 8,
+          setCount: 2,
+        },
+        {
+          date: new Date('2026-07-13T10:00:00'),
+          avgWeight: 12,
+          avgReps: 8,
+          setCount: 2,
+        },
+      ],
+    },
+  ]),
   refreshAnalytics: jest.fn(),
 }
 
@@ -125,7 +174,7 @@ describe('ProgressScreen', () => {
     })
   })
 
-  it('switches to Workouts sub-tab and renders PRs', async () => {
+  it('switches to Workouts sub-tab and renders PRs per weight unit', async () => {
     const { getByText } = render(
       <ProgressScreen
         visible={true}
@@ -140,9 +189,39 @@ describe('ProgressScreen', () => {
 
     await waitFor(() => {
       expect(getByText('Bench Press')).toBeTruthy()
-      expect(getByText(/80/)).toBeTruthy()
-      expect(getByText(/10/)).toBeTruthy()
+      // PRs keep their own unit instead of being compared numerically
+      expect(getByText('80 kg')).toBeTruthy()
+      expect(getByText('× 10 reps')).toBeTruthy()
+      expect(getByText('Leg Press')).toBeTruthy()
+      expect(getByText('12 plates')).toBeTruthy()
+      // Both units present -> group labels shown
+      expect(getByText('kg')).toBeTruthy()
+      expect(getByText('plates')).toBeTruthy()
       expect(getByText('Weekly Volume')).toBeTruthy()
+    })
+  })
+
+  it('renders separate weekly volume and trend charts per weight unit', async () => {
+    const { getByText } = render(
+      <ProgressScreen
+        visible={true}
+        onClose={jest.fn()}
+        user={mockUser}
+        dataHook={mockDataHook}
+      />,
+    )
+
+    fireEvent.press(getByText('Workout Trends'))
+
+    await waitFor(() => {
+      expect(getByText('Total weight × reps per week (kg)')).toBeTruthy()
+      expect(getByText('Total plates × reps per week (plates)')).toBeTruthy()
+      expect(
+        getByText('Average weight trend (last 10 sessions, kg)'),
+      ).toBeTruthy()
+      expect(
+        getByText('Average weight trend (last 10 sessions, plates)'),
+      ).toBeTruthy()
     })
   })
 

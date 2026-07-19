@@ -21,7 +21,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
 import type {
-  TrendData,
+  ExerciseTrendSeries,
   WeightLog,
   CalorieLog,
   MeasurementLog,
@@ -123,7 +123,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false)
 
   const [selectedExercise, setSelectedExercise] = useState<string>('')
-  const [exerciseTrends, setExerciseTrends] = useState<TrendData[]>([])
+  const [exerciseTrends, setExerciseTrends] = useState<ExerciseTrendSeries[]>(
+    [],
+  )
 
   useEffect(() => {
     if (visible) {
@@ -385,14 +387,24 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     })
   }
 
-  const volumeChartData = useMemo(
+  // Kg and plates are separate measurement systems — each gets its own chart
+  const hasKgVolume = useMemo(
+    () => weeklyVolume.some((v) => (v.kgVolume || 0) > 0),
+    [weeklyVolume],
+  )
+  const hasPlatesVolume = useMemo(
+    () => weeklyVolume.some((v) => (v.platesVolume || 0) > 0),
+    [weeklyVolume],
+  )
+
+  const kgVolumeChartData = useMemo(
     () => ({
       labels: weeklyVolume.map((v) => v.label),
       datasets: [
         {
           data:
             weeklyVolume.length > 0
-              ? weeklyVolume.map((v) => v.totalVolume || 0)
+              ? weeklyVolume.map((v) => v.kgVolume || 0)
               : [0],
         },
       ],
@@ -400,22 +412,46 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     [weeklyVolume],
   )
 
-  const trendsChartData = useMemo(
+  const platesVolumeChartData = useMemo(
     () => ({
-      labels: exerciseTrends.slice(-10).map((t) => formatDate(t.date)),
+      labels: weeklyVolume.map((v) => v.label),
       datasets: [
         {
           data:
-            exerciseTrends.length > 0
-              ? exerciseTrends.slice(-10).map((t) => t.avgWeight || 0)
+            weeklyVolume.length > 0
+              ? weeklyVolume.map((v) => v.platesVolume || 0)
               : [0],
-          color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
-          strokeWidth: 2.5,
         },
       ],
     }),
+    [weeklyVolume],
+  )
+
+  const trendChartSeries = useMemo(
+    () =>
+      exerciseTrends
+        .filter((series) => series.data.length > 1)
+        .map((series) => ({
+          weightUnit: series.weightUnit,
+          chartData: {
+            labels: series.data.slice(-10).map((t) => formatDate(t.date)),
+            datasets: [
+              {
+                data: series.data.slice(-10).map((t) => t.avgWeight || 0),
+                color: (opacity = 1) =>
+                  series.weightUnit === 'plates'
+                    ? `rgba(245, 158, 11, ${opacity})`
+                    : `rgba(99, 102, 241, ${opacity})`,
+                strokeWidth: 2.5,
+              },
+            ],
+          },
+        })),
     [exerciseTrends],
   )
+
+  const kgPrs = prs.filter((pr) => (pr.weightUnit ?? 'kg') === 'kg')
+  const platePrs = prs.filter((pr) => pr.weightUnit === 'plates')
 
   if (!visible) return null
 
@@ -522,8 +558,8 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
               </StyledText>
             </StyledView>
 
-            {/* Weekly Volume Chart */}
-            {weeklyVolume.length > 0 && (
+            {/* Weekly Volume Charts — one per weight unit in the history */}
+            {(hasKgVolume || hasPlatesVolume) && (
               <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
                 <StyledView className="flex-row items-center mb-1">
                   <TrendingUp color="#3b82f6" size={18} />
@@ -531,21 +567,55 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                     Weekly Volume
                   </StyledText>
                 </StyledView>
-                <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
-                  Total weight × reps per week (kg)
-                </StyledText>
-                <LineChart
-                  data={volumeChartData}
-                  width={screenWidth - 20}
-                  height={170}
-                  chartConfig={chartConfig}
-                  bezier
-                  style={{
-                    borderRadius: 12,
-                    marginLeft: -40,
-                    marginRight: -30,
-                  }}
-                />
+                {hasKgVolume && (
+                  <>
+                    <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
+                      Total weight × reps per week (kg)
+                    </StyledText>
+                    <LineChart
+                      data={kgVolumeChartData}
+                      width={screenWidth - 20}
+                      height={170}
+                      chartConfig={chartConfig}
+                      bezier
+                      style={{
+                        borderRadius: 12,
+                        marginLeft: -40,
+                        marginRight: -30,
+                      }}
+                    />
+                  </>
+                )}
+                {hasPlatesVolume && (
+                  <>
+                    <StyledText
+                      className={`text-zinc-500 text-[10px] font-semibold mb-3 ${
+                        hasKgVolume ? 'mt-4' : ''
+                      }`}>
+                      Total plates × reps per week (plates)
+                    </StyledText>
+                    <LineChart
+                      data={platesVolumeChartData}
+                      width={screenWidth - 20}
+                      height={170}
+                      chartConfig={{
+                        ...chartConfig,
+                        color: (opacity = 1) =>
+                          `rgba(245, 158, 11, ${opacity})`,
+                        propsForDots: {
+                          ...chartConfig.propsForDots,
+                          stroke: '#f59e0b',
+                        },
+                      }}
+                      bezier
+                      style={{
+                        borderRadius: 12,
+                        marginLeft: -40,
+                        marginRight: -30,
+                      }}
+                    />
+                  </>
+                )}
               </StyledView>
             )}
 
@@ -562,32 +632,48 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   Complete sets to establish your PRs!
                 </StyledText>
               ) : (
-                prs.slice(0, 5).map((pr, index) => (
-                  <StyledView
-                    key={pr.exerciseId}
-                    className={`flex-row justify-between items-center py-3 ${
-                      index < prs.slice(0, 5).length - 1
-                        ? 'border-b border-zinc-800/60'
-                        : ''
-                    }`}>
-                    <StyledView className="flex-1 mr-2">
-                      <StyledText className="text-white font-bold text-sm">
-                        {pr.exerciseName}
-                      </StyledText>
-                      <StyledText className="text-zinc-500 text-[9px] font-bold uppercase tracking-wider">
-                        {formatDate(pr.date.toDate())}
-                      </StyledText>
+                // Kg and plates PRs aren't comparable, so they get their own
+                // groups (labeled only when both units are present)
+                [
+                  { unit: 'kg', records: kgPrs },
+                  { unit: 'plates', records: platePrs },
+                ]
+                  .filter((group) => group.records.length > 0)
+                  .map((group, _, groups) => (
+                    <StyledView key={group.unit}>
+                      {groups.length > 1 && (
+                        <StyledText className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mt-2">
+                          {group.unit}
+                        </StyledText>
+                      )}
+                      {group.records.slice(0, 5).map((pr, index) => (
+                        <StyledView
+                          key={`${pr.exerciseId}-${pr.weightUnit ?? 'kg'}`}
+                          className={`flex-row justify-between items-center py-3 ${
+                            index < group.records.slice(0, 5).length - 1
+                              ? 'border-b border-zinc-800/60'
+                              : ''
+                          }`}>
+                          <StyledView className="flex-1 mr-2">
+                            <StyledText className="text-white font-bold text-sm">
+                              {pr.exerciseName}
+                            </StyledText>
+                            <StyledText className="text-zinc-500 text-[9px] font-bold uppercase tracking-wider">
+                              {formatDate(pr.date.toDate())}
+                            </StyledText>
+                          </StyledView>
+                          <StyledView className="items-end">
+                            <StyledText className="text-yellow-400 font-black text-base">
+                              {pr.maxWeight} {pr.weightUnit ?? 'kg'}
+                            </StyledText>
+                            <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
+                              × {pr.repsAtMax} reps
+                            </StyledText>
+                          </StyledView>
+                        </StyledView>
+                      ))}
                     </StyledView>
-                    <StyledView className="items-end">
-                      <StyledText className="text-yellow-400 font-black text-base">
-                        {pr.maxWeight} {pr.weightUnit ?? 'kg'}
-                      </StyledText>
-                      <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
-                        × {pr.repsAtMax} reps
-                      </StyledText>
-                    </StyledView>
-                  </StyledView>
-                ))
+                  ))
               )}
             </StyledView>
 
@@ -613,28 +699,33 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                     ))}
                   </Picker>
                 </StyledView>
-                {exerciseTrends.length > 1 ? (
-                  <>
-                    <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
-                      Average weight trend (last 10 sessions)
-                    </StyledText>
-                    <LineChart
-                      data={trendsChartData}
-                      width={screenWidth - 20}
-                      height={170}
-                      chartConfig={{
-                        ...chartConfig,
-                        color: (opacity = 1) =>
-                          `rgba(16, 185, 129, ${opacity})`,
-                      }}
-                      bezier
-                      style={{
-                        borderRadius: 12,
-                        marginLeft: -40,
-                        marginRight: -30,
-                      }}
-                    />
-                  </>
+                {trendChartSeries.length > 0 ? (
+                  trendChartSeries.map((series) => (
+                    <StyledView key={series.weightUnit}>
+                      <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
+                        Average weight trend (last 10 sessions,{' '}
+                        {series.weightUnit})
+                      </StyledText>
+                      <LineChart
+                        data={series.chartData}
+                        width={screenWidth - 20}
+                        height={170}
+                        chartConfig={{
+                          ...chartConfig,
+                          color: (opacity = 1) =>
+                            series.weightUnit === 'plates'
+                              ? `rgba(245, 158, 11, ${opacity})`
+                              : `rgba(16, 185, 129, ${opacity})`,
+                        }}
+                        bezier
+                        style={{
+                          borderRadius: 12,
+                          marginLeft: -40,
+                          marginRight: -30,
+                        }}
+                      />
+                    </StyledView>
+                  ))
                 ) : (
                   <StyledText className="text-zinc-500 text-xs italic text-center py-4">
                     Need more data to show trends for this exercise.

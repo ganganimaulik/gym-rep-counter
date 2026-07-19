@@ -5,7 +5,7 @@ import type {
   PRRecord,
   StreakInfo,
   VolumeData,
-  TrendData,
+  ExerciseTrendSeries,
 } from '../declarations'
 import {
   calculatePRs,
@@ -24,7 +24,7 @@ export interface AnalyticsHook {
   weeklyVolume: VolumeData[]
   monthlyVolume: VolumeData[]
   exercises: { id: string; name: string }[]
-  getExerciseTrends: (exerciseId: string) => TrendData[]
+  getExerciseTrends: (exerciseId: string) => ExerciseTrendSeries[]
   refreshAnalytics: (user: FirebaseUser | null) => Promise<void>
 }
 
@@ -130,7 +130,7 @@ export const useAnalytics = (dataHook: DataHook): AnalyticsHook => {
   )
 
   const getExerciseTrends = useCallback(
-    (exerciseId: string): TrendData[] => {
+    (exerciseId: string): ExerciseTrendSeries[] => {
       return calculateTrends(state.history, exerciseId)
     },
     [state.history],

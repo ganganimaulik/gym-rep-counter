@@ -16,10 +16,13 @@ jest.mock('../../utils/analyticsUtils', () => ({
     currentWeekWorkouts: 3,
   })),
   calculateVolume: jest.fn(() => [
-    { label: 'Week 1', totalVolume: 5000, workoutCount: 3 },
+    { label: 'Week 1', kgVolume: 5000, platesVolume: 120 },
   ]),
   calculateTrends: jest.fn(() => [
-    { date: '2024-01-01', avgWeight: 80, avgReps: 10, setCount: 3 },
+    {
+      weightUnit: 'kg',
+      data: [{ date: '2024-01-01', avgWeight: 80, avgReps: 10, setCount: 3 }],
+    },
   ]),
   getUniqueExercises: jest.fn(() => [{ id: 'ex1', name: 'Bench Press' }]),
 }))
@@ -207,6 +210,7 @@ describe('useAnalytics Hook', () => {
 
     const trends = result.current.getExerciseTrends('ex1')
     expect(trends).toHaveLength(1)
-    expect(trends[0].avgWeight).toBe(80)
+    expect(trends[0].weightUnit).toBe('kg')
+    expect(trends[0].data[0].avgWeight).toBe(80)
   })
 })

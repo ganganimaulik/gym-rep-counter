@@ -51,11 +51,13 @@ export interface JournalEntry {
 }
 
 // Analytics Types
+// Kg and plates numbers are never comparable or summable, so every analytics
+// shape keeps the two units apart.
 export interface PRRecord {
   exerciseId: string
   exerciseName: string
   maxWeight: number
-  weightUnit?: WeightUnit
+  weightUnit: WeightUnit
   repsAtMax: number
   date: Timestamp
 }
@@ -71,7 +73,8 @@ export interface VolumeData {
   label: string // e.g., "Week 1" or "Dec"
   startDate: Date
   endDate: Date
-  totalVolume: number // weight × reps sum
+  kgVolume: number // weight × reps sum of kg sets (unit-less legacy sets count as kg)
+  platesVolume: number // weight × reps sum of plates sets
 }
 
 export interface TrendData {
@@ -79,6 +82,13 @@ export interface TrendData {
   avgWeight: number
   avgReps: number
   setCount: number
+}
+
+// Per-unit trend line for one exercise; an exercise logged in both units
+// yields one series per unit
+export interface ExerciseTrendSeries {
+  weightUnit: WeightUnit
+  data: TrendData[]
 }
 
 // TDEE Calculator Types (matching "TDEE variant with bf 3.06" spreadsheet)
