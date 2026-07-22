@@ -174,7 +174,7 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
 
           <StyledScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}>
+            contentContainerStyle={{ paddingBottom: 40 }}>
             {/* Description */}
             <StyledText className="text-zinc-400 text-xs mb-4">
               Select a date range to export your journal entries, supplements,
@@ -371,20 +371,22 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
               testID="copy-export-button"
               onPress={handleCopy}
               activeOpacity={0.8}
-              className={`flex-row items-center justify-center p-4 rounded-2xl gap-2 ${
-                isCopied ? 'bg-emerald-600' : 'bg-sky-600'
+              className={`flex-row items-center justify-center py-4 px-5 rounded-2xl border shadow-lg mt-3 mb-6 mx-1 ${
+                isCopied
+                  ? 'bg-emerald-500/20 border-emerald-500/50'
+                  : 'bg-sky-500/20 border-sky-500/50'
               }`}>
               {isCopied ? (
-                <StyledView className="flex-row items-center gap-2">
-                  <Check color="#ffffff" size={18} />
-                  <StyledText className="text-white font-bold text-sm">
+                <StyledView className="flex-row items-center justify-center gap-2">
+                  <Check color="#10b981" size={18} />
+                  <StyledText className="text-emerald-400 font-black text-sm tracking-wider uppercase">
                     COPIED TO CLIPBOARD!
                   </StyledText>
                 </StyledView>
               ) : (
-                <StyledView className="flex-row items-center gap-2">
-                  <Copy color="#ffffff" size={18} />
-                  <StyledText className="text-white font-bold text-sm">
+                <StyledView className="flex-row items-center justify-center gap-2">
+                  <Copy color="#38bdf8" size={18} />
+                  <StyledText className="text-sky-400 font-black text-sm tracking-wider uppercase">
                     COPY DATA TO CLIPBOARD
                   </StyledText>
                 </StyledView>
