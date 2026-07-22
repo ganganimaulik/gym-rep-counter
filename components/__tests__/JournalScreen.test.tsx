@@ -14,6 +14,8 @@ jest.mock('lucide-react-native', () => ({
   Check: () => null,
   AlertTriangle: () => null,
   Calendar: () => null,
+  Download: () => null,
+  Copy: () => null,
 }))
 
 // Mock DateTimePicker
@@ -40,6 +42,17 @@ describe('JournalScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     window.confirm = jest.fn()
+  })
+
+  test('opens export modal when export header button is pressed', async () => {
+    const { getByTestId, getByText } = render(
+      <JournalScreen user={null} visible={true} dataHook={mockDataHook} />,
+    )
+
+    const exportBtn = getByTestId('export-journal-button')
+    fireEvent.press(exportBtn)
+
+    expect(getByText('EXPORT DATA')).toBeTruthy()
   })
 
   test('prompts for confirmation before removing a popular supplement suggestion on native', async () => {

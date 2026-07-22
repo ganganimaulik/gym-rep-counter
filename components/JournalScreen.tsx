@@ -23,9 +23,11 @@ import {
   Check,
   AlertTriangle,
   Calendar,
+  Download,
 } from 'lucide-react-native'
 import { BlurView } from 'expo-blur'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import ExportDataModal from './ExportDataModal'
 
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { JournalEntry, SupplementLog } from '../declarations'
@@ -102,6 +104,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   const [scheduleModalSupp, setScheduleModalSupp] =
     useState<SupplementSuggestion | null>(null)
   const [manageModalVisible, setManageModalVisible] = useState(false)
+  const [exportModalVisible, setExportModalVisible] = useState(false)
   const suggestions = dataHook.settings.supplementSuggestions || []
 
   // Migrate existing scheduled supplements that don't have a scheduleActivatedDate
@@ -549,13 +552,22 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         <StyledText className="text-2xl font-black text-white">
           JOURNAL
         </StyledText>
-        <StyledTouchableOpacity
-          testID="add-journal-note-button"
-          onPress={handleOpenAddEntry}
-          activeOpacity={0.7}
-          className="bg-sky-600/20 p-2 rounded-full border border-sky-500/30">
-          <Plus color="#0ea5e9" size={20} />
-        </StyledTouchableOpacity>
+        <StyledView className="flex-row items-center gap-2">
+          <StyledTouchableOpacity
+            testID="export-journal-button"
+            onPress={() => setExportModalVisible(true)}
+            activeOpacity={0.7}
+            className="bg-zinc-900 p-2 rounded-full border border-zinc-800">
+            <Download color="#0ea5e9" size={20} />
+          </StyledTouchableOpacity>
+          <StyledTouchableOpacity
+            testID="add-journal-note-button"
+            onPress={handleOpenAddEntry}
+            activeOpacity={0.7}
+            className="bg-sky-600/20 p-2 rounded-full border border-sky-500/30">
+            <Plus color="#0ea5e9" size={20} />
+          </StyledTouchableOpacity>
+        </StyledView>
       </StyledView>
 
       <SectionList
@@ -1248,6 +1260,14 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           </StyledBlurView>
         </Modal>
       </Modal>
+
+      <ExportDataModal
+        visible={exportModalVisible}
+        onClose={() => setExportModalVisible(false)}
+        journalEntries={journalEntries}
+        weightLogs={weightLogs}
+        calorieLogs={calorieLogs}
+      />
     </StyledView>
   )
 }
