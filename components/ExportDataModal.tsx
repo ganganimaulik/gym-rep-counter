@@ -185,39 +185,68 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <StyledText className="text-zinc-300 font-bold text-xs uppercase tracking-wider mb-2">
               Select Time Range
             </StyledText>
-            <StyledView className="flex-row flex-wrap gap-2 mb-4">
-              {[
-                { id: '1m', label: '1 Month', testID: 'export-range-1m' },
-                { id: '3m', label: '3 Months', testID: 'export-range-3m' },
-                { id: '6m', label: '6 Months', testID: 'export-range-6m' },
-                {
-                  id: 'custom',
-                  label: 'Custom Range',
-                  testID: 'export-range-custom',
-                },
-              ].map((opt) => {
-                const isActive = rangeOption === opt.id
-                return (
-                  <StyledTouchableOpacity
-                    key={opt.id}
-                    testID={opt.testID}
-                    onPress={() =>
-                      setRangeOption(opt.id as ExportDateRangeOption)
-                    }
-                    className={`flex-1 min-w-[45%] py-3 px-3 rounded-xl border items-center justify-center ${
-                      isActive
-                        ? 'bg-sky-600/20 border-sky-500'
-                        : 'bg-zinc-900 border-zinc-800'
-                    }`}>
-                    <StyledText
-                      className={`text-xs font-bold ${
-                        isActive ? 'text-sky-400' : 'text-zinc-400'
+            <StyledView className="space-y-2 mb-4">
+              <StyledView className="flex-row space-x-2">
+                {[
+                  { id: '1m', label: '1 Month', testID: 'export-range-1m' },
+                  { id: '3m', label: '3 Months', testID: 'export-range-3m' },
+                ].map((opt) => {
+                  const isActive = rangeOption === opt.id
+                  return (
+                    <StyledTouchableOpacity
+                      key={opt.id}
+                      testID={opt.testID}
+                      onPress={() =>
+                        setRangeOption(opt.id as ExportDateRangeOption)
+                      }
+                      className={`flex-1 py-3 px-3 rounded-xl border items-center justify-center ${
+                        isActive
+                          ? 'bg-sky-600/20 border-sky-500'
+                          : 'bg-zinc-900 border-zinc-800'
                       }`}>
-                      {opt.label}
-                    </StyledText>
-                  </StyledTouchableOpacity>
-                )
-              })}
+                      <StyledText
+                        className={`text-xs font-bold ${
+                          isActive ? 'text-sky-400' : 'text-zinc-400'
+                        }`}>
+                        {opt.label}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  )
+                })}
+              </StyledView>
+
+              <StyledView className="flex-row space-x-2">
+                {[
+                  { id: '6m', label: '6 Months', testID: 'export-range-6m' },
+                  {
+                    id: 'custom',
+                    label: 'Custom Range',
+                    testID: 'export-range-custom',
+                  },
+                ].map((opt) => {
+                  const isActive = rangeOption === opt.id
+                  return (
+                    <StyledTouchableOpacity
+                      key={opt.id}
+                      testID={opt.testID}
+                      onPress={() =>
+                        setRangeOption(opt.id as ExportDateRangeOption)
+                      }
+                      className={`flex-1 py-3 px-3 rounded-xl border items-center justify-center ${
+                        isActive
+                          ? 'bg-sky-600/20 border-sky-500'
+                          : 'bg-zinc-900 border-zinc-800'
+                      }`}>
+                      <StyledText
+                        className={`text-xs font-bold ${
+                          isActive ? 'text-sky-400' : 'text-zinc-400'
+                        }`}>
+                        {opt.label}
+                      </StyledText>
+                    </StyledTouchableOpacity>
+                  )
+                })}
+              </StyledView>
             </StyledView>
 
             {/* Custom Date Pickers */}
