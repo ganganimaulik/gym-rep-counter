@@ -39,8 +39,6 @@ export const DEFAULT_SMOOTHING_WEEKS = 12
 
 export type WeightUnit = 'lb' | 'kg'
 export type EnergyUnit = 'cal' | 'kj'
-export type Gender = 'male' | 'female'
-export type MeasurementUnit = 'inch' | 'cm'
 
 // ---------------------------------------------------------------------------
 // Unit conversion lookup (matches AV6/AV7/AW7 logic)
@@ -232,57 +230,6 @@ export function calculateSmoothedTDEE(
 }
 
 // ---------------------------------------------------------------------------
-// Body fat % — US Army method (column R)
-// ---------------------------------------------------------------------------
-
-/**
- * Calculates body fat percentage using the US Army formula.
- * Matches the exact formula in column R of the spreadsheet.
- *
- * Male (inch):
- *   BF% = ROUND((86.01 × LOG10(waist - neck)) - (70.041 × LOG10(height)) + 36.76) / 100
- *
- * Female (inch):
- *   BF% = ROUND((163.205 × LOG10(waist + hip - neck)) - (97.684 × LOG10(height)) - 78.387) / 100
- *
- * For cm: divide each measurement by 2.54 first, then apply inch formula.
- *
- * @returns Body fat as a decimal (e.g. 0.15 = 15%), or null if inputs are invalid
- */
-export function calculateBodyFatPercent(
-  gender: Gender,
-  waist: number,
-  neck: number,
-  height: number,
-  measurementUnit: MeasurementUnit,
-  hip?: number,
-): number | null {
-  // Convert cm to inches if needed (spreadsheet divides by 2.54 inline)
-  const toInch = (v: number) => (measurementUnit === 'cm' ? v / 2.54 : v)
-
-  const w = toInch(waist)
-  const n = toInch(neck)
-  const h = toInch(height)
-
-  if (w <= 0 || n <= 0 || h <= 0) return null
-
-  if (gender === 'male') {
-    const diff = w - n
-    if (diff <= 0) return null
-    const raw = 86.01 * Math.log10(diff) - 70.041 * Math.log10(h) + 36.76
-    return Math.round(raw) / 100
-  } else {
-    if (hip === undefined || hip === null) return null
-    const hp = toInch(hip)
-    if (hp <= 0) return null
-    const sum = w + hp - n
-    if (sum <= 0) return null
-    const raw = 163.205 * Math.log10(sum) - 97.684 * Math.log10(h) - 78.387
-    return Math.round(raw) / 100
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Goal projection (cells F9, L8, AF4, AF5, L7)
 // ---------------------------------------------------------------------------
 
@@ -361,10 +308,6 @@ export interface WeekInput {
   dailyWeights: (number | null)[]
   /** 7 daily calorie values (Mon–Sun), null for missing */
   dailyCalories: (number | null)[]
-  /** Optional body measurements for BF% */
-  waist?: number
-  neck?: number
-  hip?: number
 }
 
 export interface WeekResult {
@@ -380,7 +323,6 @@ export interface WeekResult {
   rawTDEE: number | null
   smoothedTDEE: number | null
   displayTDEE: number | null
-  bodyFatPct: number | null
   weightDayCount: number
   calorieDayCount: number
 }
@@ -390,10 +332,6 @@ export interface TDEEPipelineConfig {
   weightUnit: WeightUnit
   energyUnit: EnergyUnit
   smoothingWindowWeeks?: number
-  // Optional: for body fat calculation
-  gender?: Gender
-  height?: number
-  measurementUnit?: MeasurementUnit
   // Optional: for goal projection
   goalWeight?: number
   goalWeeklyRate?: number
@@ -433,9 +371,6 @@ export function calculateTDEEPipeline(
     weightUnit,
     energyUnit,
     smoothingWindowWeeks = DEFAULT_SMOOTHING_WEEKS,
-    gender,
-    height,
-    measurementUnit,
     goalWeight,
     goalWeeklyRate,
   } = config
@@ -581,25 +516,6 @@ export function calculateTDEEPipeline(
       }
     }
 
-    // Body fat calculation (optional)
-    let bodyFatPct: number | null = null
-    if (
-      gender &&
-      height &&
-      measurementUnit &&
-      input.waist !== undefined &&
-      input.neck !== undefined
-    ) {
-      bodyFatPct = calculateBodyFatPercent(
-        gender,
-        input.waist,
-        input.neck,
-        height,
-        measurementUnit,
-        input.hip,
-      )
-    }
-
     weeks.push({
       weekStart: input.weekStart,
       weekEnd,
@@ -613,7 +529,6 @@ export function calculateTDEEPipeline(
       rawTDEE,
       smoothedTDEE,
       displayTDEE,
-      bodyFatPct,
       weightDayCount,
       calorieDayCount,
     })

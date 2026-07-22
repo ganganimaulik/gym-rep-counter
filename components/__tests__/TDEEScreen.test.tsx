@@ -41,7 +41,6 @@ const mockTDEEData = {
   weeksToGoal: 8,
   goalDate: new Date('2026-09-07T00:00:00'),
   displayTDEE: 2675,
-  currentBodyFatPct: null,
 }
 
 jest.mock('../../hooks/useTDEE', () => ({
@@ -80,7 +79,6 @@ describe('TDEEScreen', () => {
           date: createMockTimestamp(new Date('2026-07-13T10:00:00')),
         },
       ],
-      measurementLogs: [],
       tdeeConfig: {
         weightUnit: 'kg',
         energyUnit: 'cal',

@@ -10,7 +10,6 @@ import {
   roundTDEE,
   roundDisplayTDEE,
   roundWeight,
-  calculateBodyFatPercent,
   calculateDailyDeficit,
   calculateGoalCalories,
   calculateWeeksToGoal,
@@ -228,56 +227,6 @@ describe('tdeeCalculator', () => {
       const prev = [2000, 2100]
       // All 3 values: (2000 + 2100 + 2200) / 3 = 2100
       expect(calculateSmoothedTDEE(2200, prev, 12)).toBeCloseTo(2100, 0)
-    })
-  })
-
-  // ---------------------------------------------------------------
-  // Body fat %
-  // ---------------------------------------------------------------
-  describe('calculateBodyFatPercent', () => {
-    it('calculates male BF% in inches', () => {
-      // waist=34, neck=15, height=70 inches
-      // BF = ROUND((86.01 × LOG10(34-15)) - (70.041 × LOG10(70)) + 36.76) / 100
-      // = ROUND((86.01 × 1.2788) - (70.041 × 1.8451) + 36.76) / 100
-      // = ROUND(109.98 - 129.23 + 36.76) / 100
-      // = ROUND(17.51) / 100 = 18 / 100 = 0.18
-      const bf = calculateBodyFatPercent('male', 34, 15, 70, 'inch')
-      expect(bf).toBe(0.18)
-    })
-
-    it('calculates female BF% in inches', () => {
-      // waist=30, neck=13, hip=38, height=65 inches
-      const bf = calculateBodyFatPercent('female', 30, 13, 65, 'inch', 38)
-      expect(bf).not.toBeNull()
-      expect(bf!).toBeGreaterThan(0.1)
-      expect(bf!).toBeLessThan(0.5)
-    })
-
-    it('calculates male BF% in cm', () => {
-      // waist=86cm, neck=38cm, height=178cm
-      // Converted: waist/2.54=33.86, neck/2.54=14.96, height/2.54=70.08
-      const bf = calculateBodyFatPercent('male', 86, 38, 178, 'cm')
-      expect(bf).not.toBeNull()
-      expect(bf!).toBeGreaterThan(0.1)
-      expect(bf!).toBeLessThan(0.4)
-    })
-
-    it('returns null for female without hip', () => {
-      const bf = calculateBodyFatPercent('female', 30, 13, 65, 'inch')
-      expect(bf).toBeNull()
-    })
-
-    it('returns null for invalid measurements (waist <= neck)', () => {
-      const bf = calculateBodyFatPercent('male', 15, 15, 70, 'inch')
-      expect(bf).toBeNull()
-    })
-
-    it('returns null for negative or zero values', () => {
-      expect(calculateBodyFatPercent('male', -34, 15, 70, 'inch')).toBeNull()
-      expect(
-        calculateBodyFatPercent('female', 30, 0, 65, 'inch', 38),
-      ).toBeNull()
-      expect(calculateBodyFatPercent('male', 34, 15, -70, 'inch')).toBeNull()
     })
   })
 
@@ -516,30 +465,6 @@ describe('tdeeCalculator', () => {
 
       expect(result.seedTDEE).toBeGreaterThan(9000)
       expect(result.weeks[0].displayTDEE).not.toBeNull()
-    })
-
-    it('populates bodyFatPct when body fat inputs are provided', () => {
-      const weeks: WeekInput[] = [
-        {
-          weekStart: new Date('2024-01-01'),
-          dailyWeights: [180, 180, 180, 180, 180, 180, 180],
-          dailyCalories: [2000, 2000, 2000, 2000, 2000, 2000, 2000],
-          waist: 34,
-          neck: 15,
-        },
-      ]
-
-      const result = calculateTDEEPipeline(weeks, {
-        startingWeight: 180,
-        weightUnit: 'lb',
-        energyUnit: 'cal',
-        gender: 'male',
-        height: 70,
-        measurementUnit: 'inch',
-      })
-
-      expect(result.weeks[0].bodyFatPct).not.toBeNull()
-      expect(result.weeks[0].bodyFatPct).toBeCloseTo(0.18, 2)
     })
   })
 })

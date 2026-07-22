@@ -39,6 +39,10 @@ import {
 import { detectSleepWindow } from './utils/sleepDetection'
 import { evaluateSetDeletion } from './utils/setDeletion'
 import { setupReminders, cancelAllReminders } from './utils/notifications'
+import {
+  loadLastWeightUnits,
+  recordLastWeightUnit,
+} from './utils/weightUnitPreference'
 import type { User as FirebaseUser } from 'firebase/auth'
 
 import { useNetInfo } from '@react-native-community/netinfo'
@@ -95,6 +99,13 @@ const App: React.FC = () => {
   // keyed by exercise id. Session-only: never written back to the routine.
   const [setDeltas, setSetDeltas] = useState<Record<string, number>>({})
 
+  // Last weight unit the user picked per exercise (by id), so the Set Complete
+  // modal defaults to it instead of re-asking each set. Loaded once on mount
+  // and updated on every explicit choice. See utils/weightUnitPreference.
+  const [lastWeightUnits, setLastWeightUnits] = useState<
+    Record<string, WeightUnit>
+  >({})
+
   // Custom Hooks
   const { isConnected } = useNetInfo()
   const dataHook = useData()
@@ -116,7 +127,6 @@ const App: React.FC = () => {
     syncOfflineQueue,
     fetchWeightLogs,
     fetchCalorieLogs,
-    fetchMeasurementLogs,
     loadTDEEConfig,
     fetchJournalEntries,
     weightLogs,
@@ -137,7 +147,6 @@ const App: React.FC = () => {
         await syncUserData(firebaseUser, localSettings, localWorkouts)
         await fetchWeightLogs(firebaseUser)
         await fetchCalorieLogs(firebaseUser)
-        await fetchMeasurementLogs(firebaseUser)
         await loadTDEEConfig(firebaseUser)
         await fetchJournalEntries(firebaseUser)
       } else {
@@ -145,7 +154,6 @@ const App: React.FC = () => {
         await loadWorkouts()
         await fetchWeightLogs(null)
         await fetchCalorieLogs(null)
-        await fetchMeasurementLogs(null)
         await loadTDEEConfig(null)
         await fetchJournalEntries(null)
       }
@@ -157,7 +165,6 @@ const App: React.FC = () => {
       syncUserData,
       fetchWeightLogs,
       fetchCalorieLogs,
-      fetchMeasurementLogs,
       loadTDEEConfig,
       fetchJournalEntries,
     ],
@@ -433,6 +440,11 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, saveActiveSession])
 
+  // Load the remembered per-exercise weight units once on mount.
+  useEffect(() => {
+    loadLastWeightUnits().then(setLastWeightUnits)
+  }, [])
+
   // Reconcile the active workout with the source list. currentWorkout is a
   // (reordered) copy, so deleting its routine must clear it and editing its
   // routine must rebuild it — otherwise sets keep logging against a stale
@@ -609,6 +621,15 @@ const App: React.FC = () => {
       // and even if the data saving fails, to not block the UI flow.
       setAddSetModalVisible(false)
       setCompletedSetData(null)
+
+      // Remember the unit the user actually picked so the next set for this
+      // exercise defaults to it. The dismiss path calls this with no unit and
+      // must not overwrite the remembered choice.
+      if (weightUnit && completedExercise) {
+        recordLastWeightUnit(completedExercise.id, weightUnit).then(
+          setLastWeightUnits,
+        )
+      }
 
       if (setData && currentWorkout && completedExercise) {
         await addHistoryEntry(
@@ -993,7 +1014,11 @@ const App: React.FC = () => {
         onSubmit={handleAddSetDetails}
         initialReps={completedSetData?.reps ?? settings.maxReps}
         exerciseName={completedExercise?.name ?? ''}
-        defaultWeightUnit={completedExercise?.weightUnit ?? 'kg'}
+        defaultWeightUnit={
+          (completedExercise && lastWeightUnits[completedExercise.id]) ??
+          completedExercise?.weightUnit ??
+          'kg'
+        }
         variants={completedExercise?.variants}
       />
       <Toast topOffset={60} />

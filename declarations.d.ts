@@ -30,14 +30,6 @@ export interface CalorieLog {
   date: Timestamp
 }
 
-export interface MeasurementLog {
-  id: string
-  waist: number
-  neck: number
-  hip?: number
-  date: Timestamp
-}
-
 export interface SupplementLog {
   name: string
   dosage?: string
@@ -104,7 +96,6 @@ export interface TDEEWeekData {
   rawTDEE: number | null
   smoothedTDEE: number | null
   displayTDEE: number | null
-  bodyFatPct: number | null
   weightDayCount: number
   calorieDayCount: number
 }
@@ -115,11 +106,4 @@ export interface TDEEConfig {
   smoothingWindowWeeks: number // default 12
   goalWeight?: number | null
   goalWeeklyRate?: number | null // lb or kg per week
-  // Body fat inputs (optional)
-  gender?: 'male' | 'female' | null
-  heightValue?: number | null
-  measurementUnit?: 'inch' | 'cm' | null
-  waistValue?: number | null
-  neckValue?: number | null
-  hipValue?: number | null
 }

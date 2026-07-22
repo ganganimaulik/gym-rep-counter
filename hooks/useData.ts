@@ -35,7 +35,6 @@ import type {
   WeightUnit,
   WeightLog,
   CalorieLog,
-  MeasurementLog,
   TDEEConfig,
   JournalEntry,
   SupplementLog,
@@ -80,17 +79,6 @@ interface SerializedCalorieLog {
   }
 }
 
-interface SerializedMeasurementLog {
-  id: string
-  waist: number
-  neck: number
-  hip?: number
-  date: {
-    seconds: number
-    nanoseconds: number
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Offline write support
 //
@@ -102,11 +90,7 @@ interface SerializedMeasurementLog {
 // by syncOfflineQueue.
 // ---------------------------------------------------------------------------
 
-type LogCollection =
-  | 'weightLogs'
-  | 'calorieLogs'
-  | 'measurementLogs'
-  | 'journalEntries'
+type LogCollection = 'weightLogs' | 'calorieLogs' | 'journalEntries'
 
 type UserDocField = 'settings' | 'workouts' | 'tdeeConfig'
 
@@ -250,7 +234,6 @@ export interface DataHook {
   offlineQueue: WorkoutSet[]
   weightLogs: WeightLog[]
   calorieLogs: CalorieLog[]
-  measurementLogs: MeasurementLog[]
   journalEntries: JournalEntry[]
   loadSettings: () => Promise<Settings>
   saveSettings: (
@@ -335,20 +318,6 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   deleteCalorieLog: (id: string, user: FirebaseUser | null) => Promise<void>
-  fetchMeasurementLogs: (user: FirebaseUser | null) => Promise<MeasurementLog[]>
-  addMeasurementLog: (
-    measurements: { waist: number; neck: number; hip?: number },
-    date: Date,
-    user: FirebaseUser | null,
-  ) => Promise<void>
-  updateMeasurementLog: (
-    id: string,
-    measurements: { waist: number; neck: number; hip?: number },
-    date: Date,
-    user: FirebaseUser | null,
-  ) => Promise<void>
-  deleteMeasurementLog: (id: string, user: FirebaseUser | null) => Promise<void>
-  migrateGuestMeasurementLogs: (user: FirebaseUser) => Promise<MeasurementLog[]>
   tdeeConfig: TDEEConfig | null
   loadTDEEConfig: (user?: FirebaseUser | null) => Promise<TDEEConfig | null>
   saveTDEEConfig: (
@@ -1390,55 +1359,6 @@ export const useData = (): DataHook => {
     [],
   )
 
-  const migrateGuestMeasurementLogs = useCallback(
-    async (user: FirebaseUser): Promise<MeasurementLog[]> => {
-      try {
-        const key = 'guestMeasurementLogs'
-        const savedRaw = await AsyncStorage.getItem(key)
-        if (!savedRaw) return []
-
-        const parsed = JSON.parse(savedRaw)
-        if (!Array.isArray(parsed)) return []
-
-        const guestLogs: MeasurementLog[] = parsed
-          .filter(
-            (item) =>
-              item && item.date && typeof item.date.seconds === 'number',
-          )
-          .map((item: SerializedMeasurementLog) => ({
-            ...item,
-            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
-          }))
-
-        if (guestLogs.length === 0) return []
-
-        const batch = writeBatch(db)
-        const collRef = collection(db, 'users', user.uid, 'measurementLogs')
-        const migrated: MeasurementLog[] = []
-
-        guestLogs.forEach((entry) => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { id, ...dataToUpload } = entry
-          // Strip undefined values — Firestore rejects them
-          const sanitized = Object.fromEntries(
-            Object.entries(dataToUpload).filter(([, v]) => v !== undefined),
-          )
-          const docRef = doc(collRef) // Create a new doc with a new ID
-          batch.set(docRef, sanitized)
-          migrated.push({ ...entry, id: docRef.id })
-        })
-
-        await batch.commit()
-        await AsyncStorage.removeItem(key)
-        return migrated
-      } catch (e) {
-        console.error('Failed to migrate guest measurement logs', e)
-        return []
-      }
-    },
-    [],
-  )
-
   const migrateGuestJournalEntries = useCallback(
     async (user: FirebaseUser): Promise<JournalEntry[]> => {
       try {
@@ -1579,7 +1499,6 @@ export const useData = (): DataHook => {
         await migrateGuestHistory(firebaseUser)
         await migrateGuestWeightLogs(firebaseUser)
         await migrateGuestCalorieLogs(firebaseUser)
-        await migrateGuestMeasurementLogs(firebaseUser)
         await migrateGuestJournalEntries(firebaseUser)
         await migrateGuestTDEEConfig(firebaseUser)
         await syncOfflineQueue(firebaseUser)
@@ -1645,7 +1564,6 @@ export const useData = (): DataHook => {
       migrateGuestHistory,
       migrateGuestWeightLogs,
       migrateGuestCalorieLogs,
-      migrateGuestMeasurementLogs,
       migrateGuestJournalEntries,
       migrateGuestTDEEConfig,
       syncOfflineQueue,
@@ -1715,7 +1633,6 @@ export const useData = (): DataHook => {
 
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [calorieLogs, setCalorieLogs] = useState<CalorieLog[]>([])
-  const [measurementLogs, setMeasurementLogs] = useState<MeasurementLog[]>([])
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
 
   const fetchWeightLogs = useCallback(
@@ -2116,219 +2033,6 @@ export const useData = (): DataHook => {
     [syncLogDoc],
   )
 
-  const fetchMeasurementLogs = useCallback(
-    async (user: FirebaseUser | null): Promise<MeasurementLog[]> => {
-      if (user) {
-        try {
-          const collRef = collection(db, 'users', user.uid, 'measurementLogs')
-          const q = query(collRef, orderBy('date', 'desc'))
-          const querySnapshot = await getDocs(q)
-          const logs = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as MeasurementLog[]
-          setMeasurementLogs(logs)
-          return logs
-        } catch (e) {
-          console.error('Failed to fetch measurement logs', e)
-          return []
-        }
-      } else {
-        // Guest user
-        try {
-          const key = 'guestMeasurementLogs'
-          const savedRaw = await AsyncStorage.getItem(key)
-          if (!savedRaw) {
-            setMeasurementLogs([])
-            return []
-          }
-
-          const parsed = JSON.parse(savedRaw)
-          const guestLogs = parsed
-            .map((item: SerializedMeasurementLog) => ({
-              ...item,
-              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
-            }))
-            .sort(
-              (a: MeasurementLog, b: MeasurementLog) =>
-                b.date.toMillis() - a.date.toMillis(),
-            )
-
-          setMeasurementLogs(guestLogs)
-          return guestLogs
-        } catch (e) {
-          console.error('Failed to fetch guest measurement logs', e)
-          return []
-        }
-      }
-    },
-    [],
-  )
-
-  const addMeasurementLog = useCallback(
-    async (
-      measurements: { waist: number; neck: number; hip?: number },
-      date: Date,
-      user: FirebaseUser | null,
-    ) => {
-      // Firestore rejects undefined values, so only include hip when present
-      const newLogBase = {
-        waist: measurements.waist,
-        neck: measurements.neck,
-        ...(measurements.hip !== undefined ? { hip: measurements.hip } : {}),
-        date: Timestamp.fromDate(date),
-      }
-
-      if (user) {
-        const docRef = doc(collection(db, 'users', user.uid, 'measurementLogs'))
-        const newEntry = {
-          id: docRef.id,
-          ...newLogBase,
-        }
-        setMeasurementLogs((prev) =>
-          [newEntry, ...prev].sort(
-            (a, b) => b.date.toMillis() - a.date.toMillis(),
-          ),
-        )
-        syncLogDoc(user, {
-          kind: 'set',
-          coll: 'measurementLogs',
-          id: docRef.id,
-          data: newLogBase,
-        })
-      } else {
-        // Guest user
-        try {
-          const key = 'guestMeasurementLogs'
-          const savedRaw = await AsyncStorage.getItem(key)
-          const guestLogs = savedRaw ? JSON.parse(savedRaw) : []
-          const newEntry = {
-            id: randomUUID(),
-            ...newLogBase,
-          }
-          const updatedLogs = [newEntry, ...guestLogs]
-          await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
-
-          // Reconstruct Timestamp for local state
-          const stateLogs = updatedLogs
-            .map((item: SerializedMeasurementLog) => ({
-              ...item,
-              date: new Timestamp(item.date.seconds, item.date.nanoseconds),
-            }))
-            .sort(
-              (a: MeasurementLog, b: MeasurementLog) =>
-                b.date.toMillis() - a.date.toMillis(),
-            )
-
-          setMeasurementLogs(stateLogs)
-        } catch (e) {
-          console.error('Failed to add guest measurement log', e)
-        }
-      }
-    },
-    [syncLogDoc],
-  )
-
-  const updateMeasurementLog = useCallback(
-    async (
-      id: string,
-      measurements: { waist: number; neck: number; hip?: number },
-      date: Date,
-      user: FirebaseUser | null,
-    ) => {
-      const updates = {
-        waist: measurements.waist,
-        neck: measurements.neck,
-        ...(measurements.hip !== undefined ? { hip: measurements.hip } : {}),
-        date: Timestamp.fromDate(date),
-      }
-
-      if (user) {
-        setMeasurementLogs((prev) =>
-          prev
-            .map((item) =>
-              item.id === id ? { id: item.id, ...updates } : item,
-            )
-            .sort((a, b) => b.date.toMillis() - a.date.toMillis()),
-        )
-        // Full-document set: also removes a previously-saved hip when the
-        // update no longer has one.
-        syncLogDoc(user, {
-          kind: 'set',
-          coll: 'measurementLogs',
-          id,
-          data: updates,
-        })
-      } else {
-        // Guest user
-        try {
-          const key = 'guestMeasurementLogs'
-          const savedRaw = await AsyncStorage.getItem(key)
-          if (savedRaw) {
-            const guestLogs = JSON.parse(savedRaw)
-            const updatedLogs = guestLogs.map(
-              (item: SerializedMeasurementLog) =>
-                item.id === id ? { id: item.id, ...updates } : item,
-            )
-            await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
-
-            const stateLogs = updatedLogs
-              .map((item: SerializedMeasurementLog) => ({
-                ...item,
-                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
-              }))
-              .sort(
-                (a: MeasurementLog, b: MeasurementLog) =>
-                  b.date.toMillis() - a.date.toMillis(),
-              )
-
-            setMeasurementLogs(stateLogs)
-          }
-        } catch (e) {
-          console.error('Failed to update guest measurement log', e)
-        }
-      }
-    },
-    [syncLogDoc],
-  )
-
-  const deleteMeasurementLog = useCallback(
-    async (id: string, user: FirebaseUser | null) => {
-      if (user) {
-        setMeasurementLogs((prev) => prev.filter((item) => item.id !== id))
-        syncLogDoc(user, { kind: 'delete', coll: 'measurementLogs', id })
-      } else {
-        // Guest user
-        try {
-          const key = 'guestMeasurementLogs'
-          const savedRaw = await AsyncStorage.getItem(key)
-          if (savedRaw) {
-            const guestLogs = JSON.parse(savedRaw)
-            const updatedLogs = guestLogs.filter(
-              (item: SerializedMeasurementLog) => item.id !== id,
-            )
-            await AsyncStorage.setItem(key, JSON.stringify(updatedLogs))
-
-            const stateLogs = updatedLogs
-              .map((item: SerializedMeasurementLog) => ({
-                ...item,
-                date: new Timestamp(item.date.seconds, item.date.nanoseconds),
-              }))
-              .sort(
-                (a: MeasurementLog, b: MeasurementLog) =>
-                  b.date.toMillis() - a.date.toMillis(),
-              )
-
-            setMeasurementLogs(stateLogs)
-          }
-        } catch (e) {
-          console.error('Failed to delete guest measurement log', e)
-        }
-      }
-    },
-    [syncLogDoc],
-  )
-
   // TDEE Config persistence
   const [tdeeConfig, setTdeeConfig] = useState<TDEEConfig | null>(null)
 
@@ -2713,7 +2417,6 @@ export const useData = (): DataHook => {
       offlineQueue,
       weightLogs,
       calorieLogs,
-      measurementLogs,
       journalEntries,
       loadSettings,
       saveSettings,
@@ -2743,11 +2446,6 @@ export const useData = (): DataHook => {
       updateCalorieLog,
       deleteCalorieLog,
       migrateGuestCalorieLogs,
-      fetchMeasurementLogs,
-      addMeasurementLog,
-      updateMeasurementLog,
-      deleteMeasurementLog,
-      migrateGuestMeasurementLogs,
       tdeeConfig,
       loadTDEEConfig,
       saveTDEEConfig,
@@ -2773,7 +2471,6 @@ export const useData = (): DataHook => {
       offlineQueue,
       weightLogs,
       calorieLogs,
-      measurementLogs,
       journalEntries,
       loadSettings,
       saveSettings,
@@ -2803,11 +2500,6 @@ export const useData = (): DataHook => {
       updateCalorieLog,
       deleteCalorieLog,
       migrateGuestCalorieLogs,
-      fetchMeasurementLogs,
-      addMeasurementLog,
-      updateMeasurementLog,
-      deleteMeasurementLog,
-      migrateGuestMeasurementLogs,
       tdeeConfig,
       loadTDEEConfig,
       saveTDEEConfig,

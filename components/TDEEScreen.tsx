@@ -27,14 +27,8 @@ import { LineChart } from 'react-native-chart-kit'
 import { Picker } from '@react-native-picker/picker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
-import type {
-  TDEEConfig,
-  WeightLog,
-  CalorieLog,
-  MeasurementLog,
-} from '../declarations'
+import type { TDEEConfig, WeightLog, CalorieLog } from '../declarations'
 import { useTDEE } from '../hooks/useTDEE'
-import { calculateBodyFatPercent } from '../modules/tdeeCalculator'
 import { DataHook } from '../hooks/useData'
 import { globalStyles } from '../utils/globalStyles'
 
@@ -49,7 +43,6 @@ export interface HealthLogGroup {
   date: Date
   weightLog?: WeightLog
   calorieLog?: CalorieLog
-  measurementLog?: MeasurementLog
 }
 
 interface TDEEScreenProps {
@@ -94,14 +87,13 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const {
     weightLogs,
     calorieLogs,
-    measurementLogs,
     tdeeConfig,
     saveTDEEConfig,
     loadTDEEConfig,
   } = dataHook
 
   // Compute TDEE from logs + config
-  const tdeeData = useTDEE(weightLogs, calorieLogs, tdeeConfig, measurementLogs)
+  const tdeeData = useTDEE(weightLogs, calorieLogs, tdeeConfig)
 
   // Load config on mount
   useEffect(() => {
@@ -117,19 +109,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const [goalWeightInput, setGoalWeightInput] = useState('')
   const [goalRateInput, setGoalRateInput] = useState('')
 
-  // ── Body Fat settings state ──
-  const [setupGender, setSetupGender] = useState<'male' | 'female'>('male')
-  const [setupMeasurementUnit, setSetupMeasurementUnit] = useState<
-    'inch' | 'cm'
-  >('inch')
-  const [setupHeight, setSetupHeight] = useState('')
-  const [setupWaist, setSetupWaist] = useState('')
-  const [setupNeck, setSetupNeck] = useState('')
-  const [setupHip, setSetupHip] = useState('')
-
   // ── Tab state for interactive components ──
   const [activeChartTab, setActiveChartTab] = useState<
-    'tdee' | 'weight' | 'calories' | 'bodyfat'
+    'tdee' | 'weight' | 'calories'
   >('tdee')
   const [activeHistoryTab, setActiveHistoryTab] = useState<'weekly' | 'daily'>(
     'daily',
@@ -195,17 +177,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       map.get(str)!.calorieLog = log
     })
 
-    measurementLogs.forEach((log) => {
-      const d = log.date.toDate()
-      const str = getDateStr(d)
-      if (!map.has(str)) map.set(str, { dateStr: str, date: d })
-      map.get(str)!.measurementLog = log
-    })
-
     return Array.from(map.values()).sort(
       (a, b) => b.date.getTime() - a.date.getTime(),
     )
-  }, [weightLogs, calorieLogs, measurementLogs])
+  }, [weightLogs, calorieLogs])
 
   const weightChartData = useMemo(() => {
     let filtered = [...weightLogs]
@@ -245,51 +220,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     }
   }, [calorieLogs, getSpacedLabels, timeframeDaily])
 
-  const bodyFatChartData = useMemo(() => {
-    if (
-      !tdeeConfig?.gender ||
-      !tdeeConfig.heightValue ||
-      !tdeeConfig.measurementUnit
-    ) {
-      return { labels: [''], datasets: [{ data: [0] }] }
-    }
-
-    let filtered = [...measurementLogs]
-    if (timeframeDaily > 0) {
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - timeframeDaily)
-      filtered = filtered.filter((log) => log.date.toDate() >= cutoff)
-    }
-
-    const points = filtered
-      .reverse()
-      .map((log) => ({
-        date: log.date.toDate(),
-        bf: calculateBodyFatPercent(
-          tdeeConfig.gender!,
-          log.waist,
-          log.neck,
-          tdeeConfig.heightValue!,
-          tdeeConfig.measurementUnit!,
-          log.hip,
-        ),
-      }))
-      .filter((p): p is { date: Date; bf: number } => p.bf !== null)
-
-    if (points.length === 0) {
-      return { labels: [''], datasets: [{ data: [0] }] }
-    }
-
-    return {
-      labels: getSpacedLabels(points.map((p) => p.date)),
-      datasets: [
-        {
-          data: points.map((p) => p.bf * 100),
-        },
-      ],
-    }
-  }, [measurementLogs, tdeeConfig, getSpacedLabels, timeframeDaily])
-
   // Sync goal inputs when config loads
   useEffect(() => {
     if (tdeeConfig) {
@@ -297,14 +227,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       setGoalRateInput(tdeeConfig.goalWeeklyRate?.toString() ?? '')
       setSetupWeightUnit(tdeeConfig.weightUnit ?? 'kg')
       setSetupEnergyUnit(tdeeConfig.energyUnit ?? 'cal')
-
-      if (tdeeConfig.gender) setSetupGender(tdeeConfig.gender)
-      if (tdeeConfig.measurementUnit)
-        setSetupMeasurementUnit(tdeeConfig.measurementUnit)
-      setSetupHeight(tdeeConfig.heightValue?.toString() ?? '')
-      setSetupWaist(tdeeConfig.waistValue?.toString() ?? '')
-      setSetupNeck(tdeeConfig.neckValue?.toString() ?? '')
-      setSetupHip(tdeeConfig.hipValue?.toString() ?? '')
     }
   }, [tdeeConfig])
 
@@ -315,38 +237,10 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       weightUnit: setupWeightUnit,
       energyUnit: setupEnergyUnit,
       smoothingWindowWeeks: 12,
-      gender: setupGender,
-      measurementUnit: setupMeasurementUnit,
     }
 
-    const h = setupHeight.trim() ? parseFloat(setupHeight) : undefined
-    if (h !== undefined) config.heightValue = h
-
-    const w = setupWaist.trim() ? parseFloat(setupWaist) : undefined
-    if (w !== undefined) config.waistValue = w
-
-    const n = setupNeck.trim() ? parseFloat(setupNeck) : undefined
-    if (n !== undefined) config.neckValue = n
-
-    const hp =
-      setupGender === 'female' && setupHip.trim()
-        ? parseFloat(setupHip)
-        : undefined
-    if (hp !== undefined) config.hipValue = hp
-
     await saveTDEEConfig(config, user)
-  }, [
-    setupWeightUnit,
-    setupEnergyUnit,
-    setupGender,
-    setupMeasurementUnit,
-    setupHeight,
-    setupWaist,
-    setupNeck,
-    setupHip,
-    saveTDEEConfig,
-    user,
-  ])
+  }, [setupWeightUnit, setupEnergyUnit, saveTDEEConfig, user])
 
   const handleSaveGoals = useCallback(async () => {
     if (!tdeeConfig) return
@@ -374,28 +268,11 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
       ...tdeeConfig,
       weightUnit: setupWeightUnit,
       energyUnit: setupEnergyUnit,
-      gender: setupGender,
-      measurementUnit: setupMeasurementUnit,
     }
 
     updatedConfig.goalWeight = gw !== undefined ? gw : null
 
     updatedConfig.goalWeeklyRate = rate !== undefined ? rate : null
-
-    const h = setupHeight.trim() ? parseFloat(setupHeight) : undefined
-    updatedConfig.heightValue = h !== undefined ? h : null
-
-    const w = setupWaist.trim() ? parseFloat(setupWaist) : undefined
-    updatedConfig.waistValue = w !== undefined ? w : null
-
-    const n = setupNeck.trim() ? parseFloat(setupNeck) : undefined
-    updatedConfig.neckValue = n !== undefined ? n : null
-
-    const hp =
-      setupGender === 'female' && setupHip.trim()
-        ? parseFloat(setupHip)
-        : undefined
-    updatedConfig.hipValue = hp !== undefined ? hp : null
 
     await saveTDEEConfig(updatedConfig, user)
     Alert.alert('Saved', 'Settings updated successfully.')
@@ -405,12 +282,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     goalRateInput,
     setupWeightUnit,
     setupEnergyUnit,
-    setupGender,
-    setupMeasurementUnit,
-    setupHeight,
-    setupWaist,
-    setupNeck,
-    setupHip,
     saveTDEEConfig,
     user,
   ])
@@ -526,110 +397,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
             </Picker>
           </StyledView>
 
-          <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide border-t border-zinc-800 pt-4 mt-2">
-            Measurement Unit
-          </StyledText>
-          <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
-            <Picker
-              selectedValue={setupMeasurementUnit}
-              onValueChange={setSetupMeasurementUnit}
-              style={globalStyles.picker}
-              itemStyle={globalStyles.pickerItem}
-              dropdownIconColor="white">
-              <Picker.Item label="Inches (in)" value="inch" />
-              <Picker.Item label="Centimeters (cm)" value="cm" />
-            </Picker>
-          </StyledView>
-
-          <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
-            Gender
-          </StyledText>
-          <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
-            <Picker
-              testID="setup-gender"
-              selectedValue={setupGender}
-              onValueChange={setSetupGender}
-              style={globalStyles.picker}
-              itemStyle={globalStyles.pickerItem}
-              dropdownIconColor="white">
-              <Picker.Item label="Male" value="male" />
-              <Picker.Item label="Female" value="female" />
-            </Picker>
-          </StyledView>
-
-          <StyledView className="flex-row gap-3 mb-4">
-            <StyledView className="flex-1">
-              <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                Height ({setupMeasurementUnit})
-              </StyledText>
-              <StyledTextInput
-                testID="setup-height"
-                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                keyboardType="numeric"
-                value={setupHeight}
-                onChangeText={setSetupHeight}
-                placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '70' : '178'}`}
-                placeholderTextColor="#52525b"
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-              />
-            </StyledView>
-            <StyledView className="flex-1">
-              <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                Waist ({setupMeasurementUnit})
-              </StyledText>
-              <StyledTextInput
-                testID="setup-waist"
-                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                keyboardType="numeric"
-                value={setupWaist}
-                onChangeText={setSetupWaist}
-                placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '32' : '81'}`}
-                placeholderTextColor="#52525b"
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-              />
-            </StyledView>
-          </StyledView>
-
-          <StyledView className="flex-row gap-3 mb-6">
-            <StyledView className="flex-1">
-              <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                Neck ({setupMeasurementUnit})
-              </StyledText>
-              <StyledTextInput
-                testID="setup-neck"
-                className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                keyboardType="numeric"
-                value={setupNeck}
-                onChangeText={setSetupNeck}
-                placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '15' : '38'}`}
-                placeholderTextColor="#52525b"
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
-              />
-            </StyledView>
-            {setupGender === 'female' && (
-              <StyledView className="flex-1">
-                <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                  Hips ({setupMeasurementUnit})
-                </StyledText>
-                <StyledTextInput
-                  testID="setup-hips"
-                  className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                  keyboardType="numeric"
-                  value={setupHip}
-                  onChangeText={setSetupHip}
-                  placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '38' : '96'}`}
-                  placeholderTextColor="#52525b"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                />
-              </StyledView>
-            )}
-            {setupGender !== 'female' && <StyledView className="flex-1" />}
-          </StyledView>
-
           <StyledTouchableOpacity
             onPress={handleStartTracking}
             activeOpacity={0.85}
@@ -693,17 +460,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
               <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-1">
                 Δ Weight ({weightUnit})
-              </StyledText>
-            </StyledView>
-
-            <StyledView className="items-center flex-1">
-              <StyledText className="text-amber-400 text-lg font-black">
-                {tdeeData.currentBodyFatPct !== null
-                  ? `${(tdeeData.currentBodyFatPct * 100).toFixed(0)}%`
-                  : '—'}
-              </StyledText>
-              <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mt-1">
-                Body Fat
               </StyledText>
             </StyledView>
 
@@ -928,20 +684,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 Calories
               </StyledText>
             </StyledTouchableOpacity>
-            <StyledTouchableOpacity
-              testID="chart-tab-bodyfat"
-              onPress={() => setActiveChartTab('bodyfat')}
-              activeOpacity={0.8}
-              className={`flex-1 py-2 rounded-lg items-center ${
-                activeChartTab === 'bodyfat' ? 'bg-zinc-800 shadow-sm' : ''
-              }`}>
-              <StyledText
-                className={`text-[10px] font-black uppercase tracking-wider ${
-                  activeChartTab === 'bodyfat' ? 'text-white' : 'text-zinc-500'
-                }`}>
-                Body Fat
-              </StyledText>
-            </StyledTouchableOpacity>
           </StyledView>
 
           {/* Timeframe Selector */}
@@ -1129,56 +871,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               )}
             </StyledView>
           )}
-
-          {activeChartTab === 'bodyfat' && (
-            <StyledView>
-              <StyledText className="text-zinc-500 text-[10px] font-semibold mb-3">
-                Body fat over time (%, US Army method)
-              </StyledText>
-              {bodyFatChartData.datasets[0].data.length >= 2 ? (
-                <LineChart
-                  data={bodyFatChartData}
-                  width={screenWidth - 20}
-                  height={170}
-                  chartConfig={{
-                    backgroundGradientFrom: '#18181b',
-                    backgroundGradientTo: '#18181b',
-                    backgroundGradientFromOpacity: 0,
-                    backgroundGradientToOpacity: 0,
-                    decimalPlaces: 1,
-                    color: (opacity = 1) => `rgba(251, 191, 36, ${opacity})`,
-                    labelColor: (opacity = 1) =>
-                      `rgba(161, 161, 170, ${opacity})`,
-                    style: {
-                      borderRadius: 16,
-                    },
-                    propsForDots: {
-                      r: '4',
-                      strokeWidth: '2',
-                      stroke: '#fbbf24',
-                    },
-                  }}
-                  bezier
-                  style={{
-                    borderRadius: 12,
-                    marginLeft: -40,
-                    marginRight: -30,
-                  }}
-                />
-              ) : (
-                <StyledView className="h-[170] justify-center items-center border border-dashed border-zinc-800 rounded-xl py-6">
-                  <Scale color="#3f3f46" size={36} />
-                  <StyledText className="text-zinc-500 text-xs italic text-center mt-3 px-4">
-                    {tdeeConfig?.gender &&
-                    tdeeConfig.heightValue &&
-                    tdeeConfig.measurementUnit
-                      ? 'Need at least 2 measurement entries in the selected timeframe to display body fat trend.'
-                      : 'Set your gender, height and measurement unit in Preferences to track body fat.'}
-                  </StyledText>
-                </StyledView>
-              )}
-            </StyledView>
-          )}
         </StyledView>
       )}
 
@@ -1332,16 +1024,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                             {group.calorieLog.calories} {energyLabel}
                           </StyledText>
                         )}
-                        {group.measurementLog && (
-                          <StyledText className="text-amber-400/80 font-bold text-[10px]">
-                            W {group.measurementLog.waist} · N{' '}
-                            {group.measurementLog.neck}
-                            {group.measurementLog.hip !== undefined
-                              ? ` · H ${group.measurementLog.hip}`
-                              : ''}{' '}
-                            {tdeeConfig?.measurementUnit === 'cm' ? 'cm' : 'in'}
-                          </StyledText>
-                        )}
                       </StyledView>
                     </StyledView>
                     <StyledView className="flex-row items-center">
@@ -1368,7 +1050,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
         </StyledView>
       )}
 
-      {/* ─── Preferences & Body Fat Card (Collapsible) ─── */}
+      {/* ─── Preferences Card (Collapsible) ─── */}
       {isConfigured && (
         <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl mb-4 shadow-xl overflow-hidden">
           <StyledTouchableOpacity
@@ -1379,7 +1061,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
             <StyledView className="flex-row items-center">
               <Settings2 color="#a1a1aa" size={18} />
               <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
-                Preferences & Body Fat
+                Preferences
               </StyledText>
             </StyledView>
             {unitExpanded ? (
@@ -1419,110 +1101,6 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                   <Picker.Item label="Calories (cal)" value="cal" />
                   <Picker.Item label="Kilojoules (kj)" value="kj" />
                 </Picker>
-              </StyledView>
-
-              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide border-t border-zinc-800 pt-4 mt-2">
-                Measurement Unit
-              </StyledText>
-              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
-                <Picker
-                  selectedValue={setupMeasurementUnit}
-                  onValueChange={setSetupMeasurementUnit}
-                  style={globalStyles.picker}
-                  itemStyle={globalStyles.pickerItem}
-                  dropdownIconColor="white">
-                  <Picker.Item label="Inches (in)" value="inch" />
-                  <Picker.Item label="Centimeters (cm)" value="cm" />
-                </Picker>
-              </StyledView>
-
-              <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
-                Gender
-              </StyledText>
-              <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-4 overflow-hidden">
-                <Picker
-                  testID="pref-gender"
-                  selectedValue={setupGender}
-                  onValueChange={setSetupGender}
-                  style={globalStyles.picker}
-                  itemStyle={globalStyles.pickerItem}
-                  dropdownIconColor="white">
-                  <Picker.Item label="Male" value="male" />
-                  <Picker.Item label="Female" value="female" />
-                </Picker>
-              </StyledView>
-
-              <StyledView className="flex-row gap-3 mb-4">
-                <StyledView className="flex-1">
-                  <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                    Height ({setupMeasurementUnit})
-                  </StyledText>
-                  <StyledTextInput
-                    testID="pref-height"
-                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                    keyboardType="numeric"
-                    value={setupHeight}
-                    onChangeText={setSetupHeight}
-                    placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '70' : '178'}`}
-                    placeholderTextColor="#52525b"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
-                </StyledView>
-                <StyledView className="flex-1">
-                  <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                    Waist ({setupMeasurementUnit})
-                  </StyledText>
-                  <StyledTextInput
-                    testID="pref-waist"
-                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                    keyboardType="numeric"
-                    value={setupWaist}
-                    onChangeText={setSetupWaist}
-                    placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '32' : '81'}`}
-                    placeholderTextColor="#52525b"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
-                </StyledView>
-              </StyledView>
-
-              <StyledView className="flex-row gap-3 mb-6">
-                <StyledView className="flex-1">
-                  <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                    Neck ({setupMeasurementUnit})
-                  </StyledText>
-                  <StyledTextInput
-                    testID="pref-neck"
-                    className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                    keyboardType="numeric"
-                    value={setupNeck}
-                    onChangeText={setSetupNeck}
-                    placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '15' : '38'}`}
-                    placeholderTextColor="#52525b"
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
-                </StyledView>
-                {setupGender === 'female' && (
-                  <StyledView className="flex-1">
-                    <StyledText className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                      Hips ({setupMeasurementUnit})
-                    </StyledText>
-                    <StyledTextInput
-                      testID="pref-hips"
-                      className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                      keyboardType="numeric"
-                      value={setupHip}
-                      onChangeText={setSetupHip}
-                      placeholder={`e.g. ${setupMeasurementUnit === 'inch' ? '38' : '96'}`}
-                      placeholderTextColor="#52525b"
-                      returnKeyType="done"
-                      onSubmitEditing={Keyboard.dismiss}
-                    />
-                  </StyledView>
-                )}
-                {setupGender !== 'female' && <StyledView className="flex-1" />}
               </StyledView>
 
               <StyledTouchableOpacity

@@ -1,10 +1,5 @@
 import { useMemo } from 'react'
-import type {
-  WeightLog,
-  CalorieLog,
-  MeasurementLog,
-  TDEEConfig,
-} from '../declarations'
+import type { WeightLog, CalorieLog, TDEEConfig } from '../declarations'
 import {
   calculateTDEEPipeline,
   type WeekInput,
@@ -12,7 +7,6 @@ import {
   type TDEEPipelineConfig,
   roundDisplayTDEE,
   calculateSeedTDEE,
-  calculateBodyFatPercent,
 } from '../modules/tdeeCalculator'
 
 /**
@@ -123,22 +117,16 @@ export interface UseTDEEResult {
   hasEnoughData: boolean
   /** Number of weeks with TDEE data */
   weeksWithData: number
-  /** Body fat % from the latest measurement log (decimal, e.g. 0.15) */
-  currentBodyFatPct: number | null
 }
 
 /**
  * Custom hook that computes adaptive TDEE from weight and calorie logs.
  * Implements the exact algorithm from the "TDEE variant with bf 3.06" spreadsheet.
  */
-// Stable default so omitting the argument doesn't break useMemo
-const NO_MEASUREMENT_LOGS: MeasurementLog[] = []
-
 export function useTDEE(
   weightLogs: WeightLog[],
   calorieLogs: CalorieLog[],
   tdeeConfig: TDEEConfig | null,
-  measurementLogs: MeasurementLog[] = NO_MEASUREMENT_LOGS,
 ): UseTDEEResult {
   return useMemo(() => {
     // Cap TDEE processing to 1 year of data for performance while preserving full history elsewhere
@@ -177,45 +165,11 @@ export function useTDEE(
         goalDate: null,
         hasEnoughData: false,
         weeksWithData: 0,
-        currentBodyFatPct: null,
       }
     }
 
     // Group logs into weekly buckets
-    let weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)
-
-    // Attach body measurements to each week input so calculateTDEEPipeline can
-    // compute a per-week body fat %, matching the spreadsheet's per-row
-    // measurement columns (O/P/Q). Each week uses the latest measurement
-    // logged within it; weeks without a measurement get no BF% — except when
-    // no measurement logs exist at all, where the static config measurements
-    // apply to every week (legacy behavior).
-    if (measurementLogs.length > 0) {
-      weekInputs = weekInputs.map((week) => {
-        const weekEndExclusive = new Date(week.weekStart)
-        weekEndExclusive.setDate(weekEndExclusive.getDate() + 7)
-        // Logs are ordered newest-first, so find() returns the week's latest
-        const logInWeek = measurementLogs.find((log) => {
-          const d = log.date.toDate()
-          return d >= week.weekStart && d < weekEndExclusive
-        })
-        return logInWeek
-          ? {
-              ...week,
-              waist: logInWeek.waist,
-              neck: logInWeek.neck,
-              hip: logInWeek.hip,
-            }
-          : week
-      })
-    } else {
-      weekInputs = weekInputs.map((week) => ({
-        ...week,
-        waist: tdeeConfig.waistValue,
-        neck: tdeeConfig.neckValue,
-        hip: tdeeConfig.hipValue,
-      }))
-    }
+    const weekInputs = groupLogsByWeek(recentWeightLogs, recentCalorieLogs)
 
     // Build pipeline config
     const pipelineConfig: TDEEPipelineConfig = {
@@ -225,9 +179,6 @@ export function useTDEE(
       smoothingWindowWeeks: tdeeConfig.smoothingWindowWeeks,
       goalWeight: tdeeConfig.goalWeight ?? undefined,
       goalWeeklyRate: tdeeConfig.goalWeeklyRate ?? undefined,
-      gender: tdeeConfig.gender ?? undefined,
-      height: tdeeConfig.heightValue ?? undefined,
-      measurementUnit: tdeeConfig.measurementUnit ?? undefined,
     }
 
     // Run the pipeline
@@ -240,30 +191,6 @@ export function useTDEE(
 
     // Need at least 2 weeks of data for meaningful TDEE
     const hasEnoughData = weeksWithData >= 2
-
-    // Current body fat % from the most recent measurement log (newest-first
-    // ordering), falling back to the static config measurements
-    let currentBodyFatPct: number | null = null
-    if (
-      tdeeConfig.gender &&
-      tdeeConfig.heightValue &&
-      tdeeConfig.measurementUnit
-    ) {
-      const latest = measurementLogs[0]
-      const waist = latest?.waist ?? tdeeConfig.waistValue
-      const neck = latest?.neck ?? tdeeConfig.neckValue
-      const hip = latest?.hip ?? tdeeConfig.hipValue
-      if (waist !== undefined && neck !== undefined) {
-        currentBodyFatPct = calculateBodyFatPercent(
-          tdeeConfig.gender,
-          waist,
-          neck,
-          tdeeConfig.heightValue,
-          tdeeConfig.measurementUnit,
-          hip,
-        )
-      }
-    }
 
     return {
       weeks: result.weeks,
@@ -278,7 +205,6 @@ export function useTDEE(
       goalDate: result.goalDate,
       hasEnoughData,
       weeksWithData,
-      currentBodyFatPct,
     }
-  }, [weightLogs, calorieLogs, tdeeConfig, measurementLogs])
+  }, [weightLogs, calorieLogs, tdeeConfig])
 }

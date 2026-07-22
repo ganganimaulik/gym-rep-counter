@@ -25,47 +25,16 @@ test.describe('Analytics Screen', () => {
     // Default state: Start Tracking
     await expect(page.locator('text=Start Tracking').first()).toBeVisible()
 
-    // Fill setup inputs using testIDs
-    await page.locator('[data-testid="setup-height"]').fill('180')
-    await page.locator('[data-testid="setup-waist"]').fill('80')
-    await page.locator('[data-testid="setup-neck"]').fill('37')
     await page.click('text=Start Tracking')
 
     // Should now show TDEE UI, which contains something like 'Log'
     await expect(page.locator('text=Log').first()).toBeVisible()
   })
 
-  test('should setup TDEE with female gender (which requires hips)', async ({
-    page,
-  }) => {
-    await page.click('text=Health & TDEE')
-    await page.waitForTimeout(1000)
-
-    // Toggle gender to Female
-    await page.locator('[data-testid="setup-gender"]').selectOption('female')
-
-    // Check that Hips input is visible
-    await expect(page.locator('[data-testid="setup-hips"]')).toBeVisible()
-
-    // Fill setup inputs for female
-    await page.locator('[data-testid="setup-height"]').fill('165')
-    await page.locator('[data-testid="setup-waist"]').fill('75')
-    await page.locator('[data-testid="setup-neck"]').fill('34')
-    await page.locator('[data-testid="setup-hips"]').fill('95')
-
-    await page.click('text=Start Tracking')
-
-    // Verify it started tracking (should see "Your TDEE" or "Log Weight / Calories")
-    await expect(page.locator('text=Your TDEE').first()).toBeVisible()
-  })
-
   test('should log, edit, and delete daily stats', async ({ page }) => {
     // 1. Setup TDEE first
     await page.click('text=Health & TDEE')
     await page.waitForTimeout(1000)
-    await page.locator('[data-testid="setup-height"]').fill('175')
-    await page.locator('[data-testid="setup-waist"]').fill('82')
-    await page.locator('[data-testid="setup-neck"]').fill('38')
     await page.click('text=Start Tracking')
 
     // 2. Open Log Modal
@@ -106,9 +75,6 @@ test.describe('Analytics Screen', () => {
     // 1. Setup TDEE first
     await page.click('text=Health & TDEE')
     await page.waitForTimeout(1000)
-    await page.locator('[data-testid="setup-height"]').fill('175')
-    await page.locator('[data-testid="setup-waist"]').fill('82')
-    await page.locator('[data-testid="setup-neck"]').fill('38')
     await page.click('text=Start Tracking')
 
     // 2. Since TDEE tab is active by default, verify weekly timeframe buttons are visible

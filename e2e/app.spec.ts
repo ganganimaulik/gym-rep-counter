@@ -249,11 +249,6 @@ test.describe('Gym Rep Counter E2E Tests', () => {
     // Config form should be visible since TDEE config doesn't exist yet
     await expect(page.getByText('Weight Unit')).toBeVisible()
 
-    // Fill measurements using testIDs
-    await page.locator('[data-testid="setup-height"]').fill('175')
-    await page.locator('[data-testid="setup-waist"]').fill('82')
-    await page.locator('[data-testid="setup-neck"]').fill('38')
-
     // Click Start Tracking
     await page.getByText('Start Tracking').click()
 
@@ -393,10 +388,6 @@ test.describe('Gym Rep Counter E2E Tests', () => {
     await page.getByText('Analytics', { exact: true }).click()
     await page.getByText('Health & TDEE').click()
 
-    // Complete physical setup
-    await page.locator('[data-testid="setup-height"]').fill('178')
-    await page.locator('[data-testid="setup-waist"]').fill('85')
-    await page.locator('[data-testid="setup-neck"]').fill('39')
     await page.getByText('Start Tracking').click()
 
     // Log weight & calories daily stats so we have a current weight
@@ -416,12 +407,11 @@ test.describe('Gym Rep Counter E2E Tests', () => {
     ).toBeVisible()
     await expect(page.getByText('Goal Calories')).toBeVisible()
 
-    // Expand Preferences & Body Fat
+    // Expand Preferences
     await page.locator('[data-testid="preferences-expand-button"]').click()
     await expect(page.getByText('Save Preferences')).toBeVisible()
 
-    // Modify height in preferences and save
-    await page.locator('[data-testid="pref-height"]').fill('180')
+    // Save preferences
     await page.locator('[data-testid="save-preferences-button"]').click()
 
     // Navigate to Weekly Average tab
