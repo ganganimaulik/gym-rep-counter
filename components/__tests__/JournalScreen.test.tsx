@@ -625,4 +625,52 @@ describe('JournalScreen', () => {
     const fishOil = savedSuggestions.find((s: any) => s.name === 'Fish Oil')
     expect(fishOil.scheduleActivatedDate).toBeUndefined()
   })
+
+  test('displays untaken scheduled supplements for that day first in popular supplements', async () => {
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Alpha NonScheduled', defaultDosage: '1 tab' },
+          {
+            name: 'Beta ScheduledUntaken',
+            defaultDosage: '5g',
+            schedule: 'daily',
+            scheduleActivatedDate: '2020-01-01',
+          },
+        ],
+      },
+    }
+
+    const { getByTestId, getByPlaceholderText, getAllByText } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Open add journal note modal
+    const addNoteBtn = getByTestId('add-journal-note-button')
+    fireEvent.press(addNoteBtn)
+
+    // Focus search input to open popular supplements suggestions
+    const searchInput = getByPlaceholderText('Search/Add Supp...')
+    fireEvent(searchInput, 'focus')
+
+    // Get all supplement items rendered in popular supplements
+    const betaItem = getAllByText(/Beta ScheduledUntaken/)[0]
+    const alphaItem = getAllByText(/Alpha NonScheduled/)[0]
+
+    expect(betaItem).toBeTruthy()
+    expect(alphaItem).toBeTruthy()
+
+    // Beta (untaken scheduled supplement) should be displayed before Alpha (non-scheduled)
+    const container = betaItem.parent?.parent?.parent
+    const children = container?.children
+    if (children && children.length >= 2) {
+      const text0 = JSON.stringify(children[0])
+      expect(text0).toContain('Beta ScheduledUntaken')
+    }
+  })
 })

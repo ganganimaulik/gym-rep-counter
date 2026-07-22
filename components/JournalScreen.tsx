@@ -38,6 +38,8 @@ import {
   getSupplementsDueToday,
   getUntakenSupplements,
   hasJournalEntryForDate,
+  isSupplementDueOnDate,
+  getSupplementsTakenOnDate,
 } from '../utils/supplementSchedule'
 
 const StyledView = styled(View)
@@ -142,6 +144,31 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     () => hasJournalEntryForDate(journalEntries, today),
     [journalEntries, today],
   )
+
+  const sortedSuggestions = useMemo(() => {
+    const takenOnDate = getSupplementsTakenOnDate(journalEntries, dateValue)
+    const isTaken = (name: string) =>
+      supplementsList.some(
+        (s) => s.name.toLowerCase() === name.toLowerCase(),
+      ) || takenOnDate.includes(name.toLowerCase())
+
+    const isForgot = (supp: SupplementSuggestion) =>
+      isSupplementDueOnDate(supp, dateValue, journalEntries) &&
+      !isTaken(supp.name)
+
+    const forgotList: SupplementSuggestion[] = []
+    const otherList: SupplementSuggestion[] = []
+
+    for (const supp of suggestions) {
+      if (isForgot(supp)) {
+        forgotList.push(supp)
+      } else {
+        otherList.push(supp)
+      }
+    }
+
+    return [...forgotList, ...otherList]
+  }, [suggestions, dateValue, journalEntries, supplementsList])
 
   const handleToggleSupplementToday = useCallback(
     async (suppName: string, defaultDosage?: string) => {
@@ -872,10 +899,10 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       {(() => {
                         const query = searchQuery.trim().toLowerCase()
                         const filtered = query
-                          ? suggestions.filter((s) =>
+                          ? sortedSuggestions.filter((s) =>
                               s.name.toLowerCase().includes(query),
                             )
-                          : suggestions
+                          : sortedSuggestions
 
                         if (filtered.length === 0) {
                           return (

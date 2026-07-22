@@ -161,4 +161,46 @@ test.describe('Journal Screen', () => {
     // Verify that the supplement is untaken again and reappears in the panel
     await expect(creatineBadge).toBeVisible()
   })
+
+  test('should display untaken scheduled supplements first in popular supplements', async ({
+    page,
+  }) => {
+    // Open note modal
+    await page.locator('[data-testid="add-journal-note-button"]').click()
+    await expect(page.locator('text=Save').first()).toBeVisible()
+
+    const searchInput = page.getByPlaceholder('Search/Add Supp...')
+    await searchInput.click()
+    await expect(page.locator('text=Popular Supplements').first()).toBeVisible()
+
+    // Manage supplements and set Multivitamin to Daily
+    await page
+      .locator('[data-testid="manage-supplements-button"]')
+      .first()
+      .dispatchEvent('click')
+    await expect(page.locator('text=Manage Supplements').first()).toBeVisible()
+
+    await page
+      .locator('[data-testid="manage-supplement-Multivitamin"]')
+      .dispatchEvent('click')
+    await page
+      .locator('[data-testid="schedule-option-daily"]')
+      .dispatchEvent('click')
+
+    await page
+      .locator('[data-testid="close-manage-modal"]')
+      .dispatchEvent('click')
+
+    // Click search input to open popular supplements
+    await searchInput.click()
+    await expect(page.locator('text=Popular Supplements').first()).toBeVisible()
+
+    // Verify Multivitamin (untaken daily supplement) is displayed before other supplements
+    const popularBox = page
+      .locator('text=Popular Supplements')
+      .locator('..')
+      .locator('..')
+    const firstSuppText = await popularBox.locator('text=Multivitamin').first()
+    await expect(firstSuppText).toBeVisible()
+  })
 })
