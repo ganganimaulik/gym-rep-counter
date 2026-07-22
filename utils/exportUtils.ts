@@ -1,4 +1,4 @@
-import * as Clipboard from 'expo-clipboard'
+import { Clipboard as RNClipboard } from 'react-native'
 import type {
   JournalEntry,
   WeightLog,
@@ -225,14 +225,29 @@ export const formatLogsForExport = (
 }
 
 /**
- * Copies plain text to the device clipboard using expo-clipboard with fallback to navigator.clipboard.
+ * Copies plain text to device clipboard. Safe on all native binaries and web.
  */
 export const copyLogsToClipboard = async (text: string): Promise<boolean> => {
   try {
-    if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
-      await Clipboard.setStringAsync(text)
+    // 1. Try expo-clipboard if native module is available
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const ExpoClipboard = require('expo-clipboard')
+      if (ExpoClipboard && typeof ExpoClipboard.setStringAsync === 'function') {
+        await ExpoClipboard.setStringAsync(text)
+        return true
+      }
+    } catch {
+      // Fallback silently if expo-clipboard native module is not linked in current binary
+    }
+
+    // 2. Fallback to React Native core Clipboard
+    if (RNClipboard && typeof RNClipboard.setString === 'function') {
+      RNClipboard.setString(text)
       return true
     }
+
+    // 3. Fallback to Web navigator.clipboard
     if (
       typeof navigator !== 'undefined' &&
       navigator.clipboard &&
@@ -241,6 +256,7 @@ export const copyLogsToClipboard = async (text: string): Promise<boolean> => {
       await navigator.clipboard.writeText(text)
       return true
     }
+
     return false
   } catch (err) {
     console.error('Failed to copy to clipboard:', err)
