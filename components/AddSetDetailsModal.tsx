@@ -69,20 +69,18 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
     }
   }
 
-  // Update reps state if initialReps prop changes
-  React.useEffect(() => {
-    setReps(initialReps.toString())
-  }, [initialReps])
-
-  // Reset per-set state when modal opens
+  // Reset per-set state when the modal opens (or when its defaults change
+  // while open). Reps resets here too so a remembered rep count is shown every
+  // time and a previous edit doesn't linger across opens.
   React.useEffect(() => {
     if (visible) {
       setIsSubmitting(false)
+      setReps(initialReps.toString())
       setWeight('')
       setWeightUnit(defaultWeightUnit)
       setVariant(undefined)
     }
-  }, [visible, defaultWeightUnit])
+  }, [visible, defaultWeightUnit, initialReps])
 
   return (
     <Modal

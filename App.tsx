@@ -40,9 +40,10 @@ import { detectSleepWindow } from './utils/sleepDetection'
 import { evaluateSetDeletion } from './utils/setDeletion'
 import { setupReminders, cancelAllReminders } from './utils/notifications'
 import {
-  loadLastWeightUnits,
-  recordLastWeightUnit,
-} from './utils/weightUnitPreference'
+  loadSetPreferences,
+  recordSetPreference,
+} from './utils/exerciseSetPreference'
+import type { SetPreference } from './utils/exerciseSetPreference'
 import type { User as FirebaseUser } from 'firebase/auth'
 
 import { useNetInfo } from '@react-native-community/netinfo'
@@ -99,11 +100,12 @@ const App: React.FC = () => {
   // keyed by exercise id. Session-only: never written back to the routine.
   const [setDeltas, setSetDeltas] = useState<Record<string, number>>({})
 
-  // Last weight unit the user picked per exercise (by id), so the Set Complete
-  // modal defaults to it instead of re-asking each set. Loaded once on mount
-  // and updated on every explicit choice. See utils/weightUnitPreference.
-  const [lastWeightUnits, setLastWeightUnits] = useState<
-    Record<string, WeightUnit>
+  // How the user last logged a set per exercise (by id) — weight unit and rep
+  // count — so the Set Complete modal defaults to those instead of re-asking
+  // the unit and resetting reps each set. Loaded once on mount and updated on
+  // every explicit save. See utils/exerciseSetPreference.
+  const [setPreferences, setSetPreferences] = useState<
+    Record<string, SetPreference>
   >({})
 
   // Custom Hooks
@@ -440,9 +442,9 @@ const App: React.FC = () => {
     }
   }, [currentWorkout, currentExerciseIndex, saveActiveSession])
 
-  // Load the remembered per-exercise weight units once on mount.
+  // Load the remembered per-exercise set preferences once on mount.
   useEffect(() => {
-    loadLastWeightUnits().then(setLastWeightUnits)
+    loadSetPreferences().then(setSetPreferences)
   }, [])
 
   // Reconcile the active workout with the source list. currentWorkout is a
@@ -622,12 +624,13 @@ const App: React.FC = () => {
       setAddSetModalVisible(false)
       setCompletedSetData(null)
 
-      // Remember the unit the user actually picked so the next set for this
-      // exercise defaults to it. The dismiss path calls this with no unit and
-      // must not overwrite the remembered choice.
+      // Remember the unit and reps the user actually saved so the next set for
+      // this exercise defaults to them. The dismiss path calls this with no
+      // unit (and possibly 0 reps) and must not overwrite the remembered
+      // choice, so only record on an explicit save.
       if (weightUnit && completedExercise) {
-        recordLastWeightUnit(completedExercise.id, weightUnit).then(
-          setLastWeightUnits,
+        recordSetPreference(completedExercise.id, { weightUnit, reps }).then(
+          setSetPreferences,
         )
       }
 
@@ -1016,10 +1019,22 @@ const App: React.FC = () => {
         visible={addSetModalVisible}
         onClose={handleCloseAddSetModal}
         onSubmit={handleAddSetDetails}
-        initialReps={completedSetData?.reps ?? settings.maxReps}
+        initialReps={
+          // Prefer the reps the timer actually counted this set. When the set
+          // was ended during the "Get Ready" countdown no rep was counted
+          // (reps is 0), so fall back to the reps last logged for this
+          // exercise, then to the exercise's configured target.
+          completedSetData && completedSetData.reps > 0
+            ? completedSetData.reps
+            : ((completedExercise &&
+                setPreferences[completedExercise.id]?.reps) ??
+              completedExercise?.reps ??
+              settings.maxReps)
+        }
         exerciseName={completedExercise?.name ?? ''}
         defaultWeightUnit={
-          (completedExercise && lastWeightUnits[completedExercise.id]) ??
+          (completedExercise &&
+            setPreferences[completedExercise.id]?.weightUnit) ??
           completedExercise?.weightUnit ??
           'kg'
         }
