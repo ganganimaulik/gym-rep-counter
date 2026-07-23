@@ -829,6 +829,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                         setIsSearchFocused(true)
                       }}
                       onFocus={() => setIsSearchFocused(true)}
+                      onPressIn={() => setIsSearchFocused(true)}
                       placeholder="Search/Add Supp..."
                       placeholderTextColor="#52525b"
                     />

@@ -192,6 +192,7 @@ test.describe('Journal Screen', () => {
       .dispatchEvent('click')
 
     // Click search input to open popular supplements
+    await searchInput.blur()
     await searchInput.click()
     await expect(page.locator('text=Popular Supplements').first()).toBeVisible()
 
