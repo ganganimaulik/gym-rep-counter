@@ -777,7 +777,11 @@ const App: React.FC = () => {
   }, [activeExercise, isSetCompleted, startingSet, startWorkout])
 
   const wrappedRunNextSet = useCallback(() => {
-    if (activeExercise && isSetCompleted(activeExercise.id, currentSet.value)) {
+    if (
+      !isResting &&
+      activeExercise &&
+      isSetCompleted(activeExercise.id, currentSet.value)
+    ) {
       Toast.show({
         type: 'info',
         text1: 'Set Already Completed',
@@ -786,7 +790,7 @@ const App: React.FC = () => {
       return
     }
     runNextSet()
-  }, [activeExercise, isSetCompleted, currentSet, runNextSet])
+  }, [activeExercise, isSetCompleted, currentSet, isResting, runNextSet])
 
   const handleCloseAddSetModal = useCallback(() => {
     // Dismissing the modal (Android back / onRequestClose) must not silently

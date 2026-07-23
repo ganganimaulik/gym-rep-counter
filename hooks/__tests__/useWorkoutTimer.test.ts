@@ -385,7 +385,7 @@ describe('useWorkoutTimer', () => {
       )
     })
 
-    it('should complete the exercise after the last set', async () => {
+    it('should rest after the last set, then complete the exercise on next phase', async () => {
       const { result } = renderHook(() =>
         useWorkoutTimer(
           defaultSettings,
@@ -401,11 +401,25 @@ describe('useWorkoutTimer', () => {
         result.current.continueToNextPhase()
       })
 
+      // The last set completes and starts rest phase
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Rest')
+        expect(result.current.isExerciseComplete).toBe(false)
+      })
+      expect(mockQueueSpeak).toHaveBeenCalledWith(
+        'Set complete. Rest now.',
+        expect.any(Object),
+      )
+
+      // Advancing past post-exercise rest completes the exercise
+      act(() => {
+        result.current.continueToNextPhase()
+      })
+
       await waitFor(() => {
         expect(result.current.isExerciseComplete).toBe(true)
         expect(result.current.statusText.value).toBe('Exercise Complete!')
       })
-      // The final set must be announced too, not just intermediate ones
       expect(mockQueueSpeak).toHaveBeenCalledWith('Set complete.', {
         priority: true,
       })
@@ -446,7 +460,16 @@ describe('useWorkoutTimer', () => {
         )
       })
 
-      // Finishing the extra set completes the exercise
+      // Finishing the extra set enters rest after final set
+      act(() => {
+        result.current.continueToNextPhase()
+      })
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Rest')
+        expect(result.current.isExerciseComplete).toBe(false)
+      })
+
+      // Continuing after post-exercise rest completes the exercise
       act(() => {
         result.current.continueToNextPhase()
       })
@@ -890,17 +913,23 @@ describe('useWorkoutTimer', () => {
       act(() => result.current.runNextSet()) // Skip Rest, Start Set 2
       await waitFor(() => expect(result.current.phase).toBe('Get Ready')) // or Concentric depending on logic
 
-      // Finish Set 2 immediately
+      // Finish Set 2 immediately (enters post-exercise rest)
       act(() => result.current.continueToNextPhase()) // Finish Set 2
 
       await waitFor(() => {
-        // Should be in Rest for Set 2 (transitioning to Set 3) or Complete
         if (activeExercise.sets > 2) {
           expect(result.current.currentSet.value).toBe(3)
         } else {
-          expect(result.current.isExerciseComplete).toBe(true)
+          expect(result.current.phase).toBe('Rest')
         }
       })
+
+      if (activeExercise.sets <= 2) {
+        act(() => result.current.continueToNextPhase()) // Complete exercise after rest
+        await waitFor(() => {
+          expect(result.current.isExerciseComplete).toBe(true)
+        })
+      }
     })
 
     it('should handle settings changes during active workout', async () => {

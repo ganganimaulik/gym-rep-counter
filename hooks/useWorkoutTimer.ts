@@ -55,6 +55,7 @@ interface WorkoutState {
   isJumping: boolean
   setStartTime: number // Timestamp when the current set started (after countdown)
   restTargetAnnounced: boolean // "Rest target reached" fired for the current rest period
+  isPostExerciseRest: boolean // Resting after final set of exercise
 }
 
 export interface WorkoutTimerHook {
@@ -129,6 +130,7 @@ export function useWorkoutTimer(
     isJumping: false,
     setStartTime: 0,
     restTargetAnnounced: false,
+    isPostExerciseRest: false,
   })
 
   const timeoutRef = useRef<number | null>(null)
@@ -262,6 +264,7 @@ export function useWorkoutTimer(
       isJumping: false,
       setStartTime: 0,
       restTargetAnnounced: false,
+      isPostExerciseRest: false,
     }
     displayRep.value = 0
     displaySet.value = 1
@@ -274,18 +277,42 @@ export function useWorkoutTimer(
     statusText.value = 'Press Start'
   }, [clearTimer, displayRep, displaySet, updateUI, statusText])
 
+  const finishExercise = useCallback(() => {
+    fullReset()
+    updateUI({
+      isExerciseComplete: true,
+    })
+    statusText.value = 'Exercise Complete!'
+    // Must come after fullReset(), whose clearTimer() stops speech.
+    queueSpeak('Set complete.', { priority: true })
+  }, [fullReset, updateUI, statusText, queueSpeak])
+
   const continueToNextPhase = useCallback(() => {
     const maxSets = activeExercise?.sets ?? settings.maxSets
+
+    if (wState.current.isPostExerciseRest) {
+      finishExercise()
+      return
+    }
+
     const nextSet = wState.current.set + 1
 
     if (nextSet > maxSets) {
-      fullReset()
+      wState.current.isPostExerciseRest = true
+      wState.current.rep = 0
+      displaySet.value = maxSets
+      displayRep.value = 0
+
       updateUI({
-        isExerciseComplete: true,
+        isRunning: false,
+        isPaused: false,
+        phase: PHASE_DISPLAY[PHASES.REST],
+        isRestComplete: false,
       })
-      statusText.value = 'Exercise Complete!'
-      // Must come after fullReset(), whose clearTimer() stops speech.
-      queueSpeak('Set complete.', { priority: true })
+      queueSpeak(`Set complete. Rest now.`, {
+        priority: true,
+      })
+      startRest()
     } else {
       wState.current.set = nextSet
       wState.current.rep = 0
@@ -301,20 +328,16 @@ export function useWorkoutTimer(
       queueSpeak(`Set complete. Rest now.`, {
         priority: true,
       })
-      // Deliberately not gated on the speech finishing (no onDone): if the
-      // utterance never completes (flaky web TTS, muted device) the rest
-      // timer must still run, and rest truly starts when the set ends.
       startRest()
     }
   }, [
     settings,
     activeExercise,
-    fullReset,
+    finishExercise,
     updateUI,
     displayRep,
     displaySet,
     queueSpeak,
-    statusText,
     startRest,
   ])
 
@@ -324,6 +347,7 @@ export function useWorkoutTimer(
     wState.current.rep = 0
     wState.current.remainingTime = 0
     wState.current.isJumping = false
+    wState.current.isPostExerciseRest = false
     displayRep.value = 0
     updateUI({
       isRunning: false,
@@ -547,6 +571,7 @@ export function useWorkoutTimer(
         isJumping: false,
         setStartTime: 0,
         restTargetAnnounced: false,
+        isPostExerciseRest: false,
       }
       displayRep.value = 0
       displaySet.value = newStartingSet
@@ -684,6 +709,7 @@ export function useWorkoutTimer(
       wState.current.rep = 0
       wState.current.isJumping = false
       wState.current.remainingTime = 0
+      wState.current.isPostExerciseRest = false
       displaySet.value = set
       displayRep.value = 0
       updateUI({
@@ -701,9 +727,21 @@ export function useWorkoutTimer(
   const runNextSet = useCallback(() => {
     clearTimer()
     wState.current.isJumping = false
-    updateUI({ isRunning: true, isPaused: false })
-    startCountdown()
-  }, [clearTimer, updateUI, startCountdown])
+    const maxSets = activeExercise?.sets ?? settings.maxSets
+    if (wState.current.isPostExerciseRest || wState.current.set > maxSets) {
+      finishExercise()
+    } else {
+      updateUI({ isRunning: true, isPaused: false })
+      startCountdown()
+    }
+  }, [
+    clearTimer,
+    activeExercise,
+    settings,
+    finishExercise,
+    updateUI,
+    startCountdown,
+  ])
 
   const addCountdownTime = useCallback(() => {
     if (wState.current.phase === PHASES.COUNTDOWN) {

@@ -78,4 +78,59 @@ test.describe('Workout Screen Tests', () => {
     // After reload, the same workout and exercise should be restored
     await expect(page.locator('text=Leg Press').first()).toBeVisible()
   })
+
+  test('should trigger rest timer after final set of an exercise', async ({ page }) => {
+    // Select workout (Leg Press has 4 sets)
+    await page.click('text=Select a workout...')
+    await page.click('text=Day 1 (Lower)')
+
+    // --- Set 1 ---
+    await page.click('text=Start Workout')
+    await page.click('text=End Set')
+    await page.locator('[data-testid="reps-input"]').fill('10')
+    await page.locator('[data-testid="weight-input"]').fill('80')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    // Rest after Set 1 -> Start Set 2
+    await expect(page.locator('text=Skip Rest').first()).toBeVisible()
+    await page.click('text=Skip Rest')
+
+    // --- Set 2 ---
+    await expect(page.locator('text=End Set').first()).toBeVisible()
+    await page.click('text=End Set')
+    await page.locator('[data-testid="reps-input"]').fill('10')
+    await page.locator('[data-testid="weight-input"]').fill('80')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    // Rest after Set 2 -> Start Set 3
+    await expect(page.locator('text=Skip Rest').first()).toBeVisible()
+    await page.click('text=Skip Rest')
+
+    // --- Set 3 ---
+    await expect(page.locator('text=End Set').first()).toBeVisible()
+    await page.click('text=End Set')
+    await page.locator('[data-testid="reps-input"]').fill('10')
+    await page.locator('[data-testid="weight-input"]').fill('80')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    // Rest after Set 3 -> Start Set 4 (Final Set)
+    await expect(page.locator('text=Skip Rest').first()).toBeVisible()
+    await page.click('text=Skip Rest')
+
+    // --- Set 4 (Final Set) ---
+    await expect(page.locator('text=End Set').first()).toBeVisible()
+    await page.click('text=End Set')
+    await page.locator('[data-testid="reps-input"]').fill('10')
+    await page.locator('[data-testid="weight-input"]').fill('80')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    // After saving details for Set 4 (final set), rest timer for final set MUST run!
+    await expect(page.locator('text=Rest').first()).toBeVisible()
+    await expect(page.locator('text=Skip Rest').first()).toBeVisible()
+
+    // Skipping rest after final set completes Leg Press and advances to RDL
+    await page.click('text=Skip Rest')
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await expect(page.locator('text=RDL').first()).toBeVisible()
+  })
 })
