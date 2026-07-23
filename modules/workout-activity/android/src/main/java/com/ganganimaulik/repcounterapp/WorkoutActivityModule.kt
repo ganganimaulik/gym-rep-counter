@@ -18,7 +18,7 @@ class WorkoutActivityModule : Module() {
     }
 
     Function("stopActivity") {
-      val context = appContext.reactContext ?: return@Function
+      val context = appContext.reactContext ?: return@Function null
       try {
         val serviceClass = Class.forName("com.ganganimaulik.repcounterapp.WorkoutForegroundService")
         val intent = Intent(context, serviceClass).apply {
@@ -28,6 +28,7 @@ class WorkoutActivityModule : Module() {
       } catch (e: Exception) {
         e.printStackTrace()
       }
+      null
     }
   }
 
