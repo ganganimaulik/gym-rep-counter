@@ -48,8 +48,8 @@ export interface HealthLogGroup {
 interface TDEEScreenProps {
   user: FirebaseUser | null
   dataHook: DataHook
-  onLogPress: () => void
-  onEditLogPress: (group: HealthLogGroup) => void
+  onLogPress?: () => void
+  onEditLogPress?: (group: HealthLogGroup) => void
 }
 
 const screenWidth = Dimensions.get('window').width - 32
@@ -1004,7 +1004,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 healthLogsByDate.slice(0, 15).map((group, index) => (
                   <StyledTouchableOpacity
                     key={group.dateStr}
-                    onPress={() => onEditLogPress(group)}
+                    onPress={() => onEditLogPress?.(group)}
                     activeOpacity={0.7}
                     className={`flex-row justify-between items-center py-3.5 ${
                       index < Math.min(healthLogsByDate.length, 15) - 1

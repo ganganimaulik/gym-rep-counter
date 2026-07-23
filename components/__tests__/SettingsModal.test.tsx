@@ -60,7 +60,7 @@ describe('SettingsModal', () => {
         user={null}
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={null}
+        detectedSleepWindow={undefined}
       />,
     )
 
@@ -82,7 +82,7 @@ describe('SettingsModal', () => {
         user={null}
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={null}
+        detectedSleepWindow={undefined}
       />,
     )
 
@@ -114,7 +114,7 @@ describe('SettingsModal', () => {
         user={null}
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={null}
+        detectedSleepWindow={undefined}
       />,
     )
 
@@ -142,7 +142,7 @@ describe('SettingsModal', () => {
         user={null} // not logged in
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={null}
+        detectedSleepWindow={undefined}
       />,
     )
 
@@ -164,7 +164,7 @@ describe('SettingsModal', () => {
         user={{ uid: 'test-user', email: 'user@test.com' } as any} // logged in
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={null}
+        detectedSleepWindow={undefined}
       />,
     )
 

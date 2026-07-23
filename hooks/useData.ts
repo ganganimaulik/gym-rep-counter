@@ -262,11 +262,11 @@ export interface DataHook {
     user: FirebaseUser | null,
   ) => Promise<void>
   fetchHistory: (
-    user: FirebaseUser,
+    user: FirebaseUser | null,
     lastVisible?: WorkoutSet,
   ) => Promise<WorkoutSet[]>
   fetchTodaysCompletions: (
-    user: FirebaseUser,
+    user: FirebaseUser | null,
     exerciseId: string,
   ) => Promise<void>
   fetchAllTodaysCompletions: (user: FirebaseUser | null) => Promise<void>
