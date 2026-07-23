@@ -1,4 +1,4 @@
-package com.ganganimaulik.repcounterapp
+package com.ganganimaulik.workoutactivity
 
 import android.app.Notification
 import android.app.NotificationChannel

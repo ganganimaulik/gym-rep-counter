@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.ganganimaulik.repcounterapp">
+    package="com.ganganimaulik.workoutactivity">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
@@ -7,7 +7,7 @@
 
     <application>
         <service
-            android:name="com.ganganimaulik.repcounterapp.WorkoutForegroundService"
+            android:name="com.ganganimaulik.workoutactivity.WorkoutForegroundService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />

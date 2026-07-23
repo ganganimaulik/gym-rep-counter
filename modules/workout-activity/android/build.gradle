@@ -7,7 +7,7 @@ expoModule {
 }
 
 android {
-  namespace "com.ganganimaulik.repcounterapp"
+  namespace "com.ganganimaulik.workoutactivity"
   compileSdkVersion 34
 
   defaultConfig {

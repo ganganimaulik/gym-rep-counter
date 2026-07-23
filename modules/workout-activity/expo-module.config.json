@@ -4,6 +4,6 @@
     "modules": ["WorkoutActivityModule"]
   },
   "android": {
-    "modules": ["com.ganganimaulik.repcounterapp.WorkoutActivityModule"]
+    "modules": ["com.ganganimaulik.workoutactivity.WorkoutActivityModule"]
   }
 }

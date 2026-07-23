@@ -1,4 +1,4 @@
-package com.ganganimaulik.repcounterapp
+package com.ganganimaulik.workoutactivity
 
 import android.content.Intent
 import android.os.Build
@@ -20,7 +20,7 @@ class WorkoutActivityModule : Module() {
     Function("stopActivity") {
       val context = appContext.reactContext ?: return@Function null
       try {
-        val serviceClass = Class.forName("com.ganganimaulik.repcounterapp.WorkoutForegroundService")
+        val serviceClass = Class.forName("com.ganganimaulik.workoutactivity.WorkoutForegroundService")
         val intent = Intent(context, serviceClass).apply {
           action = "STOP_WORKOUT_ACTIVITY"
         }
@@ -35,7 +35,7 @@ class WorkoutActivityModule : Module() {
   private fun sendIntent(actionStr: String, data: Map<String, Any>) {
     val context = appContext.reactContext ?: return
     try {
-      val serviceClass = Class.forName("com.ganganimaulik.repcounterapp.WorkoutForegroundService")
+      val serviceClass = Class.forName("com.ganganimaulik.workoutactivity.WorkoutForegroundService")
       val intent = Intent(context, serviceClass).apply {
         action = actionStr
         putExtra("exerciseName", data["exerciseName"] as? String ?: "")
