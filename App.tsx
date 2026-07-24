@@ -196,28 +196,43 @@ const App: React.FC = () => {
     ? getNextUncompletedSet(activeExercise.id)
     : 1
 
+  // How many of an exercise's sets (as adjusted this session) are logged today.
+  const loggedSetCount = useCallback(
+    (exercise: Exercise): number =>
+      Array.from(
+        { length: Math.max(1, exercise.sets + (setDeltas[exercise.id] ?? 0)) },
+        (_, i) => i + 1,
+      ).filter((setNumber) => isSetCompleted(exercise.id, setNumber)).length,
+    [isSetCompleted, setDeltas],
+  )
+
   // An exercise is "done" once every one of its sets (as adjusted this
   // session) has been logged today.
   const isExerciseDone = useCallback(
     (exercise: Exercise): boolean =>
-      Array.from(
-        { length: Math.max(1, exercise.sets + (setDeltas[exercise.id] ?? 0)) },
-        (_, i) => i + 1,
-      ).every((setNumber) => isSetCompleted(exercise.id, setNumber)),
-    [isSetCompleted, setDeltas],
+      loggedSetCount(exercise) ===
+      Math.max(1, exercise.sets + (setDeltas[exercise.id] ?? 0)),
+    [loggedSetCount, setDeltas],
   )
 
-  // Partition exercises into completed-first / unfinished-last order,
-  // preserving relative order within each group. `treatAsDoneId` lets a
-  // just-finished exercise count as complete before its final set is persisted.
+  // Partition exercises into done / in-progress / untouched order, preserving
+  // relative order within each group. Anything with at least one set logged
+  // sits directly behind the finished exercises, so a half-done exercise is
+  // what the workout resumes on instead of a fresh one further down the
+  // routine. `treatAsDoneId` lets a just-finished exercise count as complete
+  // before its final set is persisted.
   const orderExercisesByCompletion = useCallback(
     (exercises: Exercise[], treatAsDoneId?: string) => {
       const done = (e: Exercise) => e.id === treatAsDoneId || isExerciseDone(e)
       const completed = exercises.filter(done)
-      const remaining = exercises.filter((e) => !done(e))
+      const started = exercises.filter((e) => !done(e) && loggedSetCount(e) > 0)
+      const untouched = exercises.filter(
+        (e) => !done(e) && loggedSetCount(e) === 0,
+      )
+      const remaining = [...started, ...untouched]
       return { ordered: [...completed, ...remaining], completed, remaining }
     },
-    [isExerciseDone],
+    [isExerciseDone, loggedSetCount],
   )
 
   const continueToNextPhaseRef = useRef<() => void>(() => {})
@@ -495,6 +510,22 @@ const App: React.FC = () => {
     clearActiveSession,
     orderExercisesByCompletion,
   ])
+
+  // Keep the session list in completion order as sets land: the moment an
+  // exercise has its first set logged it moves up behind the finished ones, so
+  // an exercise started out of order doesn't stay buried at the end of the
+  // routine. The active exercise is re-pinned by id, so a reshuffle never
+  // swaps out what's on screen mid-set.
+  useEffect(() => {
+    if (!currentWorkout) return
+    const { ordered } = orderExercisesByCompletion(currentWorkout.exercises)
+    if (ordered.every((e, i) => e.id === currentWorkout.exercises[i].id)) return
+
+    const activeId = currentWorkout.exercises[currentExerciseIndex]?.id
+    const activeIdx = ordered.findIndex((e) => e.id === activeId)
+    setCurrentWorkout({ ...currentWorkout, exercises: ordered })
+    if (activeIdx >= 0) setCurrentExerciseIndex(activeIdx)
+  }, [currentWorkout, currentExerciseIndex, orderExercisesByCompletion])
 
   // Restore active workout session on initial mount once workouts are loaded
   const sessionRestoredRef = useRef(false)

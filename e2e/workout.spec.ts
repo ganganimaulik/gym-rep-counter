@@ -79,7 +79,9 @@ test.describe('Workout Screen Tests', () => {
     await expect(page.locator('text=Leg Press').first()).toBeVisible()
   })
 
-  test('should trigger rest timer after final set of an exercise', async ({ page }) => {
+  test('should trigger rest timer after final set of an exercise', async ({
+    page,
+  }) => {
     // Select workout (Leg Press has 4 sets)
     await page.click('text=Select a workout...')
     await page.click('text=Day 1 (Lower)')

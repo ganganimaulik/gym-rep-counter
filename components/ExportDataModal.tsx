@@ -95,21 +95,31 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
   }, [journalEntries, weightLogs, calorieLogs, bounds])
 
   const handleCopy = async () => {
-    const formattedText = formatLogsForExport(filteredData, bounds)
-    const success = await copyLogsToClipboard(formattedText)
-    if (success) {
-      setIsCopied(true)
-      Toast.show({
-        type: 'success',
-        text1: 'Export Copied to Clipboard!',
-        text2: `${filteredData.journalEntries.length} journal, ${filteredData.weightLogs.length} weight & ${filteredData.calorieLogs.length} calorie logs`,
-      })
-      setTimeout(() => setIsCopied(false), 2500)
-    } else {
+    try {
+      const formattedText = formatLogsForExport(filteredData, bounds)
+      const success = await copyLogsToClipboard(formattedText)
+      if (success) {
+        setIsCopied(true)
+        Toast.show({
+          type: 'success',
+          text1: 'Export Copied to Clipboard!',
+          text2: `${filteredData.journalEntries.length} journal, ${filteredData.weightLogs.length} weight & ${filteredData.calorieLogs.length} calorie logs`,
+        })
+        setTimeout(() => setIsCopied(false), 2500)
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Copy Failed',
+          text2: 'Could not copy export data to clipboard.',
+        })
+      }
+    } catch (err) {
+      // Last-resort guard: a button press must never throw an unhandled error.
+      console.error('Export copy failed:', err)
       Toast.show({
         type: 'error',
         text1: 'Copy Failed',
-        text2: 'Could not copy export data to clipboard.',
+        text2: 'Something went wrong while preparing the export.',
       })
     }
   }
