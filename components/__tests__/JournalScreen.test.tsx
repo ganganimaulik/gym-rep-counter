@@ -642,9 +642,8 @@ describe('JournalScreen', () => {
       },
     }
 
-    const { getByTestId, getByPlaceholderText, getAllByText } = render(
-      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
-    )
+    const { getByTestId, getByPlaceholderText, getAllByText, getAllByTestId } =
+      render(<JournalScreen user={null} visible={true} dataHook={dataHook} />)
 
     await act(async () => {
       await Promise.resolve()
@@ -665,12 +664,63 @@ describe('JournalScreen', () => {
     expect(betaItem).toBeTruthy()
     expect(alphaItem).toBeTruthy()
 
-    // Beta (untaken scheduled supplement) should be displayed before Alpha (non-scheduled)
-    const container = betaItem.parent?.parent?.parent
-    const children = container?.children
-    if (children && children.length >= 2) {
-      const text0 = JSON.stringify(children[0])
-      expect(text0).toContain('Beta ScheduledUntaken')
+    // Beta (untaken scheduled supplement) sorts ahead of Alpha (non-scheduled).
+    // Each chip carries a remove-suggestion-<name> testID, so the rendered order
+    // of those testIDs is the rendered order of the list.
+    const order = getAllByTestId(/^remove-suggestion-/).map(
+      (node) => node.props.testID,
+    )
+    expect(order).toEqual([
+      'remove-suggestion-Beta ScheduledUntaken',
+      'remove-suggestion-Alpha NonScheduled',
+    ])
+  })
+
+  test('keeps scheduled supplements in place once they have been taken that day', async () => {
+    const takenDate = new Date()
+    const dataHook: any = {
+      ...mockDataHook,
+      settings: {
+        supplementSuggestions: [
+          { name: 'Alpha NonScheduled', defaultDosage: '1 tab' },
+          {
+            name: 'Beta ScheduledUntaken',
+            defaultDosage: '5g',
+            schedule: 'daily',
+            scheduleActivatedDate: '2020-01-01',
+          },
+        ],
+      },
+      journalEntries: [
+        {
+          id: 'entry-1',
+          date: {
+            toDate: () => takenDate,
+            toMillis: () => takenDate.getTime(),
+          },
+          supplements: [{ name: 'Beta ScheduledUntaken', dosage: '5g' }],
+        },
+      ],
     }
+
+    const { getByTestId, getByPlaceholderText, getAllByTestId } = render(
+      <JournalScreen user={null} visible={true} dataHook={dataHook} />,
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    fireEvent.press(getByTestId('add-journal-note-button'))
+    fireEvent(getByPlaceholderText('Search/Add Supp...'), 'focus')
+
+    // Beta is no longer "forgotten", so the original declaration order stands.
+    const order = getAllByTestId(/^remove-suggestion-/).map(
+      (node) => node.props.testID,
+    )
+    expect(order).toEqual([
+      'remove-suggestion-Alpha NonScheduled',
+      'remove-suggestion-Beta ScheduledUntaken',
+    ])
   })
 })

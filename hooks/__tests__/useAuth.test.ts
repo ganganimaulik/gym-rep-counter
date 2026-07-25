@@ -1,6 +1,11 @@
 import { renderHook, act } from '@testing-library/react-native'
+import { Platform } from 'react-native'
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
-import { onAuthStateChanged, signInWithCredential } from 'firebase/auth'
+import {
+  onAuthStateChanged,
+  signInWithCredential,
+  signInWithPopup,
+} from 'firebase/auth'
 import { useAuth } from '../useAuth'
 import { auth } from '../../utils/firebase'
 
@@ -14,16 +19,20 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   },
 }))
 
-jest.mock('firebase/auth', () => ({
-  getReactNativePersistence: jest.fn(),
-  initializeAuth: jest.fn(),
-  getAuth: jest.fn(),
-  onAuthStateChanged: jest.fn(),
-  GoogleAuthProvider: {
-    credential: jest.fn(),
-  },
-  signInWithCredential: jest.fn(),
-}))
+jest.mock('firebase/auth', () => {
+  // Constructable so the web popup flow (`new GoogleAuthProvider()`) works.
+  const GoogleAuthProvider: any = jest.fn()
+  GoogleAuthProvider.credential = jest.fn()
+  return {
+    getReactNativePersistence: jest.fn(),
+    initializeAuth: jest.fn(),
+    getAuth: jest.fn(),
+    onAuthStateChanged: jest.fn(),
+    GoogleAuthProvider,
+    signInWithCredential: jest.fn(),
+    signInWithPopup: jest.fn(),
+  }
+})
 
 // Mock the auth object from firebase to control signOut behavior
 jest.mock('../../utils/firebase', () => ({
@@ -223,5 +232,214 @@ describe('useAuth Hook', () => {
       new Error('Google Sign-In failed: No ID token received.'),
     )
     consoleErrorSpy.mockRestore()
+  })
+
+  it('treats the native 12501 code as a user cancellation', async () => {
+    ;(GoogleSignin.signIn as jest.Mock).mockRejectedValue({ code: '12501' })
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {})
+
+    const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+
+    await act(async () => {
+      await result.current.onGoogleButtonPress()
+    })
+
+    expect(consoleErrorSpy).not.toHaveBeenCalled()
+    expect(result.current.isSigningIn).toBe(false)
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('configures native Google Sign-In with the bundled client IDs', () => {
+    process.env.EXPO_PUBLIC_WEB_CLIENT_ID = 'web-client'
+    process.env.EXPO_PUBLIC_IOS_CLIENT_ID = 'ios-client'
+
+    renderHook(() => useAuth(mockOnAuthSuccess))
+
+    expect(GoogleSignin.configure).toHaveBeenCalledWith({
+      webClientId: 'web-client',
+      iosClientId: 'ios-client',
+    })
+  })
+
+  it('unsubscribes from auth state changes on unmount', () => {
+    const unsubscribe = jest.fn()
+    ;(onAuthStateChanged as jest.Mock).mockReturnValue(unsubscribe)
+
+    const { unmount } = renderHook(() => useAuth(mockOnAuthSuccess))
+    unmount()
+
+    expect(unsubscribe).toHaveBeenCalled()
+  })
+
+  describe('on web', () => {
+    const originalOS = Platform.OS
+    const originalPlaywright = process.env.EXPO_PUBLIC_PLAYWRIGHT
+    let store: Record<string, string>
+
+    beforeEach(() => {
+      Platform.OS = 'web'
+      store = {}
+      // The Node test env has no usable localStorage, so stand one in.
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        writable: true,
+        value: {
+          getItem: jest.fn((k: string) => store[k] ?? null),
+          setItem: jest.fn((k: string, v: string) => {
+            store[k] = v
+          }),
+          removeItem: jest.fn((k: string) => {
+            delete store[k]
+          }),
+        },
+      })
+    })
+
+    afterEach(() => {
+      Platform.OS = originalOS
+      process.env.EXPO_PUBLIC_PLAYWRIGHT = originalPlaywright
+      delete (globalThis as { localStorage?: unknown }).localStorage
+      delete (window as unknown as { setMockUser?: unknown }).setMockUser
+    })
+
+    it('signs in through a popup instead of the native SDK', async () => {
+      ;(signInWithPopup as jest.Mock).mockResolvedValue({ user: mockUser })
+      const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+
+      await act(async () => {
+        await result.current.onGoogleButtonPress()
+      })
+
+      expect(signInWithPopup).toHaveBeenCalledWith(auth, expect.anything())
+      expect(GoogleSignin.signIn).not.toHaveBeenCalled()
+      expect(result.current.isSigningIn).toBe(false)
+    })
+
+    it('does not configure the native Google Sign-In SDK', () => {
+      renderHook(() => useAuth(mockOnAuthSuccess))
+
+      expect(GoogleSignin.configure).not.toHaveBeenCalled()
+    })
+
+    it('reports a failed popup sign-in and clears the in-progress flag', async () => {
+      const error = new Error('popup blocked')
+      ;(signInWithPopup as jest.Mock).mockRejectedValue(error)
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+
+      const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+
+      await act(async () => {
+        await result.current.onGoogleButtonPress()
+      })
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Google Sign-In error:',
+        error,
+      )
+      expect(result.current.isSigningIn).toBe(false)
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('signs out without touching the native SDK', async () => {
+      delete process.env.EXPO_PUBLIC_PLAYWRIGHT
+
+      const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+
+      await act(async () => {
+        await result.current.disconnectAccount()
+      })
+
+      expect(GoogleSignin.signOut).not.toHaveBeenCalled()
+      expect(auth.signOut).toHaveBeenCalled()
+    })
+
+    describe('under Playwright', () => {
+      beforeEach(() => {
+        process.env.EXPO_PUBLIC_PLAYWRIGHT = '1'
+      })
+
+      it('restores a mock user persisted in localStorage', async () => {
+        store.PLAYWRIGHT_MOCK_USER = JSON.stringify({ uid: 'mock-uid' })
+
+        const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+        await act(async () => {})
+
+        expect(result.current.user).toEqual({ uid: 'mock-uid' })
+        expect(mockOnAuthSuccess).toHaveBeenCalledWith({ uid: 'mock-uid' })
+      })
+
+      it('ignores a corrupt stored mock user', async () => {
+        store.PLAYWRIGHT_MOCK_USER = '{not json'
+
+        const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+        await act(async () => {})
+
+        expect(result.current.user).toBeNull()
+        expect(mockOnAuthSuccess).not.toHaveBeenCalled()
+      })
+
+      it('exposes a window hook for injecting a user mid-test', async () => {
+        const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+        const win = window as unknown as {
+          setMockUser: (u: unknown) => void
+        }
+
+        expect(typeof win.setMockUser).toBe('function')
+
+        await act(async () => {
+          win.setMockUser({ uid: 'injected' })
+        })
+
+        expect(result.current.user).toEqual({ uid: 'injected' })
+        expect(mockOnAuthSuccess).toHaveBeenCalledWith({ uid: 'injected' })
+      })
+
+      it('clears the stored mock user on disconnect and skips firebase sign-out', async () => {
+        store.PLAYWRIGHT_MOCK_USER = JSON.stringify({ uid: 'mock-uid' })
+
+        const { result } = renderHook(() => useAuth(mockOnAuthSuccess))
+        await act(async () => {})
+        mockOnAuthSuccess.mockClear()
+
+        await act(async () => {
+          await result.current.disconnectAccount()
+        })
+
+        expect(localStorage.removeItem).toHaveBeenCalledWith(
+          'PLAYWRIGHT_MOCK_USER',
+        )
+        expect(result.current.user).toBeNull()
+        expect(mockOnAuthSuccess).toHaveBeenCalledWith(null)
+        expect(auth.signOut).not.toHaveBeenCalled()
+      })
+
+      it('still runs the sign-out cleanup before clearing the mock user', async () => {
+        const mockOnSignOut = jest.fn().mockResolvedValue(undefined)
+
+        const { result } = renderHook(() =>
+          useAuth(mockOnAuthSuccess, mockOnSignOut),
+        )
+
+        await act(async () => {
+          await result.current.disconnectAccount()
+        })
+
+        expect(mockOnSignOut).toHaveBeenCalled()
+      })
+
+      it('does not install the window hook when Playwright is off', () => {
+        delete process.env.EXPO_PUBLIC_PLAYWRIGHT
+
+        renderHook(() => useAuth(mockOnAuthSuccess))
+
+        expect(
+          (window as unknown as { setMockUser?: unknown }).setMockUser,
+        ).toBeUndefined()
+      })
+    })
   })
 })

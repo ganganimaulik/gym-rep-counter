@@ -584,7 +584,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                         : 'text-red-400'
                     }`}>
                     {tdeeData.dailyDeficit !== null
-                      ? `${isDeficit ? '-' : isSurplus ? '+' : ''}${Math.round(tdeeData.dailyDeficit).toLocaleString()} ${energyLabel}`
+                      ? `${isDeficit ? '-' : isSurplus ? '+' : ''}${Math.abs(Math.round(tdeeData.dailyDeficit)).toLocaleString()} ${energyLabel}`
                       : '—'}
                   </StyledText>
                 </StyledView>
