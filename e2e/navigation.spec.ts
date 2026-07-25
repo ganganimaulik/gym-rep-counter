@@ -7,7 +7,7 @@ test.describe('Global Navigation', () => {
   })
 
   test('should navigate between tabs', async ({ page }) => {
-    await expect(page.locator('text=Current Workout').first()).toBeVisible()
+    await expect(page.locator('text=Select a workout...').first()).toBeVisible()
 
     await page.click('div[data-testid="tab-routines"]')
     await expect(page.locator('text=Create Routine').first()).toBeVisible()

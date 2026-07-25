@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
 import Animated, {
   useAnimatedProps,
+  useAnimatedReaction,
+  runOnJS,
   SharedValue,
 } from 'react-native-reanimated'
 
@@ -81,11 +83,19 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
     } as Record<string, string> as never
   }, [])
 
-  const animatedStatusProps = useAnimatedProps(() => {
-    return {
-      text: statusText.value,
-    } as Record<string, string> as never
-  }, [])
+  // The status line is plain React state rather than an animated `text` prop:
+  // it wraps (multi-line), and react-native-web renders a multi-line TextInput
+  // as a <textarea>, which reanimated's web prop writer can't push `text` into
+  // — the countdown would sit frozen at whatever it read on mount.
+  const [statusLabel, setStatusLabel] = useState(statusText.value)
+  useAnimatedReaction(
+    () => statusText.value,
+    (current, previous) => {
+      if (current !== previous) {
+        runOnJS(setStatusLabel)(current)
+      }
+    },
+  )
 
   const handlePress = () => {
     if (phase === 'Get Ready') {
@@ -121,15 +131,11 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
           {/* Main Display Area */}
           <StyledView className="items-center justify-center mt-2">
             {phase === 'Rest' || phase === 'Get Ready' || !phase ? (
-              <StyledAnimatedTextInput
+              <StyledText
                 testID="main-display-status"
-                className="text-3xl font-black text-white text-center w-52"
-                editable={false}
-                pointerEvents="none"
-                animatedProps={animatedStatusProps}
-                defaultValue={statusText.value}
-                multiline={true}
-              />
+                className="text-3xl font-black text-white text-center w-52">
+                {statusLabel}
+              </StyledText>
             ) : (
               <StyledView className="items-center">
                 <StyledAnimatedTextInput

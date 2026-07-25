@@ -46,9 +46,7 @@ describe('MainDisplay', () => {
       />,
     )
 
-    expect(getByTestId('main-display-status').props.defaultValue).toBe(
-      'Get Ready!',
-    )
+    expect(getByTestId('main-display-status')).toHaveTextContent('Get Ready!')
     expect(queryByTestId('main-display-reps')).toBeNull()
   })
 

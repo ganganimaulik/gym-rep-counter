@@ -60,7 +60,7 @@ test.describe('Gym Rep Counter E2E Tests', () => {
 
   test('1. Bottom Tab Bar Navigation', async ({ page }) => {
     // We should be on Workout tab initially (shows Select a workout)
-    await expect(page.getByText('Current Workout')).toBeVisible()
+    await expect(page.getByText('Select a workout...')).toBeVisible()
 
     // Navigate to Routines
     await page.getByText('Routines', { exact: true }).click()

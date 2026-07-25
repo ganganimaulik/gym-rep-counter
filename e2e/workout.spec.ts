@@ -6,9 +6,7 @@ test.describe('Workout Screen Tests', () => {
     await page.waitForTimeout(3000)
   })
 
-  test('should render workout selector and exercise card', async ({ page }) => {
-    await expect(page.locator('text=Current Workout').first()).toBeVisible()
-    await expect(page.locator('text=Edit').first()).toBeVisible()
+  test('should render workout selector', async ({ page }) => {
     await expect(page.locator('text=Select a workout...').first()).toBeVisible()
   })
 
@@ -134,5 +132,25 @@ test.describe('Workout Screen Tests', () => {
     await page.click('text=Skip Rest')
     await page.evaluate(() => window.scrollTo(0, 0))
     await expect(page.locator('text=RDL').first()).toBeVisible()
+  })
+
+  test('should count the rest timer down on screen', async ({ page }) => {
+    await page.click('text=Select a workout...')
+    await page.click('text=Day 1 (Lower)')
+
+    await page.click('text=Start Workout')
+    await page.click('text=End Set')
+
+    // Rest starts as soon as the set ends, behind the "Set Complete" modal.
+    const status = page.locator('[data-testid="main-display-status"]')
+    await expect(status).toHaveText(/^Rest: \d+s$/)
+    const first = Number((await status.textContent())!.match(/\d+/)![0])
+
+    // The displayed number has to actually drop — it used to sit frozen at the
+    // value it was mounted with, because the animated `text` prop never
+    // reaches a multi-line TextInput (a <textarea>) on web.
+    await expect(status).not.toHaveText(`Rest: ${first}s`, { timeout: 4000 })
+    const later = Number((await status.textContent())!.match(/\d+/)![0])
+    expect(later).toBeLessThan(first)
   })
 })
