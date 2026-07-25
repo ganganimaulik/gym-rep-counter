@@ -45,6 +45,11 @@ private extension WorkoutAttributes.ContentState {
         }
         return "Set \(currentSet)/\(totalSets) • Rep \(currentRep) of \(reps)"
     }
+
+    // "Last: 60 kg × 10" — the load decision the user makes while resting.
+    var lastSetLine: String? {
+        lastSetSummary.isEmpty ? nil : "Last: \(lastSetSummary)"
+    }
 }
 
 // Countdown that freezes while paused and flips to a "GO!" call-to-action
@@ -127,6 +132,14 @@ struct WidgetLiveActivity: Widget {
                                 .font(.system(.subheadline, design: .rounded))
                                 .foregroundColor(.gray)
                                 .lineLimit(1)
+
+                            if let lastSetLine = context.state.lastSetLine {
+                                Text(lastSetLine)
+                                    .font(.system(.caption, design: .rounded))
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.blue)
+                                    .lineLimit(1)
+                            }
 
                             if !context.state.nextExerciseName.isEmpty {
                                 Text("Then: \(context.state.nextExerciseName)")
@@ -232,6 +245,15 @@ struct WidgetLiveActivity: Widget {
                             .foregroundColor(.gray)
                             .lineLimit(1)
                             .padding(.horizontal, 8)
+
+                            if let lastSetLine = context.state.lastSetLine {
+                                Text(lastSetLine)
+                                    .font(.system(.caption, design: .rounded))
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.blue)
+                                    .lineLimit(1)
+                                    .padding(.horizontal, 8)
+                            }
 
                             RestProgressBar(state: context.state)
                                 .padding(.horizontal, 8)

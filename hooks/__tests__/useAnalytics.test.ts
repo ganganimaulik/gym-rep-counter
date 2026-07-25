@@ -75,6 +75,7 @@ describe('useAnalytics Hook', () => {
     migrateGuestHistory: jest.fn(),
     syncOfflineQueue: jest.fn(),
     fetchFullHistory: mockFetchFullHistory,
+    fetchRecentExerciseSets: jest.fn().mockResolvedValue([]),
     setWorkouts: jest.fn(),
     setSettings: jest.fn(),
     setOfflineQueue: jest.fn(),

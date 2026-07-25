@@ -40,6 +40,7 @@ class WorkoutActivityModule : Module() {
         action = actionStr
         putExtra("exerciseName", data["exerciseName"] as? String ?: "")
         putExtra("nextExerciseName", data["nextExerciseName"] as? String ?: "")
+        putExtra("lastSetSummary", data["lastSetSummary"] as? String ?: "")
         putExtra("currentSet", (data["currentSet"] as? Number)?.toInt() ?: 1)
         putExtra("totalSets", (data["totalSets"] as? Number)?.toInt() ?: 1)
         putExtra("reps", (data["reps"] as? Number)?.toInt() ?: 0)

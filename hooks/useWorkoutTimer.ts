@@ -18,6 +18,7 @@ import {
   scheduleRestEndNotification,
   cancelRestEndNotification,
 } from '../utils/restNotification'
+import { resolveExerciseTiming } from '../utils/exerciseTiming'
 
 // Constants
 const PHASES = {
@@ -91,14 +92,24 @@ interface OnSetCompleteDetails {
 
 // Hook
 export function useWorkoutTimer(
-  settings: Settings,
+  globalSettings: Settings,
   handlers: AudioHandler,
   activeExercise: Exercise | undefined,
   onSetComplete: (details: OnSetCompleteDetails) => void,
   startingSet: number,
   nextExerciseName: string = '',
+  lastSetSummaryFor: (setNumber: number) => string = () => '',
 ): WorkoutTimerHook {
   const { queueSpeak, speakEccentric } = handlers
+
+  // Every duration below reads from the active exercise's overrides, falling
+  // back to the global settings — so switching exercises switches the get
+  // ready / rest / rep tempos with it. Identity-stable when the exercise
+  // overrides nothing, which keeps the callbacks below from churning.
+  const settings = useMemo(
+    () => resolveExerciseTiming(globalSettings, activeExercise),
+    [globalSettings, activeExercise],
+  )
 
   useEffect(() => {
     enableBackgroundExecution()
@@ -813,6 +824,9 @@ export function useWorkoutTimer(
     const statePayload = {
       exerciseName: activeExercise.name,
       nextExerciseName: nextExerciseName || '',
+      // What this set weighed last session — the number the user is deciding
+      // on while resting, without unlocking the phone.
+      lastSetSummary: lastSetSummaryFor(wState.current.set) || '',
       currentSet: wState.current.set,
       totalSets: activeExercise.sets ?? settings.maxSets,
       reps: activeExercise.reps,
@@ -835,6 +849,7 @@ export function useWorkoutTimer(
   }, [
     activeExercise,
     nextExerciseName,
+    lastSetSummaryFor,
     ui.isRunning,
     ui.isPaused,
     ui.phase,

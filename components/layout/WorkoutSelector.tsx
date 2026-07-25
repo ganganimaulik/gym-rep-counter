@@ -2,13 +2,7 @@ import React from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { styled } from 'nativewind'
 import Toast from 'react-native-toast-message'
-import {
-  Edit,
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  Plus,
-} from 'lucide-react-native'
+import { ChevronLeft, ChevronRight, Check, Plus } from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
 
@@ -72,7 +66,6 @@ interface WorkoutSelectorProps {
   currentExerciseIndex: number
   settings: Settings
   selectWorkout: (workoutId: string | null) => void
-  setModalVisible: (visible: boolean) => void
   prevExercise: () => void
   nextExercise: () => void
   isSetCompleted: (exerciseId: string, setNumber: number) => boolean
@@ -91,7 +84,6 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   currentExerciseIndex,
   settings,
   selectWorkout,
-  setModalVisible,
   prevExercise,
   nextExercise,
   isSetCompleted,
@@ -104,22 +96,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
   arePreviousSetsCompleted,
 }) => {
   return (
-    <StyledView className="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-4 space-y-4 shadow-xl">
-      <StyledView className="flex-row justify-between items-center">
-        <StyledText className="text-sm font-black tracking-wider text-zinc-400 uppercase">
-          Current Workout
-        </StyledText>
-        <StyledTouchableOpacity
-          onPress={() => setModalVisible(true)}
-          activeOpacity={0.7}
-          className="flex-row items-center space-x-1.5 rounded-xl bg-zinc-800 border border-zinc-700 py-1.5 px-3">
-          <Edit color="#a1a1aa" size={14} />
-          <StyledText className="text-xs font-bold text-zinc-300">
-            Edit
-          </StyledText>
-        </StyledTouchableOpacity>
-      </StyledView>
-
+    <StyledView className="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-3 space-y-3 shadow-xl">
       <WorkoutPicker
         selectedValue={currentWorkout?.id || null}
         onValueChange={(itemValue) => selectWorkout(itemValue)}
@@ -127,13 +104,10 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
       />
 
       {currentWorkout && (
-        <StyledView className="border-t border-zinc-800/80 pt-4">
+        <StyledView className="border-t border-zinc-800/80 pt-3">
           <StyledView className="flex-row justify-between items-center">
             <StyledView className="flex-1 mr-2">
-              <StyledText className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                Active Exercise
-              </StyledText>
-              <StyledText className="text-lg font-black text-white mt-0.5 leading-tight">
+              <StyledText className="text-base font-black text-white leading-tight">
                 {currentWorkout.exercises[currentExerciseIndex]?.name}
               </StyledText>
             </StyledView>
@@ -161,7 +135,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
             />
           </StyledView>
 
-          <StyledView className="flex-row justify-between items-center mt-3 pt-2 border-t border-zinc-800/40">
+          <StyledView className="flex-row justify-between items-center mt-2 pt-2 border-t border-zinc-800/40">
             <StyledText className="text-xs font-bold text-zinc-500">
               Exercise {currentExerciseIndex + 1} of{' '}
               {currentWorkout.exercises.length}
@@ -177,12 +151,12 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
       )}
 
       {currentWorkout && (
-        <StyledView className="flex-row justify-between gap-x-3 pt-1">
+        <StyledView className="flex-row justify-between gap-x-3">
           <StyledTouchableOpacity
             onPress={prevExercise}
             disabled={currentExerciseIndex === 0}
             activeOpacity={0.7}
-            className={`py-3 rounded-xl flex-1 items-center justify-center flex-row ${
+            className={`py-2.5 rounded-xl flex-1 items-center justify-center flex-row ${
               currentExerciseIndex === 0
                 ? 'bg-zinc-950/40 opacity-40'
                 : 'bg-zinc-800 border border-zinc-700'
@@ -202,7 +176,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
               currentExerciseIndex >= currentWorkout.exercises.length - 1
             }
             activeOpacity={0.7}
-            className={`py-3 rounded-xl flex-1 items-center justify-center flex-row ${
+            className={`py-2.5 rounded-xl flex-1 items-center justify-center flex-row ${
               currentExerciseIndex >= currentWorkout.exercises.length - 1
                 ? 'bg-zinc-950/40 opacity-40'
                 : 'bg-zinc-800 border border-zinc-700'

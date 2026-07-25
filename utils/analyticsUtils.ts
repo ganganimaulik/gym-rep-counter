@@ -14,14 +14,14 @@ const UNIT_ORDER: WeightUnit[] = ['kg', 'plates']
 /**
  * Unit a set was logged in; sets predating weight units are treated as kg.
  */
-function getSetUnit(set: WorkoutSet): WeightUnit {
+export function getSetUnit(set: WorkoutSet): WeightUnit {
   return set.weightUnit ?? 'kg'
 }
 
 /**
  * Format a Date to a YYYY-MM-DD string in the system's local timezone.
  */
-function toLocalYMD(date: Date): string {
+export function toLocalYMD(date: Date): string {
   const year = date.getFullYear()
   const month = (date.getMonth() + 1).toString().padStart(2, '0')
   const day = date.getDate().toString().padStart(2, '0')
@@ -31,7 +31,7 @@ function toLocalYMD(date: Date): string {
 /**
  * Parse a YYYY-MM-DD string into a local Date object.
  */
-function parseLocalYMD(dateStr: string): Date {
+export function parseLocalYMD(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number)
   return new Date(year, month - 1, day)
 }

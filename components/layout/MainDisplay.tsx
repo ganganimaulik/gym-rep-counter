@@ -96,7 +96,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   const colors = getPhaseColor(phase)
 
   return (
-    <StyledView className="items-center py-6">
+    <StyledView className="items-center py-2">
       <StyledTouchableOpacity
         testID="main-display-pressable"
         onPress={handlePress}

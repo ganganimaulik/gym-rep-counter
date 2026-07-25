@@ -94,8 +94,7 @@ test.describe('Gym Rep Counter E2E Tests', () => {
     await page.getByText('Select a workout...').click()
     await page.getByText('Day 1 (Lower)').click()
 
-    // Verify Active Exercise card info
-    await expect(page.getByText('Active Exercise')).toBeVisible()
+    // Verify active exercise card info
     await expect(page.getByText('Leg Press')).toBeVisible()
     await expect(page.getByText('Target: 10 Reps')).toBeVisible()
     await expect(page.getByText('Exercise 1 of 5')).toBeVisible()

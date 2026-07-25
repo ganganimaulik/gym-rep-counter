@@ -84,6 +84,7 @@ const mockDataHookValue = {
   arePreviousSetsCompleted: jest.fn(),
   getNextUncompletedSet: jest.fn(() => 1),
   fetchAllTodaysCompletions: jest.fn(),
+  fetchRecentExerciseSets: jest.fn().mockResolvedValue([]),
   syncOfflineQueue: jest.fn(),
   fetchWeightLogs: jest.fn(),
   fetchCalorieLogs: jest.fn(),

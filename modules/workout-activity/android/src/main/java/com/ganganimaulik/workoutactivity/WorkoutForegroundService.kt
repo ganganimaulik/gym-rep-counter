@@ -19,6 +19,7 @@ class WorkoutForegroundService : Service() {
 
     private var exerciseName = ""
     private var nextExerciseName = ""
+    private var lastSetSummary = ""
     private var currentSet = 1
     private var totalSets = 1
     private var reps = 0
@@ -54,6 +55,7 @@ class WorkoutForegroundService : Service() {
 
         exerciseName = intent.getStringExtra("exerciseName") ?: ""
         nextExerciseName = intent.getStringExtra("nextExerciseName") ?: ""
+        lastSetSummary = intent.getStringExtra("lastSetSummary") ?: ""
         currentSet = intent.getIntExtra("currentSet", 1)
         totalSets = intent.getIntExtra("totalSets", 1)
         reps = intent.getIntExtra("reps", 0)
@@ -164,7 +166,12 @@ class WorkoutForegroundService : Service() {
                 "Resting: ${remainingSec}s remaining"
             }
             builder.setContentTitle(title)
-            builder.setContentText("Next: ${if (nextExerciseName.isEmpty()) "None" else nextExerciseName} (Set $currentSet/$totalSets)")
+            val nextText = "Next: ${if (nextExerciseName.isEmpty()) "None" else nextExerciseName} (Set $currentSet/$totalSets)"
+            // Surface what this set weighed last session so the load decision
+            // can be made from the notification shade.
+            builder.setContentText(
+                if (lastSetSummary.isEmpty()) nextText else "$nextText • Last: $lastSetSummary"
+            )
             builder.setProgress(restSeconds, remainingSec, false)
             builder.setPriority(NotificationCompat.PRIORITY_LOW)
         } else {

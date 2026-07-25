@@ -44,6 +44,13 @@ import {
   recordSetPreference,
 } from './utils/exerciseSetPreference'
 import type { SetPreference } from './utils/exerciseSetPreference'
+import getLocalDateString from './utils/getLocalDateString'
+import {
+  formatSetSummary,
+  resolveSetForNumber,
+  selectLastSession,
+} from './utils/lastSession'
+import type { WorkoutSet } from './declarations'
 import type { User as FirebaseUser } from 'firebase/auth'
 
 import { useNetInfo } from '@react-native-community/netinfo'
@@ -61,6 +68,7 @@ import WorkoutSelector from './components/layout/WorkoutSelector'
 import MainDisplay from './components/layout/MainDisplay'
 import Controls from './components/layout/Controls'
 import RepJumper from './components/layout/RepJumper'
+import LastSessionPanel from './components/layout/LastSessionPanel'
 import AddSetDetailsModal from './components/AddSetDetailsModal'
 import type { WeightUnit } from './declarations'
 import Toast from 'react-native-toast-message'
@@ -108,6 +116,11 @@ const App: React.FC = () => {
     Record<string, SetPreference>
   >({})
 
+  // Recent sets for the active exercise, newest first — the source for the
+  // "Last Time" panel and the last-set line on the Live Activity. Refetched
+  // when the exercise changes; previous sessions can't change mid-workout.
+  const [recentExerciseSets, setRecentExerciseSets] = useState<WorkoutSet[]>([])
+
   // Custom Hooks
   const { isConnected } = useNetInfo()
   const dataHook = useData()
@@ -139,6 +152,7 @@ const App: React.FC = () => {
     loadActiveSession,
     clearActiveSession,
     clearUserScopedCache,
+    fetchRecentExerciseSets,
   } = dataHook
 
   const onAuthSuccess = useCallback(
@@ -195,6 +209,52 @@ const App: React.FC = () => {
   const startingSet = activeExercise
     ? getNextUncompletedSet(activeExercise.id)
     : 1
+
+  // Deliberately not memoized: recomputed each render so the panel rolls over
+  // to the new day without remounting the app.
+  const todayKey = getLocalDateString()
+
+  const activeExerciseId = activeExercise?.id
+  // Read through a ref so the fetch below keys on the account *id*: a fresh
+  // user object carrying the same uid is the same account, and depending on the
+  // object itself would refetch on every render that hands back a new one.
+  const userRef = useRef(user)
+  userRef.current = user
+
+  useEffect(() => {
+    if (!activeExerciseId) {
+      // Guarded: clearing an already-empty list must not allocate a new array,
+      // or this effect re-renders on every run.
+      setRecentExerciseSets((prev) => (prev.length === 0 ? prev : []))
+      return
+    }
+    let cancelled = false
+    fetchRecentExerciseSets(userRef.current, activeExerciseId)
+      .then((sets) => {
+        // A fast exercise switch can resolve out of order — drop stale results
+        // rather than showing another exercise's numbers.
+        if (!cancelled) setRecentExerciseSets(sets)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [activeExerciseId, user?.uid, fetchRecentExerciseSets])
+
+  const lastSession = useMemo(
+    () => selectLastSession(recentExerciseSets, todayKey),
+    [recentExerciseSets, todayKey],
+  )
+
+  // Feeds the Live Activity: what the given set weighed last session, so the
+  // number is on the lock screen while the user rests.
+  const lastSetSummaryFor = useCallback(
+    (setNumber: number) =>
+      lastSession
+        ? formatSetSummary(resolveSetForNumber(lastSession, setNumber))
+        : '',
+    [lastSession],
+  )
 
   // How many of an exercise's sets (as adjusted this session) are logged today.
   const loggedSetCount = useCallback(
@@ -277,6 +337,7 @@ const App: React.FC = () => {
     handleSetComplete,
     startingSet,
     nextExerciseItem?.name ?? '',
+    lastSetSummaryFor,
   )
 
   // Keep ref in sync
@@ -694,10 +755,6 @@ const App: React.FC = () => {
     ],
   )
 
-  const handleOpenRoutines = useCallback((visible: boolean) => {
-    if (visible) setCurrentTab('routines')
-  }, [])
-
   // Conditional keep-awake: only keep screen on during active workout or rest phase
   useEffect(() => {
     const safeDeactivate = () => {
@@ -860,14 +917,13 @@ const App: React.FC = () => {
             className="flex-1 p-4"
             contentContainerStyle={{ paddingBottom: 40 }}
             keyboardShouldPersistTaps="handled">
-            <StyledView className="w-full max-w-md mx-auto space-y-6">
+            <StyledView className="w-full max-w-md mx-auto space-y-3">
               <WorkoutSelector
                 workouts={workouts}
                 currentWorkout={currentWorkout}
                 currentExerciseIndex={currentExerciseIndex}
                 settings={settings}
                 selectWorkout={selectWorkout}
-                setModalVisible={handleOpenRoutines}
                 prevExercise={prevExercise}
                 nextExercise={nextExercise}
                 isSetCompleted={isSetCompleted}
@@ -878,6 +934,12 @@ const App: React.FC = () => {
                 jumpToSet={jumpToSet}
                 resetSetsFrom={handleResetSetsFrom}
                 arePreviousSetsCompleted={arePreviousSetsCompleted}
+              />
+
+              <LastSessionPanel
+                session={lastSession}
+                currentSet={startingSet}
+                todayKey={todayKey}
               />
 
               <MainDisplay
@@ -915,6 +977,7 @@ const App: React.FC = () => {
             onClose={() => setCurrentTab('workout')}
             workouts={workouts}
             setWorkouts={handleSaveWorkouts}
+            settings={settings}
           />
         )}
 

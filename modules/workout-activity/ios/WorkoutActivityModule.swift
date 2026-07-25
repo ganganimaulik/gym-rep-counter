@@ -53,6 +53,7 @@ public class WorkoutActivityModule: Module {
     return WorkoutAttributes.ContentState(
         exerciseName: data["exerciseName"] as? String ?? "",
         nextExerciseName: data["nextExerciseName"] as? String ?? "",
+        lastSetSummary: data["lastSetSummary"] as? String ?? "",
         currentSet: data["currentSet"] as? Int ?? 1,
         totalSets: data["totalSets"] as? Int ?? 1,
         reps: data["reps"] as? Int ?? 0,

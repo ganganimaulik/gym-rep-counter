@@ -1307,4 +1307,263 @@ describe('useWorkoutTimer', () => {
       expect(stopWorkoutActivity).toHaveBeenCalled()
     })
   })
+  describe('per-exercise timing overrides', () => {
+    // The countdown and rest ticks re-align themselves to the wall clock
+    // (1000 - now % 1000), so pin the clock to an exact second: ticks then land
+    // on 1000ms boundaries and the assertions below can be exact.
+    beforeEach(() => {
+      jest.setSystemTime(new Date('2026-07-25T10:00:00.000Z'))
+    })
+
+    // The global settings say 3s get ready / 5s rest / 1s + 2s rep tempo.
+    // Distinct id so switching to it triggers the exercise-change reset.
+    const slowExercise: Exercise = {
+      ...activeExercise,
+      id: 'ex2',
+      countdownSeconds: 8,
+      restSeconds: 30,
+      concentricSeconds: 3,
+      eccentricSeconds: 5,
+    }
+
+    it("counts down the exercise's get ready time, not the global one", () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          slowExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.statusText.value).toBe('Get Ready… 8')
+
+      // The global 3s would have started the set by now.
+      act(() => jest.advanceTimersByTime(3000))
+      expect(result.current.phase).toBe('Get Ready')
+      expect(result.current.statusText.value).toBe('Get Ready… 5')
+
+      act(() => jest.advanceTimersByTime(5000))
+      expect(result.current.phase).toBe('Concentric')
+    })
+
+    it("rests for the exercise's rest time, not the global one", async () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          slowExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.continueToNextPhase()
+      })
+      await waitFor(() => {
+        expect(result.current.phase).toBe('Rest')
+      })
+
+      // Past the global 5s target, but this exercise rests 30s.
+      act(() => jest.advanceTimersByTime(6000))
+      expect(result.current.isRestComplete).toBe(false)
+      expect(result.current.statusText.value).toBe('Rest: 24s')
+
+      act(() => jest.advanceTimersByTime(25000))
+      await waitFor(() => {
+        expect(result.current.isRestComplete).toBe(true)
+      })
+    })
+
+    it('schedules the rest-end notification against the override', async () => {
+      const { scheduleRestEndNotification } = jest.requireMock(
+        '../../utils/restNotification',
+      )
+      scheduleRestEndNotification.mockClear()
+
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          slowExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.continueToNextPhase()
+      })
+      await waitFor(() => {
+        expect(scheduleRestEndNotification).toHaveBeenCalledWith(
+          expect.objectContaining({ secondsFromNow: 30 }),
+        )
+      })
+    })
+
+    it("uses the exercise's rep tempo for concentric and eccentric", () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          slowExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      act(() => jest.advanceTimersByTime(8000))
+      expect(result.current.phase).toBe('Concentric')
+
+      // Global concentric is 1s; this exercise holds for 3s.
+      act(() => jest.advanceTimersByTime(1500))
+      expect(result.current.phase).toBe('Concentric')
+      act(() => jest.advanceTimersByTime(1500))
+      expect(result.current.phase).toBe('Eccentric')
+
+      // Global eccentric is 2s; this exercise holds for 5s before rep 2.
+      act(() => jest.advanceTimersByTime(2500))
+      expect(result.current.currentRep.value).toBe(1)
+      act(() => jest.advanceTimersByTime(2500))
+      expect(result.current.currentRep.value).toBe(2)
+    })
+
+    it('falls back to the global timings for an exercise without overrides', () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.statusText.value).toBe('Get Ready… 3')
+
+      act(() => jest.advanceTimersByTime(3000))
+      expect(result.current.phase).toBe('Concentric')
+    })
+
+    it('ignores an out-of-range override instead of breaking the timer', () => {
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          { ...activeExercise, countdownSeconds: -4 },
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.statusText.value).toBe('Get Ready… 3')
+    })
+
+    it("sends last session's numbers for the current set to the live activity", async () => {
+      const { startWorkoutActivity } = jest.requireMock(
+        '../../utils/workoutActivity',
+      )
+      startWorkoutActivity.mockClear()
+
+      const lastSetSummaryFor = jest.fn(
+        (setNumber: number) => `${55 + setNumber} kg × 10`,
+      )
+
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          2,
+          'Overhead Press',
+          lastSetSummaryFor,
+        ),
+      )
+
+      act(() => {
+        result.current.startWorkout()
+      })
+
+      await waitFor(() => {
+        expect(startWorkoutActivity).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currentSet: 2,
+            lastSetSummary: '57 kg × 10',
+            nextExerciseName: 'Overhead Press',
+          }),
+        )
+      })
+    })
+
+    it('sends an empty last-set line when the exercise has no history', async () => {
+      const { startWorkoutActivity } = jest.requireMock(
+        '../../utils/workoutActivity',
+      )
+      startWorkoutActivity.mockClear()
+
+      const { result } = renderHook(() =>
+        useWorkoutTimer(
+          defaultSettings,
+          mockAudioHandler,
+          activeExercise,
+          mockOnSetComplete,
+          1,
+        ),
+      )
+
+      act(() => {
+        result.current.startWorkout()
+      })
+
+      await waitFor(() => {
+        expect(startWorkoutActivity).toHaveBeenCalledWith(
+          expect.objectContaining({ lastSetSummary: '' }),
+        )
+      })
+    })
+
+    it("picks up the new exercise's timings when the exercise switches", () => {
+      const { result, rerender } = renderHook(
+        ({ exercise }: { exercise: Exercise }) =>
+          useWorkoutTimer(
+            defaultSettings,
+            mockAudioHandler,
+            exercise,
+            mockOnSetComplete,
+            1,
+          ),
+        { initialProps: { exercise: activeExercise } },
+      )
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.statusText.value).toBe('Get Ready… 3')
+
+      // Switching exercises resets the timer, so the next start picks up the
+      // new exercise's get ready time.
+      rerender({ exercise: slowExercise })
+      expect(result.current.isRunning).toBe(false)
+
+      act(() => {
+        result.current.startWorkout()
+      })
+      expect(result.current.statusText.value).toBe('Get Ready… 8')
+    })
+  })
 })

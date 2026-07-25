@@ -8,27 +8,40 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native'
 import { styled } from 'nativewind'
-import { X, Trash2, Plus, GripVertical } from 'lucide-react-native'
+import { X, Trash2, Plus, GripVertical, Timer } from 'lucide-react-native'
 import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { randomUUID } from 'expo-crypto'
-import { Workout, Exercise } from '../hooks/useData'
+import { Workout, Exercise, Settings } from '../hooks/useData'
 import type { WeightUnit } from '../declarations'
+import {
+  TIMING_FIELDS,
+  TIMING_FIELD_SPECS,
+  describeTimingOverrides,
+  isValidTimingValue,
+  parseTimingInput,
+  type TimingField,
+} from '../utils/exerciseTiming'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
 const StyledTextInput = styled(TextInput)
 const StyledTouchableOpacity = styled(TouchableOpacity)
+const StyledScrollView = styled(ScrollView)
 
 interface WorkoutManagementModalProps {
   visible: boolean
   onClose: () => void
   workouts: Workout[]
   setWorkouts: (workouts: Workout[]) => void
+  // Global timing defaults, shown as the placeholder for each per-exercise
+  // override so a blank field reads as "inherits <global value>".
+  settings: Settings
 }
 
 interface EditExerciseState {
@@ -99,9 +112,19 @@ const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
             {getIndex()! + 1}. {ex.name}
           </StyledText>
         </StyledView>
-        <StyledText className="text-xs text-zinc-500 font-bold mx-3 uppercase tracking-wider">
-          {ex.sets} sets × {ex.reps} reps
-        </StyledText>
+        <StyledView className="mx-3 items-end">
+          <StyledText className="text-xs text-zinc-500 font-bold uppercase tracking-wider">
+            {ex.sets} sets × {ex.reps} reps
+          </StyledText>
+          {!!describeTimingOverrides(ex) && (
+            <StyledView className="flex-row items-center mt-0.5">
+              <Timer color="#818cf8" size={10} />
+              <StyledText className="text-[10px] text-indigo-400 font-bold ml-1">
+                {describeTimingOverrides(ex)}
+              </StyledText>
+            </StyledView>
+          )}
+        </StyledView>
         <Pressable
           testID="delete-exercise-button"
           onPress={() => deleteExercise(workout.id, ex.id)}
@@ -182,10 +205,27 @@ const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
 )
 WorkoutItem.displayName = 'WorkoutItem'
 
+// Draft text for each timing override; '' means "follow the global setting".
+type TimingDrafts = Record<TimingField, string>
+
+const emptyTimingDrafts = (): TimingDrafts =>
+  TIMING_FIELDS.reduce(
+    (acc, field) => ({ ...acc, [field]: '' }),
+    {} as TimingDrafts,
+  )
+
+const timingDraftsFrom = (exercise: Exercise): TimingDrafts =>
+  TIMING_FIELDS.reduce((acc, field) => {
+    const value = exercise[field]
+    acc[field] = isValidTimingValue(field, value) ? String(value) : ''
+    return acc
+  }, emptyTimingDrafts())
+
 const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   visible,
   workouts,
   setWorkouts,
+  settings,
 }) => {
   const [newWorkoutName, setNewWorkoutName] = useState('')
   const [editExercise, setEditExercise] = useState<EditExerciseState>({
@@ -198,6 +238,9 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
   const [editReps, setEditReps] = useState('')
   const [editWeightUnit, setEditWeightUnit] = useState<WeightUnit>('kg')
   const [editVariants, setEditVariants] = useState('')
+  // Kept as strings until save: parsing on every keystroke would fight the
+  // decimal point on the rep-tempo fields.
+  const [editTiming, setEditTiming] = useState<TimingDrafts>(emptyTimingDrafts)
 
   if (!visible) return null
 
@@ -208,6 +251,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
     setEditReps(exercise.reps.toString())
     setEditWeightUnit(exercise.weightUnit ?? 'kg')
     setEditVariants((exercise.variants ?? []).join(', '))
+    setEditTiming(timingDraftsFrom(exercise))
   }
 
   const closeEditModal = () => {
@@ -217,6 +261,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
     setEditReps('')
     setEditWeightUnit('kg')
     setEditVariants('')
+    setEditTiming(emptyTimingDrafts())
   }
 
   const saveEditExercise = () => {
@@ -246,6 +291,14 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
               updated.variants = variants
             } else {
               delete updated.variants
+            }
+            for (const field of TIMING_FIELDS) {
+              const value = parseTimingInput(field, editTiming[field])
+              if (value === undefined) {
+                delete updated[field]
+              } else {
+                updated[field] = value
+              }
             }
             return updated
           }),
@@ -389,7 +442,13 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
               style={{ flex: 1 }}
               keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}>
               <StyledView className="flex-1 justify-center items-center p-4">
-                <StyledView className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+                <StyledScrollView
+                  className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl"
+                  // Scrollable so the timing fields can't push Save off-screen
+                  // on shorter devices.
+                  contentContainerStyle={{ padding: 24 }}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}>
                   <StyledText className="text-white text-xl font-black mb-1 text-center">
                     Edit Exercise
                   </StyledText>
@@ -475,6 +534,46 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                     onChangeText={setEditVariants}
                   />
 
+                  <StyledView className="border-t border-zinc-800/60 pt-4">
+                    <StyledView className="flex-row items-center mb-1">
+                      <Timer color="#818cf8" size={13} />
+                      <StyledText className="text-zinc-400 text-xs font-bold ml-1.5 uppercase tracking-wide">
+                        Timing For This Exercise
+                      </StyledText>
+                    </StyledView>
+                    <StyledText className="text-zinc-500 text-[11px] mb-3 leading-snug">
+                      Leave blank to use your global setting (shown greyed out).
+                    </StyledText>
+
+                    <StyledView className="flex-row flex-wrap -mx-1.5">
+                      {TIMING_FIELDS.map((field) => (
+                        <StyledView key={field} className="w-1/2 px-1.5 mb-3">
+                          <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
+                            {TIMING_FIELD_SPECS[field].label}
+                          </StyledText>
+                          <StyledTextInput
+                            testID={`edit-exercise-timing-${field}`}
+                            className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl text-center font-bold text-sm"
+                            keyboardType={
+                              TIMING_FIELD_SPECS[field].integer
+                                ? 'number-pad'
+                                : 'decimal-pad'
+                            }
+                            placeholder={String(settings[field])}
+                            placeholderTextColor="#52525b"
+                            value={editTiming[field]}
+                            onChangeText={(text) =>
+                              setEditTiming((prev) => ({
+                                ...prev,
+                                [field]: text,
+                              }))
+                            }
+                          />
+                        </StyledView>
+                      ))}
+                    </StyledView>
+                  </StyledView>
+
                   <StyledView className="flex-row gap-3 mt-2">
                     <StyledTouchableOpacity
                       onPress={closeEditModal}
@@ -493,7 +592,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                       </StyledText>
                     </StyledTouchableOpacity>
                   </StyledView>
-                </StyledView>
+                </StyledScrollView>
               </StyledView>
             </KeyboardAvoidingView>
           </StyledView>

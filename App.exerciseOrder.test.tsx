@@ -14,7 +14,7 @@ import App from './App'
 
 // These tests cover how App orders a session's exercises: finished ones first,
 // then anything with at least one set logged, then the untouched remainder.
-// The real WorkoutSelector renders so its "Active Exercise" name and
+// The real WorkoutSelector renders so its active-exercise name and
 // "Exercise N of M" counter report the resulting order.
 
 jest.mock('expo-background-timer', () => ({
@@ -115,6 +115,7 @@ const mockDataHookValue: any = {
   arePreviousSetsCompleted: jest.fn(() => true),
   getNextUncompletedSet: jest.fn(() => 1),
   fetchAllTodaysCompletions: jest.fn(),
+  fetchRecentExerciseSets: jest.fn().mockResolvedValue([]),
   syncOfflineQueue: jest.fn(),
   fetchWeightLogs: jest.fn(),
   fetchCalorieLogs: jest.fn(),

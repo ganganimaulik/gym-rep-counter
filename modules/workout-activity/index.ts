@@ -23,6 +23,9 @@ try {
 export interface WorkoutActivityState {
   exerciseName: string
   nextExerciseName: string
+  // What the upcoming set weighed last session, preformatted (e.g. "60 kg × 10").
+  // Empty when the exercise has no earlier history.
+  lastSetSummary: string
   currentSet: number
   totalSets: number
   reps: number

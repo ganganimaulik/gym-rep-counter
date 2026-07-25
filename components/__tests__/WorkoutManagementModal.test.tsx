@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, fireEvent } from '@testing-library/react-native'
 import WorkoutManagementModal from '../WorkoutManagementModal'
-import { Workout } from '../../hooks/useData'
+import { Workout, Settings } from '../../hooks/useData'
 
 // Mock react-native-gesture-handler and draggable-flatlist
 jest.mock('react-native-gesture-handler', () => {
@@ -48,6 +48,18 @@ describe('WorkoutManagementModal', () => {
     },
   ]
 
+  const mockSettings: Settings = {
+    countdownSeconds: 5,
+    restSeconds: 60,
+    maxReps: 15,
+    maxSets: 3,
+    concentricSeconds: 1,
+    eccentricSeconds: 4,
+    eccentricCountdownEnabled: true,
+    countdownAnnouncementThreshold: 15,
+    volume: 1,
+  }
+
   const mockSetWorkouts = jest.fn()
   const mockOnClose = jest.fn()
 
@@ -62,6 +74,7 @@ describe('WorkoutManagementModal', () => {
         onClose={mockOnClose}
         workouts={mockWorkouts}
         setWorkouts={mockSetWorkouts}
+        settings={mockSettings}
       />,
     )
 
@@ -79,6 +92,7 @@ describe('WorkoutManagementModal', () => {
         onClose={mockOnClose}
         workouts={mockWorkouts}
         setWorkouts={mockSetWorkouts}
+        settings={mockSettings}
       />,
     )
 
@@ -112,6 +126,7 @@ describe('WorkoutManagementModal', () => {
         onClose={mockOnClose}
         workouts={mockWorkouts}
         setWorkouts={mockSetWorkouts}
+        settings={mockSettings}
       />,
     )
 
@@ -146,6 +161,7 @@ describe('WorkoutManagementModal', () => {
         onClose={mockOnClose}
         workouts={mockWorkouts}
         setWorkouts={mockSetWorkouts}
+        settings={mockSettings}
       />,
     )
 
@@ -202,6 +218,7 @@ describe('WorkoutManagementModal', () => {
         onClose={mockOnClose}
         workouts={workoutsWithVariants}
         setWorkouts={mockSetWorkouts}
+        settings={mockSettings}
       />,
     )
 
@@ -232,6 +249,143 @@ describe('WorkoutManagementModal', () => {
     ])
   })
 
+  describe('per-exercise timing overrides', () => {
+    const renderModal = (workouts: Workout[]) =>
+      render(
+        <WorkoutManagementModal
+          visible={true}
+          onClose={mockOnClose}
+          workouts={workouts}
+          setWorkouts={mockSetWorkouts}
+          settings={mockSettings}
+        />,
+      )
+
+    const savedExercise = () => mockSetWorkouts.mock.calls[0][0][0].exercises[0]
+
+    test('shows the global value as the placeholder when nothing is overridden', () => {
+      const { getByText, getByTestId } = renderModal(mockWorkouts)
+      fireEvent.press(getByText('1. Leg Press'))
+
+      const getReady = getByTestId('edit-exercise-timing-countdownSeconds')
+      expect(getReady.props.value).toBe('')
+      expect(getReady.props.placeholder).toBe('5')
+      expect(
+        getByTestId('edit-exercise-timing-restSeconds').props.placeholder,
+      ).toBe('60')
+    })
+
+    test('saves a get ready and rest override on the exercise', () => {
+      const { getByText, getByTestId } = renderModal(mockWorkouts)
+      fireEvent.press(getByText('1. Leg Press'))
+
+      fireEvent.changeText(
+        getByTestId('edit-exercise-timing-countdownSeconds'),
+        '10',
+      )
+      fireEvent.changeText(
+        getByTestId('edit-exercise-timing-restSeconds'),
+        '90',
+      )
+      fireEvent.press(getByText('Save'))
+
+      expect(savedExercise()).toEqual(
+        expect.objectContaining({
+          id: 'ex1',
+          countdownSeconds: 10,
+          restSeconds: 90,
+        }),
+      )
+    })
+
+    test('keeps a fractional rep tempo', () => {
+      const { getByText, getByTestId } = renderModal(mockWorkouts)
+      fireEvent.press(getByText('1. Leg Press'))
+
+      fireEvent.changeText(
+        getByTestId('edit-exercise-timing-eccentricSeconds'),
+        '2.5',
+      )
+      fireEvent.press(getByText('Save'))
+
+      expect(savedExercise().eccentricSeconds).toBe(2.5)
+    })
+
+    test('pre-fills existing overrides and clears them when blanked', () => {
+      const withOverrides: Workout[] = [
+        {
+          id: 'w1',
+          name: 'Test Workout',
+          exercises: [
+            {
+              id: 'ex1',
+              name: 'Calf Raise',
+              sets: 3,
+              reps: 15,
+              countdownSeconds: 3,
+              restSeconds: 45,
+            },
+          ],
+        },
+      ]
+
+      const { getByText, getByTestId } = renderModal(withOverrides)
+      fireEvent.press(getByText('1. Calf Raise'))
+
+      expect(
+        getByTestId('edit-exercise-timing-countdownSeconds').props.value,
+      ).toBe('3')
+      expect(getByTestId('edit-exercise-timing-restSeconds').props.value).toBe(
+        '45',
+      )
+
+      fireEvent.changeText(
+        getByTestId('edit-exercise-timing-countdownSeconds'),
+        '',
+      )
+      fireEvent.press(getByText('Save'))
+
+      const saved = savedExercise()
+      // The key must be absent, not undefined — workouts go to Firestore as-is.
+      expect('countdownSeconds' in saved).toBe(false)
+      expect(saved.restSeconds).toBe(45)
+    })
+
+    test('clamps an out-of-range entry instead of storing it', () => {
+      const { getByText, getByTestId } = renderModal(mockWorkouts)
+      fireEvent.press(getByText('1. Leg Press'))
+
+      fireEvent.changeText(
+        getByTestId('edit-exercise-timing-restSeconds'),
+        '99999',
+      )
+      fireEvent.press(getByText('Save'))
+
+      expect(savedExercise().restSeconds).toBe(600)
+    })
+
+    test('summarizes overrides in the exercise row', () => {
+      const withOverrides: Workout[] = [
+        {
+          id: 'w1',
+          name: 'Test Workout',
+          exercises: [
+            {
+              id: 'ex1',
+              name: 'Calf Raise',
+              sets: 3,
+              reps: 15,
+              restSeconds: 45,
+            },
+          ],
+        },
+      ]
+
+      const { getByText } = renderModal(withOverrides)
+      expect(getByText('Rest 45s')).toBeTruthy()
+    })
+  })
+
   test('calls setWorkouts when deleting a workout', () => {
     const { getByTestId } = render(
       <WorkoutManagementModal
@@ -239,6 +393,7 @@ describe('WorkoutManagementModal', () => {
         onClose={mockOnClose}
         workouts={mockWorkouts}
         setWorkouts={mockSetWorkouts}
+        settings={mockSettings}
       />,
     )
 

@@ -194,6 +194,13 @@ export interface Exercise {
   weightUnit?: WeightUnit
   // Selectable variants (e.g. ["Standing", "Sitting"]); omit when none.
   variants?: string[]
+  // Timing overrides. Each falls back to the Settings field of the same name
+  // when omitted; see utils/exerciseTiming. Omitted (never undefined) for the
+  // same Firestore reason as the fields above.
+  countdownSeconds?: number
+  restSeconds?: number
+  concentricSeconds?: number
+  eccentricSeconds?: number
 }
 
 export interface Workout {
@@ -291,6 +298,11 @@ export interface DataHook {
   fetchFullHistory: (
     user: FirebaseUser | null,
     daysBack?: number,
+  ) => Promise<WorkoutSet[]>
+  fetchRecentExerciseSets: (
+    user: FirebaseUser | null,
+    exerciseId: string,
+    limitCount?: number,
   ) => Promise<WorkoutSet[]>
   fetchWeightLogs: (user: FirebaseUser | null) => Promise<WeightLog[]>
   addWeightLog: (
@@ -1631,6 +1643,70 @@ export const useData = (): DataHook => {
     [],
   )
 
+  // The newest sets logged for a single exercise, newest first. Small and
+  // targeted so the workout screen can show "last time" without pulling the
+  // whole 90-day history the analytics screen uses. Served by the existing
+  // (exerciseId, date) composite index.
+  const fetchRecentExerciseSets = useCallback(
+    async (
+      user: FirebaseUser | null,
+      exerciseId: string,
+      limitCount: number = 40,
+    ): Promise<WorkoutSet[]> => {
+      if (!exerciseId) return []
+
+      if (user) {
+        try {
+          const historyCollectionRef = collection(
+            db,
+            'users',
+            user.uid,
+            'history',
+          )
+          const q = query(
+            historyCollectionRef,
+            where('exerciseId', '==', exerciseId),
+            orderBy('date', 'desc'),
+            limit(limitCount),
+          )
+          const querySnapshot = await getDocs(q)
+          return querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as WorkoutSet[]
+        } catch (e) {
+          console.error('Failed to fetch recent exercise sets', e)
+          return []
+        }
+      }
+
+      try {
+        const savedHistoryRaw = await AsyncStorage.getItem('guestHistory')
+        if (!savedHistoryRaw) return []
+        const parsed = JSON.parse(savedHistoryRaw)
+        if (!Array.isArray(parsed)) return []
+        return parsed
+          .filter(
+            (item: SerializedWorkoutSetData) =>
+              item?.exerciseId === exerciseId && item?.date,
+          )
+          .map((item: SerializedWorkoutSetData) => ({
+            ...item,
+            date: new Timestamp(item.date.seconds, item.date.nanoseconds),
+          }))
+          .sort(
+            (a: WorkoutSet, b: WorkoutSet) =>
+              b.date.toMillis() - a.date.toMillis(),
+          )
+          .slice(0, limitCount) as WorkoutSet[]
+      } catch (e) {
+        console.error('Failed to fetch guest recent exercise sets', e)
+        return []
+      }
+    },
+    [],
+  )
+
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [calorieLogs, setCalorieLogs] = useState<CalorieLog[]>([])
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
@@ -2437,6 +2513,7 @@ export const useData = (): DataHook => {
       migrateGuestWeightLogs,
       syncOfflineQueue,
       fetchFullHistory,
+      fetchRecentExerciseSets,
       fetchWeightLogs,
       addWeightLog,
       updateWeightLog,
@@ -2491,6 +2568,7 @@ export const useData = (): DataHook => {
       migrateGuestWeightLogs,
       syncOfflineQueue,
       fetchFullHistory,
+      fetchRecentExerciseSets,
       fetchWeightLogs,
       addWeightLog,
       updateWeightLog,

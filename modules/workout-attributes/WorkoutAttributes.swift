@@ -5,6 +5,9 @@ public struct WorkoutAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         public var exerciseName: String
         public var nextExerciseName: String
+        // What the upcoming set weighed last session, preformatted in JS
+        // (e.g. "60 kg × 10"). Empty when there is no earlier history.
+        public var lastSetSummary: String
         public var currentSet: Int
         public var totalSets: Int
         public var reps: Int
@@ -20,6 +23,7 @@ public struct WorkoutAttributes: ActivityAttributes {
         public init(
             exerciseName: String,
             nextExerciseName: String,
+            lastSetSummary: String,
             currentSet: Int,
             totalSets: Int,
             reps: Int,
@@ -34,6 +38,7 @@ public struct WorkoutAttributes: ActivityAttributes {
         ) {
             self.exerciseName = exerciseName
             self.nextExerciseName = nextExerciseName
+            self.lastSetSummary = lastSetSummary
             self.currentSet = currentSet
             self.totalSets = totalSets
             self.reps = reps

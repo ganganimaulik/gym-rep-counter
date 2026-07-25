@@ -1,7 +1,5 @@
 import React from 'react'
-import { render, act, waitFor } from '@testing-library/react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { loadSetPreferences } from './utils/exerciseSetPreference'
+import { render, waitFor } from '@testing-library/react-native'
 // See App.dynamicSets.test.tsx: re-throw effect errors so their real stack
 // surfaces instead of "window.dispatchEvent is not a function".
 ;(global as any).window = (global as any).window || {}
@@ -13,12 +11,9 @@ if (typeof (global as any).window.dispatchEvent !== 'function') {
 }
 import App from './App'
 
-// Proves App.tsx remembers, per exercise, how the user last logged a set —
-// weight unit and rep count — and feeds those back as the Set Complete modal's
-// defaults. Especially: ending a set during the "Get Ready" countdown reports
-// 0 reps, and the modal must then fall back to the remembered reps (or the
-// target) instead of showing 0. The real exerciseSetPreference util +
-// in-memory AsyncStorage persist for real, so this is a full round-trip.
+// Proves App.tsx wires the "Last Time" panel: it fetches the active exercise's
+// recent sets, picks the previous session (never today), highlights the set the
+// user is about to do, and hands the same numbers to the Live Activity.
 
 jest.mock('expo-background-timer', () => ({
   bgSetTimeout: jest.fn((callback, timeout) => setTimeout(callback, timeout)),
@@ -45,12 +40,7 @@ jest.mock('@react-native-community/netinfo', () => ({
 }))
 
 jest.mock('lucide-react-native', () => {
-  return new Proxy(
-    {},
-    {
-      get: () => () => null,
-    },
-  )
+  return new Proxy({}, { get: () => () => null })
 })
 
 jest.mock('expo-blur', () => ({
@@ -75,8 +65,6 @@ jest.mock('./hooks/useAuth', () => ({
 }))
 
 const mockDataHookValue: any = {
-  // maxReps here (3) is only the last-resort rep fallback; the exercise's own
-  // target is 8. They differ so the test can tell which default is used.
   settings: {
     volume: 1,
     countdownSeconds: 3,
@@ -87,13 +75,13 @@ const mockDataHookValue: any = {
     eccentricSeconds: 2,
     eccentricCountdownEnabled: true,
   },
-  // ex1 is configured to log in kg.
   workouts: [
     {
       id: 'w1',
       name: 'Push Day',
       exercises: [
-        { id: 'ex1', name: 'Bench Press', sets: 3, reps: 8, weightUnit: 'kg' },
+        { id: 'ex1', name: 'Bench Press', sets: 3, reps: 8 },
+        { id: 'ex2', name: 'Overhead Press', sets: 3, reps: 8 },
       ],
     },
   ],
@@ -114,12 +102,10 @@ const mockDataHookValue: any = {
   syncOfflineQueue: jest.fn(),
   fetchWeightLogs: jest.fn(),
   fetchCalorieLogs: jest.fn(),
-  fetchMeasurementLogs: jest.fn(),
   loadTDEEConfig: jest.fn(),
   fetchJournalEntries: jest.fn(),
   weightLogs: [],
   calorieLogs: [],
-  measurementLogs: [],
   journalEntries: [],
   todaysCompletions: [],
   historyVersion: 0,
@@ -143,9 +129,9 @@ jest.mock('./hooks/useAudio', () => ({
   }),
 }))
 
-// Capture the onSetComplete callback App passes to the timer so the test can
-// fire a set completion without a real timer.
-const mockTimerCapture: any = { onSetComplete: null }
+// Capture the last-set resolver App passes to the timer (7th arg) — that's what
+// feeds the lock screen.
+const mockTimerCapture: any = { lastSetSummaryFor: null }
 const mockWorkoutTimerValue: any = {
   currentRep: { value: 0 },
   currentSet: { value: 1 },
@@ -170,63 +156,55 @@ const mockWorkoutTimerValue: any = {
 }
 jest.mock('./hooks/useWorkoutTimer', () => ({
   useWorkoutTimer: (...args: any[]) => {
-    mockTimerCapture.onSetComplete = args[3]
+    mockTimerCapture.lastSetSummaryFor = args[6]
     return mockWorkoutTimerValue
   },
 }))
-
-// Capture the props App feeds the Set Complete modal.
-const mockModalCapture: any = {
-  visible: false,
-  initialReps: undefined,
-  defaultWeightUnit: undefined,
-  onSubmit: null,
-  onClose: null,
-}
-jest.mock('./components/AddSetDetailsModal', () => (props: any) => {
-  mockModalCapture.visible = props.visible
-  mockModalCapture.initialReps = props.initialReps
-  mockModalCapture.defaultWeightUnit = props.defaultWeightUnit
-  mockModalCapture.onSubmit = props.onSubmit
-  mockModalCapture.onClose = props.onClose
-  return null
-})
 
 jest.mock('./components/SettingsModal', () => () => null)
 jest.mock('./components/WorkoutManagementModal', () => () => null)
 jest.mock('./components/layout/MainDisplay', () => () => null)
 jest.mock('./components/layout/Controls', () => () => null)
 jest.mock('./components/layout/RepJumper', () => () => null)
+jest.mock('./components/AddSetDetailsModal', () => () => null)
 jest.mock('./components/SplashScreen', () => () => null)
 jest.mock('./components/HistoryScreen', () => () => null)
 jest.mock('./components/ProgressScreen', () => () => null)
 jest.mock('./components/JournalScreen', () => () => null)
 
-// Fire the timer's onSetComplete with the given rep count. reps === 0 mimics
-// ending a set during the "Get Ready" countdown (no rep was ever counted).
-const completeSet = (set: number, reps: number) =>
-  act(() => {
-    mockTimerCapture.onSetComplete({
-      exerciseId: 'ex1',
-      reps,
-      set,
-      startTime: set * 10,
-      endTime: set * 10 + 5,
-    })
-  })
+// A set logged at noon `daysAgo` days back, so local-day grouping can't be
+// flipped by a timezone offset.
+const setDaysAgo = (
+  daysAgo: number,
+  setNumber: number,
+  weight: number,
+  reps: number,
+) => {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  d.setHours(12, 0, 0, 0)
+  return {
+    id: `d${daysAgo}-s${setNumber}`,
+    workoutId: 'w1',
+    exerciseId: 'ex1',
+    exerciseName: 'Bench Press',
+    weight,
+    reps,
+    set: setNumber,
+    date: { toDate: () => d, toMillis: () => d.getTime() },
+  }
+}
 
-describe('App — remembers last set unit and reps per exercise', () => {
-  beforeEach(async () => {
-    await AsyncStorage.clear()
+describe('App — last session panel', () => {
+  beforeEach(() => {
     jest.clearAllMocks()
-    mockTimerCapture.onSetComplete = null
-    mockModalCapture.visible = false
-    mockModalCapture.initialReps = undefined
-    mockModalCapture.defaultWeightUnit = undefined
+    mockTimerCapture.lastSetSummaryFor = null
+    mockDataHookValue.getNextUncompletedSet.mockReturnValue(1)
     mockDataHookValue.loadActiveSession.mockResolvedValue({
       workoutId: 'w1',
       exerciseIndex: 0,
     })
+    mockDataHookValue.fetchRecentExerciseSets.mockResolvedValue([])
     mockUseAuth.mockImplementation((onSuccess?: any) => {
       React.useEffect(() => {
         if (onSuccess) onSuccess(null)
@@ -241,8 +219,6 @@ describe('App — remembers last set unit and reps per exercise', () => {
     })
   })
 
-  // Render and wait until the restored workout is active (its set tracker
-  // renders), so completedExercise resolves for ex1.
   const renderActive = async () => {
     const utils = render(<App />)
     await waitFor(() => {
@@ -251,72 +227,87 @@ describe('App — remembers last set unit and reps per exercise', () => {
     return utils
   }
 
-  it('falls back to the target reps (not 0) when a set is ended during the countdown', async () => {
-    await renderActive()
+  it('fetches the active exercise history and shows the previous session', async () => {
+    mockDataHookValue.fetchRecentExerciseSets.mockResolvedValue([
+      setDaysAgo(0, 1, 65, 10), // today — must be ignored
+      setDaysAgo(3, 1, 60, 12),
+      setDaysAgo(3, 2, 60, 11),
+    ])
 
-    // Ending during "Get Ready" reports 0 reps. With no memory yet, the modal
-    // must default to the exercise's configured rep target (8), never 0.
-    await completeSet(1, 0)
-    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
-    expect(mockModalCapture.initialReps).toBe(8)
-    expect(mockModalCapture.defaultWeightUnit).toBe('kg')
+    const { getByTestId, queryByTestId } = await renderActive()
+
+    await waitFor(() => {
+      expect(getByTestId('last-session-panel')).toBeTruthy()
+    })
+    expect(mockDataHookValue.fetchRecentExerciseSets).toHaveBeenCalledWith(
+      null,
+      'ex1',
+    )
+    expect(getByTestId('last-session-when').props.children).toBe('3 days ago')
+    expect(getByTestId('last-session-chip-1')).toBeTruthy()
+    expect(getByTestId('last-session-chip-2')).toBeTruthy()
+    // Today's set must not appear as a third chip.
+    expect(queryByTestId('last-session-chip-3')).toBeNull()
   })
 
-  it('defaults to the reps and unit last saved for the exercise', async () => {
-    await renderActive()
+  it('marks the set the user is about to do, not always set 1', async () => {
+    mockDataHookValue.getNextUncompletedSet.mockReturnValue(2)
+    mockDataHookValue.fetchRecentExerciseSets.mockResolvedValue([
+      setDaysAgo(2, 1, 60, 12),
+      setDaysAgo(2, 2, 62.5, 9),
+    ])
 
-    // Log a set: user overrides to plates and 10 reps.
-    await completeSet(1, 0)
-    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
-    await act(async () => {
-      mockModalCapture.onSubmit(10, 100, 'plates')
-    })
-    await waitFor(async () => {
-      expect((await loadSetPreferences()).ex1).toEqual({
-        weightUnit: 'plates',
-        reps: 10,
-      })
-    })
+    const { getByTestId } = await renderActive()
 
-    // Next set is also ended during the countdown (0 reps). The modal now
-    // defaults to the remembered 10 reps and plates — values that can only come
-    // from memory, since the config says kg and the fallback reps is 3.
-    await completeSet(2, 0)
-    await waitFor(() => expect(mockModalCapture.initialReps).toBe(10))
-    expect(mockModalCapture.defaultWeightUnit).toBe('plates')
+    await waitFor(() => {
+      expect(
+        getByTestId('last-session-chip-2').props.accessibilityState?.selected,
+      ).toBe(true)
+    })
+    expect(
+      getByTestId('last-session-chip-1').props.accessibilityState?.selected,
+    ).toBe(false)
   })
 
-  it('shows the actual counted reps when the timer did count them', async () => {
-    await renderActive()
+  it('hides the panel when the exercise has no earlier history', async () => {
+    mockDataHookValue.fetchRecentExerciseSets.mockResolvedValue([
+      setDaysAgo(0, 1, 65, 10),
+    ])
 
-    // Remember 10 reps first.
-    await completeSet(1, 0)
-    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
-    await act(async () => {
-      mockModalCapture.onSubmit(10, 100, 'plates')
-    })
-    await waitFor(async () => {
-      expect((await loadSetPreferences()).ex1?.reps).toBe(10)
-    })
+    const { queryByTestId } = await renderActive()
 
-    // A normally-completed set counted 7 reps: the actual count wins over the
-    // remembered 10, but the remembered unit still applies.
-    await completeSet(2, 7)
-    await waitFor(() => expect(mockModalCapture.initialReps).toBe(7))
-    expect(mockModalCapture.defaultWeightUnit).toBe('plates')
+    await waitFor(() => {
+      expect(mockDataHookValue.fetchRecentExerciseSets).toHaveBeenCalled()
+    })
+    expect(queryByTestId('last-session-panel')).toBeNull()
   })
 
-  it('does not remember anything when the modal is dismissed without a choice', async () => {
-    await renderActive()
+  it('hands the same numbers to the timer for the lock screen', async () => {
+    mockDataHookValue.fetchRecentExerciseSets.mockResolvedValue([
+      setDaysAgo(4, 1, 60, 12),
+      setDaysAgo(4, 2, 60, 10),
+    ])
 
-    await completeSet(1, 0)
-    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
-
-    // Dismissing (Android back / tap-away) logs the set with no chosen unit.
-    await act(async () => {
-      mockModalCapture.onClose()
+    const { getByTestId } = await renderActive()
+    await waitFor(() => {
+      expect(getByTestId('last-session-panel')).toBeTruthy()
     })
 
-    expect(await loadSetPreferences()).toEqual({})
+    expect(mockTimerCapture.lastSetSummaryFor(1)).toBe('60 kg × 12')
+    expect(mockTimerCapture.lastSetSummaryFor(2)).toBe('60 kg × 10')
+    // Beyond last session's set count, fall back to its final set.
+    expect(mockTimerCapture.lastSetSummaryFor(9)).toBe('60 kg × 10')
+  })
+
+  it('survives a failed history fetch without breaking the screen', async () => {
+    mockDataHookValue.fetchRecentExerciseSets.mockRejectedValue(
+      new Error('offline'),
+    )
+
+    const { queryByTestId, getByTestId } = await renderActive()
+
+    expect(getByTestId('set-tracker-button-3')).toBeTruthy()
+    expect(queryByTestId('last-session-panel')).toBeNull()
+    expect(mockTimerCapture.lastSetSummaryFor(1)).toBe('')
   })
 })
