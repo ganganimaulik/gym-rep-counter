@@ -41,6 +41,7 @@ const mockAudioHandler: AudioHandler = {
   queueSpeak: mockQueueSpeak,
   speakEccentric: mockSpeakEccentric,
   speak: jest.fn(),
+  setAudioSessionMode: jest.fn(),
 }
 
 const defaultSettings: Settings = {

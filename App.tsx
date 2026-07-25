@@ -720,6 +720,16 @@ const App: React.FC = () => {
     return safeDeactivate
   }, [isRunning, isResting])
 
+  // Only turn other apps' audio down while a set is actually under way, when
+  // the spoken cues have to be heard. Rest keeps the audio session alive (so
+  // iOS doesn't suspend the rest timer) but hands the volume back, and outside
+  // a workout the app claims no audio at all.
+  useEffect(() => {
+    audioHandler.setAudioSessionMode(
+      isRunning ? 'ducking' : isResting ? 'keepAlive' : 'idle',
+    )
+  }, [isRunning, isResting, audioHandler])
+
   const handleResetSetsFrom = useCallback(
     (exerciseId: string, setNumber: number) => {
       resetSetsFrom(exerciseId, setNumber, user)

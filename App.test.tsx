@@ -106,6 +106,7 @@ jest.mock('./hooks/useAudio', () => ({
   useAudio: () => ({
     speak: jest.fn(),
     stop: jest.fn(),
+    setAudioSessionMode: jest.fn(),
   }),
 }))
 
