@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Modal,
   View,
@@ -39,6 +39,9 @@ interface AddSetDetailsModalProps {
   defaultWeightUnit?: WeightUnit
   // Variants configured on the exercise (e.g. ["Standing", "Sitting"]).
   variants?: string[]
+  // Variant this exercise's last set was logged with, preselected so a run of
+  // sets on the same variant doesn't need re-picking.
+  defaultVariant?: string
 }
 
 const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
@@ -49,11 +52,24 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
   exerciseName,
   defaultWeightUnit = 'kg',
   variants,
+  defaultVariant,
 }) => {
+  // A remembered variant the exercise no longer offers must not be
+  // preselected: no chip would render for it, so it would ride along invisibly
+  // onto the saved set. Resolving to a string (not the array) also keeps the
+  // reset effect below from re-firing on an identity-only prop change.
+  const initialVariant = useMemo(
+    () =>
+      defaultVariant && variants?.includes(defaultVariant)
+        ? defaultVariant
+        : undefined,
+    [defaultVariant, variants],
+  )
+
   const [reps, setReps] = useState(initialReps.toString())
   const [weight, setWeight] = useState('')
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(defaultWeightUnit)
-  const [variant, setVariant] = useState<string | undefined>(undefined)
+  const [variant, setVariant] = useState<string | undefined>(initialVariant)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = () => {
@@ -78,9 +94,9 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
       setReps(initialReps.toString())
       setWeight('')
       setWeightUnit(defaultWeightUnit)
-      setVariant(undefined)
+      setVariant(initialVariant)
     }
-  }, [visible, defaultWeightUnit, initialReps])
+  }, [visible, defaultWeightUnit, initialReps, initialVariant])
 
   return (
     <Modal

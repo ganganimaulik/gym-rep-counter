@@ -540,7 +540,12 @@ const App: React.FC = () => {
 
     // currentWorkout.exercises is a completion-ordered permutation of the
     // source's, so compare them order-insensitively to detect real edits.
-    const key = (e: Exercise) => `${e.id}|${e.name}|${e.sets}|${e.reps}`
+    // Every field counts, not just the headline ones: the session reads the
+    // weight unit, the variants and the timing overrides straight off this
+    // snapshot, so an edit touching only those has to rebuild it too. Sorting
+    // the entries keeps the serialization independent of key insertion order.
+    const key = (e: Exercise) =>
+      JSON.stringify(Object.entries(e).sort(([a], [b]) => a.localeCompare(b)))
     const sameContent =
       source.name === currentWorkout.name &&
       source.exercises.length === currentWorkout.exercises.length &&
@@ -716,14 +721,18 @@ const App: React.FC = () => {
       setAddSetModalVisible(false)
       setCompletedSetData(null)
 
-      // Remember the unit and reps the user actually saved so the next set for
-      // this exercise defaults to them. The dismiss path calls this with no
-      // unit (and possibly 0 reps) and must not overwrite the remembered
-      // choice, so only record on an explicit save.
+      // Remember the unit, reps and variant the user actually saved so the next
+      // set for this exercise defaults to them. The dismiss path calls this
+      // with no unit (and possibly 0 reps) and must not overwrite the
+      // remembered choice, so only record on an explicit save. On a save, an
+      // unset variant is a deliberate "no variant" — null clears the
+      // remembered one rather than leaving it to resurface next set.
       if (weightUnit && completedExercise) {
-        recordSetPreference(completedExercise.id, { weightUnit, reps }).then(
-          setSetPreferences,
-        )
+        recordSetPreference(completedExercise.id, {
+          weightUnit,
+          reps,
+          variant: variant ?? null,
+        }).then(setSetPreferences)
       }
 
       if (setData && currentWorkout && completedExercise) {
@@ -1143,6 +1152,11 @@ const App: React.FC = () => {
           'kg'
         }
         variants={completedExercise?.variants}
+        defaultVariant={
+          completedExercise
+            ? setPreferences[completedExercise.id]?.variant
+            : undefined
+        }
       />
       <Toast topOffset={60} />
     </StyledSafeAreaView>
