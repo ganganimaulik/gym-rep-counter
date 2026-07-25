@@ -318,6 +318,77 @@ describe('AddSetDetailsModal', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith(15, 0, 'kg', undefined)
   })
 
+  it('preselects the variant of the last set so Save keeps it', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={15}
+        variants={['Standing', 'Sitting']}
+        defaultVariant="Sitting"
+      />,
+    )
+
+    fireEvent.changeText(getByTestId('weight-input'), '40')
+    fireEvent.press(getByText('Save'))
+
+    expect(mockOnSubmit).toHaveBeenCalledWith(15, 40, 'kg', 'Sitting')
+  })
+
+  it('lets the user switch away from the preselected variant', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={15}
+        variants={['Standing', 'Sitting']}
+        defaultVariant="Sitting"
+      />,
+    )
+
+    fireEvent.press(getByTestId('variant-option-Standing'))
+    fireEvent.press(getByText('Save'))
+    expect(mockOnSubmit).toHaveBeenCalledWith(15, 0, 'kg', 'Standing')
+  })
+
+  it('deselecting the preselected variant submits no variant', () => {
+    const { getByText, getByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={15}
+        variants={['Standing', 'Sitting']}
+        defaultVariant="Sitting"
+      />,
+    )
+
+    fireEvent.press(getByTestId('variant-option-Sitting'))
+    fireEvent.press(getByText('Save'))
+    expect(mockOnSubmit).toHaveBeenCalledWith(15, 0, 'kg', undefined)
+  })
+
+  it('ignores a remembered variant the exercise no longer offers', () => {
+    // The routine was edited to drop "Sitting". No chip exists for it, so it
+    // must not ride along invisibly onto the saved set.
+    const { getByText, queryByTestId } = render(
+      <AddSetDetailsModal
+        visible={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        initialReps={15}
+        variants={['Standing']}
+        defaultVariant="Sitting"
+      />,
+    )
+
+    expect(queryByTestId('variant-option-Sitting')).toBeNull()
+    fireEvent.press(getByText('Save'))
+    expect(mockOnSubmit).toHaveBeenCalledWith(15, 0, 'kg', undefined)
+  })
+
   it('does not render variant options when the exercise has none', () => {
     const { queryByText } = render(
       <AddSetDetailsModal

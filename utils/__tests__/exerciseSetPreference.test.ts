@@ -49,6 +49,22 @@ describe('exerciseSetPreference', () => {
       })
     })
 
+    it('reads back a remembered variant, dropping empty/non-string ones', async () => {
+      await AsyncStorage.setItem(
+        SET_PREFERENCE_KEY,
+        JSON.stringify({
+          calf: { weightUnit: 'kg', reps: 15, variant: 'Sitting' },
+          press: { reps: 8, variant: '' },
+          row: { reps: 8, variant: 3 },
+        }),
+      )
+      expect(await loadSetPreferences()).toEqual({
+        calf: { weightUnit: 'kg', reps: 15, variant: 'Sitting' },
+        press: { reps: 8 },
+        row: { reps: 8 },
+      })
+    })
+
     it('returns an empty map for corrupt JSON instead of throwing', async () => {
       const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
       await AsyncStorage.setItem(SET_PREFERENCE_KEY, 'not json{')
@@ -90,6 +106,32 @@ describe('exerciseSetPreference', () => {
         squat: { weightUnit: 'plates', reps: 5 },
         curl: { weightUnit: 'kg', reps: 12 },
       })
+    })
+
+    it('remembers a variant and keeps it while other fields change', async () => {
+      await recordSetPreference('calf', {
+        weightUnit: 'kg',
+        reps: 15,
+        variant: 'Sitting',
+      })
+      const map = await recordSetPreference('calf', { reps: 12 })
+      expect(map.calf).toEqual({
+        weightUnit: 'kg',
+        reps: 12,
+        variant: 'Sitting',
+      })
+    })
+
+    it('clears the remembered variant when null is recorded', async () => {
+      await recordSetPreference('calf', { reps: 15, variant: 'Sitting' })
+      // Saving a set with no variant selected must not leave the old one to
+      // resurface on the next set.
+      const map = await recordSetPreference('calf', {
+        reps: 15,
+        variant: null,
+      })
+      expect(map.calf).toEqual({ reps: 15 })
+      expect(await loadSetPreferences()).toEqual({ calf: { reps: 15 } })
     })
 
     it('merges onto a value already in storage from another copy', async () => {
