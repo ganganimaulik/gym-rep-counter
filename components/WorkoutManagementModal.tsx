@@ -27,6 +27,12 @@ import {
   parseTimingInput,
   type TimingField,
 } from '../utils/exerciseTiming'
+import {
+  applySharedExerciseFields,
+  findSharedExerciseFields,
+  routinesSharingExercise,
+  syncSharedExerciseFields,
+} from '../utils/exerciseSync'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -306,7 +312,16 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
       }
       return w
     })
-    setWorkouts(updatedWorkouts)
+    // Variants and timing belong to the movement, not to this routine: carry
+    // the edit over to every other routine using the same exercise name.
+    const edited = updatedWorkouts
+      .find((w) => w.id === editExercise.workoutId)
+      ?.exercises.find((ex) => ex.id === editExercise.exercise!.id)
+    setWorkouts(
+      edited
+        ? syncSharedExerciseFields(updatedWorkouts, edited)
+        : updatedWorkouts,
+    )
     closeEditModal()
   }
 
@@ -339,13 +354,20 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
     reps: number,
   ) => {
     if (exerciseName.trim()) {
+      const name = exerciseName.trim()
+      // An exercise added under a name already in use starts out in sync,
+      // rather than silently disagreeing with its twin until someone edits it.
+      const shared = findSharedExerciseFields(workouts, name)
+      const newExercise: Exercise = { id: generateId(), name, sets, reps }
       const updatedWorkouts = workouts.map((w) => {
         if (w.id === workoutId) {
           return {
             ...w,
             exercises: [
               ...w.exercises,
-              { id: generateId(), name: exerciseName.trim(), sets, reps },
+              shared
+                ? applySharedExerciseFields(newExercise, shared)
+                : newExercise,
             ],
           }
         }
@@ -367,6 +389,13 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
     })
     setWorkouts(updatedWorkouts)
   }
+
+  // Routines the pending edit would also touch. Keyed off the draft name, not
+  // the saved one, so renaming into (or out of) a shared name updates the note
+  // as you type.
+  const sharedRoutines = editExercise.exercise
+    ? routinesSharingExercise(workouts, editName, editExercise.exercise.id)
+    : []
 
   const updateExerciseOrder = (
     workoutId: string,
@@ -521,6 +550,17 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
                       </StyledTouchableOpacity>
                     ))}
                   </StyledView>
+
+                  {sharedRoutines.length > 0 && (
+                    <StyledView className="bg-indigo-950/40 border border-indigo-900/40 rounded-xl p-2.5 mb-4">
+                      <StyledText
+                        testID="edit-exercise-shared-note"
+                        className="text-indigo-300 text-[11px] leading-snug">
+                        Variants and timing are shared with every routine using
+                        this name: {sharedRoutines.join(', ')}.
+                      </StyledText>
+                    </StyledView>
+                  )}
 
                   <StyledText className="text-zinc-400 text-xs font-bold mb-1.5 uppercase tracking-wide">
                     Variants (comma-separated, optional)

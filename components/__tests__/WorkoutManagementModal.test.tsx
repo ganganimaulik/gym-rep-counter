@@ -386,6 +386,185 @@ describe('WorkoutManagementModal', () => {
     })
   })
 
+  describe('variants and timing shared across routines', () => {
+    const sharedNameWorkouts: Workout[] = [
+      {
+        id: 'w1',
+        name: 'Day 1 (Lower)',
+        exercises: [
+          { id: 'ex1', name: 'Leg Curl of Choice', sets: 3, reps: 15 },
+        ],
+      },
+      {
+        id: 'w2',
+        name: 'Day 3 (Lower)',
+        exercises: [
+          { id: 'ex2', name: 'leg curl of choice', sets: 2, reps: 20 },
+          { id: 'ex3', name: 'Squat', sets: 3, reps: 15 },
+        ],
+      },
+    ]
+
+    const renderModal = (workouts: Workout[]) =>
+      render(
+        <WorkoutManagementModal
+          visible={true}
+          onClose={mockOnClose}
+          workouts={workouts}
+          setWorkouts={mockSetWorkouts}
+          settings={mockSettings}
+        />,
+      )
+
+    const savedWorkouts = (): Workout[] => mockSetWorkouts.mock.calls[0][0]
+
+    test('propagates variants and timing to the same exercise in another routine', () => {
+      const { getByText, getByTestId } = renderModal(sharedNameWorkouts)
+
+      fireEvent.press(getByText('1. Leg Curl of Choice'))
+      fireEvent.changeText(
+        getByTestId('edit-exercise-variants'),
+        'Seated, Lying',
+      )
+      fireEvent.changeText(
+        getByTestId('edit-exercise-timing-restSeconds'),
+        '90',
+      )
+      fireEvent.press(getByText('Save'))
+
+      expect(savedWorkouts()[1].exercises[0]).toEqual({
+        id: 'ex2',
+        // Only the shared fields travel — name, sets and reps stay put.
+        name: 'leg curl of choice',
+        sets: 2,
+        reps: 20,
+        variants: ['Seated', 'Lying'],
+        restSeconds: 90,
+      })
+      expect(savedWorkouts()[1].exercises[1]).toEqual({
+        id: 'ex3',
+        name: 'Squat',
+        sets: 3,
+        reps: 15,
+      })
+    })
+
+    test('clears the twin override when the source override is blanked', () => {
+      const withOverrides: Workout[] = [
+        {
+          id: 'w1',
+          name: 'Day 1 (Lower)',
+          exercises: [
+            {
+              id: 'ex1',
+              name: 'Calf Raise',
+              sets: 3,
+              reps: 15,
+              variants: ['Standing'],
+              restSeconds: 45,
+            },
+          ],
+        },
+        {
+          id: 'w2',
+          name: 'Day 3 (Lower)',
+          exercises: [
+            {
+              id: 'ex2',
+              name: 'Calf Raise',
+              sets: 2,
+              reps: 20,
+              variants: ['Standing'],
+              restSeconds: 45,
+            },
+          ],
+        },
+      ]
+
+      const { getAllByText, getByText, getByTestId } =
+        renderModal(withOverrides)
+
+      // Both routines render the row; edit the one in Day 1.
+      fireEvent.press(getAllByText('1. Calf Raise')[0])
+      fireEvent.changeText(getByTestId('edit-exercise-variants'), '')
+      fireEvent.changeText(getByTestId('edit-exercise-timing-restSeconds'), '')
+      fireEvent.press(getByText('Save'))
+
+      const twin = savedWorkouts()[1].exercises[0]
+      // Keys must be absent, not undefined — workouts go to Firestore as-is.
+      expect('variants' in twin).toBe(false)
+      expect('restSeconds' in twin).toBe(false)
+      expect(twin).toMatchObject({ sets: 2, reps: 20 })
+    })
+
+    test('a renamed exercise stops syncing with its old twin', () => {
+      const { getByText, getByTestId } = renderModal(sharedNameWorkouts)
+
+      fireEvent.press(getByText('1. Leg Curl of Choice'))
+      fireEvent.changeText(getByTestId('edit-exercise-name'), 'Seated Leg Curl')
+      fireEvent.changeText(
+        getByTestId('edit-exercise-timing-restSeconds'),
+        '90',
+      )
+      fireEvent.press(getByText('Save'))
+
+      expect(savedWorkouts()[0].exercises[0]).toMatchObject({
+        name: 'Seated Leg Curl',
+        restSeconds: 90,
+      })
+      expect('restSeconds' in savedWorkouts()[1].exercises[0]).toBe(false)
+    })
+
+    test('an exercise added under an existing name inherits its variants and timing', () => {
+      const { getAllByText, getAllByPlaceholderText } = renderModal([
+        {
+          id: 'w1',
+          name: 'Day 1 (Lower)',
+          exercises: [
+            {
+              id: 'ex1',
+              name: 'Calf Raise',
+              sets: 3,
+              reps: 15,
+              variants: ['Standing'],
+              restSeconds: 45,
+            },
+          ],
+        },
+        { id: 'w2', name: 'Day 3 (Lower)', exercises: [] },
+      ])
+
+      fireEvent.changeText(
+        getAllByPlaceholderText('Exercise name')[1],
+        'calf raise',
+      )
+      fireEvent.changeText(getAllByPlaceholderText('Sets')[1], '2')
+      fireEvent.press(getAllByText('Add Exercise')[1])
+
+      expect(savedWorkouts()[1].exercises[0]).toEqual(
+        expect.objectContaining({
+          name: 'calf raise',
+          variants: ['Standing'],
+          restSeconds: 45,
+        }),
+      )
+    })
+
+    test('warns which routines the edit will also change', () => {
+      const { getByText, getByTestId, queryByTestId } =
+        renderModal(sharedNameWorkouts)
+
+      fireEvent.press(getByText('1. Leg Curl of Choice'))
+      expect(getByTestId('edit-exercise-shared-note')).toHaveTextContent(
+        /Day 3 \(Lower\)/,
+      )
+
+      // Renaming to something unique drops the warning.
+      fireEvent.changeText(getByTestId('edit-exercise-name'), 'Seated Leg Curl')
+      expect(queryByTestId('edit-exercise-shared-note')).toBeNull()
+    })
+  })
+
   test('calls setWorkouts when deleting a workout', () => {
     const { getByTestId } = render(
       <WorkoutManagementModal
