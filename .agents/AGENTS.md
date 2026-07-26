@@ -4,7 +4,7 @@
 
 - **Update Tests on Every Change:** Whenever you modify, add, or delete any features, components, hooks, utilities, or application flow logic, you MUST update the corresponding unit tests and Playwright E2E tests.
 - **Maintain Test Coverage:** Ensure new code components or paths are covered by tests.
-- **Verify Test Execution:** Run and verify the relevant test suite (either Jest unit tests or Playwright integration tests) after making changes to ensure that no regression is introduced.
+- **Verify Test Execution:** Run and verify the relevant test suite (Jest unit tests/integration tests) after making changes to ensure that no regression is introduced. make sure to run e2e tests yourself using browser and update/add e2e test code for playwright when necessary.
   - **Unit Tests:** Run `npm test` or `npm run coverage`.
   - **E2E Tests:** Run `npx playwright test`.
 
@@ -28,9 +28,7 @@
 
 ## 3. Architecture & State Management
 
-- **Centralized State Hooks:** All user data, workouts, settings, history, and synchronization logic are centralized in the `useData` hook (`hooks/useData.ts`). Do not write direct AsyncStorage or Firestore access inside custom components; instead, expose capabilities through `useData`.
-- **Authentication Hook:** Use `useAuth` (`hooks/useAuth.ts`) to manage authentication state and Google Sign-In configurations.
-- **Background Operations:** Background activities and notifications should follow the structures in `utils/backgroundTimer.ts` and `utils/notifications.ts`.
+- check CLAUDE.md file
 
 ## 4. UI Styling & Layout
 
