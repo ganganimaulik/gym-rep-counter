@@ -1,58 +1,190 @@
-# Exercise Rep Counter - React Native App
+# Exercise Rep Counter
 
-This is a React Native application built with Expo that helps you count exercise repetitions with timed concentric and eccentric phases. It's a conversion of the original PWA to a native application to ensure it works reliably, even when the screen is locked.
+A feature-packed React Native app built with Expo (SDK 54) and React Native 0.81 for tracking gym workouts with timed concentric and eccentric rep phases. It keeps counting and displaying timers even when the screen is locked, leveraging iOS Live Activities and Android Foreground Services.
+
+Supported platforms: **iOS** (native build with Live Activity), **Android** (native build with Foreground Service), and **Web** (Vercel deployment & Playwright E2E target).
+
+---
+
+## Key Features
+
+- **Timed Rep Phases**: Dedicated concentric, eccentric, and rest phase timers with audio cues and Speech API integration.
+- **Background & Lock-Screen Support**: Native Live Activity on iOS and Foreground Service on Android to keep rest and rep timers accurate even when the screen is locked or the app is backgrounded.
+- **Offline-First Data Layer**: Seamless synchronization between local storage (AsyncStorage) and Firebase Auth + Firestore, queuing writes when offline.
+- **TDEE & Body Analytics**: Cell-for-cell port of TDEE calculation models for weight and calorie tracking, plus workout volume and PR analytics.
+- **Cross-Platform**: Web support exported via Expo Web for desktop/mobile browsers.
+
+---
 
 ## Prerequisites
 
-- **Node.js**: It is recommended to use a recent LTS version of Node.js. Version **18.x** or **20.x** will work well. You can use a tool like `nvm` (Node Version Manager) to manage your Node.js versions.
-- **macOS**: To run the iOS simulator, you will need a Mac with Xcode installed.
-- **Xcode**: Install Xcode from the Mac App Store. After installation, make sure to open it at least once to accept the license agreement and install the command-line tools.
-- **Expo Go App (Optional)**: For a quicker start without a simulator, you can install the "Expo Go" app on your iPhone or iPad.
+- **Node.js**: Recommended Node.js v18.x or v20.x+.
+- **macOS & Xcode** _(for iOS)_: macOS with Xcode installed to compile native iOS builds and run the iOS simulator.
+- **Android Studio** _(for Android)_: Android SDK and emulators set up to compile native Android builds.
 
-## How to Run Locally (for Mac and iOS)
+> [!WARNING]
+> **Expo Go is NOT supported.**
+> This app uses custom local native modules (`modules/workout-activity` and `modules/workout-attributes`). You must run native development builds using `npm run ios` or `npm run android` rather than Expo Go.
 
-1.  **Clone or Download the Project**:
-    Make sure you have the `rep-counter-app` directory on your local machine.
+---
 
-2.  **Navigate to the Project Directory**:
-    Open your terminal and change into the app's directory:
+## Getting Started
 
-    ```bash
-    cd rep-counter-app
-    ```
+### 1. Clone & Install Dependencies
 
-3.  **Install Dependencies**:
-    Install all the necessary npm packages. This command will read the `package.json` file and install everything the project needs.
+```bash
+git clone https://github.com/ganganimaulik/gym-rep-counter.git
+cd gym-rep-counter
+npm install
+```
 
-    ```bash
-    npm install
-    ```
+### 2. Running the App
 
-4.  **Run the Application on the iOS Simulator**:
-    Once the dependencies are installed, you can start the application on the iOS simulator with the following command:
+#### Web Development
 
-    ```bash
-    npm run ios
-    ```
+Start the Metro server for web on port `8081`:
 
-    This will do a few things:
-    - Start the Expo development server.
-    - If you have Xcode installed correctly, it will automatically open the iOS simulator.
-    - The app will be installed and launched on the simulator.
+```bash
+npm run web
+```
 
-    You can now interact with the app as you would on a real device. Any changes you make to the source code will automatically reload in the simulator.
+To run a safe browser session using the local Firebase emulator and mock authentication:
 
-5.  **Running on a Physical iOS Device (Optional)**:
-    - Ensure your iPhone is on the same Wi-Fi network as your computer.
-    - Install the "Expo Go" app from the App Store on your iPhone.
-    - When you run `npm start` or `npm run ios`, a QR code will be displayed in the terminal.
-    - Open the Camera app on your iPhone and scan the QR code. This will open the project in the Expo Go app.
+```bash
+EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_PLAYWRIGHT=1 npm run web
+```
+
+#### iOS Native (Simulator / Device)
+
+Prebuilds native projects and launches the app in the iOS simulator:
+
+```bash
+npm run ios
+```
+
+For physical iOS device deployment:
+
+```bash
+npm run rebuild
+```
+
+_Note: Ensure `scripts/set-team-id.js` has your Apple Developer Team ID configured._
+
+#### Android Native (Emulator / Device)
+
+Prebuilds native projects and launches on Android:
+
+```bash
+npm run android
+```
+
+---
+
+## Firebase Local Emulator (Docker)
+
+Local development and E2E testing use the Firebase Emulator Suite (Firestore, Auth, and UI).
+
+Start the emulator via Docker helper scripts:
+
+```bash
+# Start Firebase Emulator (UI :4000, Firestore :8080, Auth :9099)
+./scripts/run-emulator.sh start
+
+# Stop Firebase Emulator
+./scripts/run-emulator.sh stop
+
+# Clear Firestore documents and Auth accounts without restarting
+./scripts/run-emulator.sh clear
+```
+
+Alternatively, run tests directly using local `firebase-tools`:
+
+```bash
+npx --yes firebase-tools emulators:exec --project gym-rep-counter "npx playwright test"
+```
+
+---
+
+## Testing & Code Quality
+
+### Type Checking & Linting
+
+```bash
+# Run TypeScript type check
+npx tsc --noEmit
+
+# Run ESLint (with auto-fix)
+npm run lint
+
+# Format codebase with Prettier
+npm run format
+```
+
+### Unit & Integration Testing (Jest)
+
+```bash
+# Run full Jest test suite
+npm test
+
+# Run tests with coverage
+npm run coverage
+
+# Run a specific test file
+npx jest utils/__tests__/setDeletion.test.ts
+```
+
+### End-to-End Testing (Playwright)
+
+```bash
+# Run all E2E specs
+npx playwright test
+
+# Run a specific spec in list mode
+npx playwright test e2e/workout.spec.ts --reporter=list
+```
+
+### Tailwind CSS Compilation (NativeWind v2)
+
+If you add new Tailwind utility classes, regenerate the compiled `styles.css`:
+
+```bash
+npx tailwindcss -i global.css -o styles.css && npx prettier --write styles.css
+```
+
+---
 
 ## Project Structure
 
-- `App.js`: The main entry point of the application. It contains the core logic and ties all the components together.
-- `components/`: This directory contains all the reusable React components used throughout the application.
-- `assets/`: This directory contains static assets like images and icons.
-- `tailwind.config.js`: Configuration file for NativeWind (Tailwind CSS for React Native).
-- `babel.config.js`: Babel configuration, which includes the `nativewind/babel` plugin.
-- `package.json`: Lists all the project dependencies and scripts.
+```
+├── App.tsx                    # Main app shell & root state management
+├── index.js                   # Application entry point
+├── components/                # React Native UI components by tab screen
+│   ├── workout/               # Workout timer & set management components
+│   ├── routines/              # Routine creation & management
+│   ├── history/               # Workout history & log views
+│   ├── analytics/             # Progress charts & TDEE analytics
+│   ├── settings/              # App & audio settings
+│   └── journal/               # Daily journal & supplement tracking
+├── hooks/                     # Custom React hooks
+│   ├── useWorkoutTimer.ts     # Core timing machine (wState, UI, Reanimated)
+│   ├── useAudio.ts            # Speech synthesis queue & audio session management
+│   ├── useData.ts             # Offline-first Firestore + AsyncStorage data layer
+│   ├── useAuth.ts             # Firebase Authentication & mock user logic
+│   ├── useTDEE.ts             # TDEE calculation & weight/calorie data
+│   └── useAnalytics.ts        # Workout history metrics & streak calculations
+├── modules/                   # Local native & logic modules
+│   ├── workout-activity/      # Native bridge for iOS Live Activity / Android Foreground Service
+│   ├── workout-attributes/    # iOS ActivityAttributes definition for Widget extension
+│   └── tdeeCalculator.ts      # Pure TDEE math engine
+├── targets/                   # Native iOS targets (Live Activity Widget Extension)
+├── utils/                     # Helper utilities (exercise timing, firebase setup, etc.)
+├── e2e/                       # Playwright E2E spec files
+└── scripts/                   # Native build and emulator management scripts
+```
+
+---
+
+## Build & Deployment
+
+- **Web Deployment**: Configured for [Vercel](https://vercel.com/) via `vercel.json` (`npx expo export -p web` outputting to `dist/`).
+- **Native iOS / Android**: Generated via Expo prebuild (`npm run prebuild`) and compiled natively using standard iOS Xcode workspace / Android Gradle pipelines.
