@@ -2,6 +2,7 @@ import {
   isSupplementDueOnDate,
   getSupplementsDueToday,
   getSupplementsTakenOnDate,
+  getSupplementIntakeCountOnDate,
   getUntakenSupplements,
   hasJournalEntryForDate,
   buildBedtimeReminderBody,
@@ -48,6 +49,16 @@ describe('supplementSchedule', () => {
       expect(isSupplementDueOnDate(supp, new Date('2026-07-05'))).toBe(true)
       // Saturday
       expect(isSupplementDueOnDate(supp, new Date('2026-07-04'))).toBe(true)
+    })
+
+    test('returns true for schedule "twice_daily" on any day', () => {
+      const supp: SupplementSuggestion = {
+        name: 'Omega 3',
+        defaultDosage: '1 cap',
+        schedule: 'twice_daily',
+      }
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-06'))).toBe(true)
+      expect(isSupplementDueOnDate(supp, new Date('2026-07-05'))).toBe(true)
     })
 
     test('returns true for specific_days only on matching days', () => {
@@ -328,7 +339,61 @@ describe('supplementSchedule', () => {
     })
   })
 
+  describe('getSupplementIntakeCountOnDate', () => {
+    test('returns exact count of supplement logs on given date', () => {
+      const date = new Date(2026, 6, 6)
+      const entries: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Dose 1',
+          date: makeTimestamp(new Date(2026, 6, 6, 9, 0)) as any,
+          supplements: [{ name: 'Protein', dosage: '1 scoop' }],
+        },
+        {
+          id: '2',
+          note: 'Dose 2',
+          date: makeTimestamp(new Date(2026, 6, 6, 18, 0)) as any,
+          supplements: [{ name: 'Protein', dosage: '1 scoop' }],
+        },
+      ]
+      expect(getSupplementIntakeCountOnDate('Protein', date, entries)).toBe(2)
+      expect(getSupplementIntakeCountOnDate('Creatine', date, entries)).toBe(0)
+    })
+  })
+
   describe('getUntakenSupplements', () => {
+    test('requires 2 intakes for twice_daily supplement before marking complete', () => {
+      const dueSupps: SupplementSuggestion[] = [
+        { name: 'Protein', defaultDosage: '1 scoop', schedule: 'twice_daily' },
+      ]
+      const date = new Date(2026, 6, 6)
+      const entry1: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Dose 1',
+          date: makeTimestamp(date) as any,
+          supplements: [{ name: 'Protein', dosage: '1 scoop' }],
+        },
+      ]
+      // Taken 1 out of 2 times -> still untaken
+      expect(
+        getUntakenSupplements(dueSupps, entry1, date).map((s) => s.name),
+      ).toEqual(['Protein'])
+
+      const entry2: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Dose 1',
+          date: makeTimestamp(date) as any,
+          supplements: [
+            { name: 'Protein', dosage: '1 scoop' },
+            { name: 'Protein', dosage: '1 scoop' },
+          ],
+        },
+      ]
+      // Taken 2 out of 2 times -> complete (not untaken)
+      expect(getUntakenSupplements(dueSupps, entry2, date)).toEqual([])
+    })
     test('returns supplements that are due but not taken', () => {
       const dueSupps: SupplementSuggestion[] = [
         { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },

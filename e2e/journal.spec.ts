@@ -204,4 +204,59 @@ test.describe('Journal Screen', () => {
     const firstSuppText = await popularBox.locator('text=Multivitamin').first()
     await expect(firstSuppText).toBeVisible()
   })
+
+  test('should handle Twice Daily supplement schedule with progress tracking', async ({
+    page,
+  }) => {
+    // Open note modal
+    await page.locator('[data-testid="add-journal-note-button"]').click()
+    await expect(page.locator('text=Save').first()).toBeVisible()
+
+    // Click search input to show suggestions and "Manage" button
+    const searchInput = page.getByPlaceholder('Search/Add Supp...')
+    await searchInput.click()
+    await expect(
+      page.locator('[data-testid="manage-supplements-button"]').first(),
+    ).toBeVisible()
+
+    // Open manage modal
+    await page
+      .locator('[data-testid="manage-supplements-button"]')
+      .first()
+      .dispatchEvent('click')
+    await expect(page.locator('text=Manage Supplements').first()).toBeVisible()
+
+    // Configure Whey Protein to be Twice Daily
+    await page
+      .locator('[data-testid="manage-supplement-Whey Protein"]')
+      .dispatchEvent('click')
+    await page
+      .locator('[data-testid="schedule-option-twice_daily"]')
+      .dispatchEvent('click')
+
+    // Close manage modal
+    await page
+      .locator('[data-testid="close-manage-modal"]')
+      .dispatchEvent('click')
+
+    // Close journal note modal by clicking Cancel
+    await page.locator('text=Cancel').first().dispatchEvent('click')
+
+    // Today's Supplements panel should be visible with Whey Protein as untaken
+    const panel = page.locator('[data-testid="supplement-status-panel"]')
+    await expect(panel).toBeVisible()
+    const wheyBadge = page.locator(
+      '[data-testid="supplement-status-whey-protein"]',
+    )
+    await expect(wheyBadge).toBeVisible()
+
+    // Click badge to log dose 1 -> panel should show (1/2) progress
+    await wheyBadge.dispatchEvent('click')
+    await expect(page.locator('text=Logged supplements').first()).toBeVisible()
+    await expect(page.getByText('Whey Protein (1/2)')).toBeVisible()
+
+    // Click badge again to log dose 2 -> supplement complete and removed from panel
+    await wheyBadge.dispatchEvent('click')
+    await expect(page.getByText('Whey Protein (1/2)')).not.toBeVisible()
+  })
 })

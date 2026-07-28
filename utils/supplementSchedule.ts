@@ -3,6 +3,7 @@ import type { JournalEntry } from '../declarations'
 // Schedule types for supplement frequency
 export type SupplementScheduleType =
   | 'daily'
+  | 'twice_daily'
   | 'specific_days'
   | 'every_other_day'
   | 'none'
@@ -48,6 +49,33 @@ function wasSupplementTakenOnDate(
 }
 
 /**
+ * Count how many times a supplement was taken on a specific date across all journal entries.
+ */
+export function getSupplementIntakeCountOnDate(
+  supplementName: string,
+  date: Date,
+  journalEntries: JournalEntry[],
+): number {
+  const dateKey = getLocalDateKey(date)
+  const nameLower = supplementName.toLowerCase()
+  let count = 0
+
+  journalEntries.forEach((entry) => {
+    if (!entry.date || typeof entry.date.toDate !== 'function') return
+    const entryDate = entry.date.toDate()
+    if (getLocalDateKey(entryDate) === dateKey && entry.supplements) {
+      entry.supplements.forEach((s) => {
+        if (s.name.toLowerCase() === nameLower) {
+          count++
+        }
+      })
+    }
+  })
+
+  return count
+}
+
+/**
  * Check if a single supplement is due on a given date based on its schedule.
  * For every_other_day: checks journal entries to see if it was taken yesterday.
  * If taken yesterday, it's not due today (and vice versa).
@@ -74,6 +102,7 @@ export function isSupplementDueOnDate(
       return false
 
     case 'daily':
+    case 'twice_daily':
       return true
 
     case 'specific_days': {
@@ -164,19 +193,23 @@ export function getSupplementsTakenOnDate(
 }
 
 /**
- * Get supplements that are due today but haven't been taken
- * (not found in any journal entry for that date).
+ * Get supplements that are due today but haven't been fully taken
+ * (for twice_daily, taken < 2 times; for others, taken < 1 time).
  */
 export function getUntakenSupplements(
   dueSupplements: SupplementSuggestion[],
   journalEntries: JournalEntry[],
   date: Date,
 ): SupplementSuggestion[] {
-  const takenNames = getSupplementsTakenOnDate(journalEntries, date)
-
-  return dueSupplements.filter(
-    (supp) => !takenNames.includes(supp.name.toLowerCase()),
-  )
+  return dueSupplements.filter((supp) => {
+    const requiredCount = supp.schedule === 'twice_daily' ? 2 : 1
+    const takenCount = getSupplementIntakeCountOnDate(
+      supp.name,
+      date,
+      journalEntries,
+    )
+    return takenCount < requiredCount
+  })
 }
 
 /**

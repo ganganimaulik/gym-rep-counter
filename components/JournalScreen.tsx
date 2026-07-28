@@ -40,6 +40,7 @@ import {
   hasJournalEntryForDate,
   isSupplementDueOnDate,
   getSupplementsTakenOnDate,
+  getSupplementIntakeCountOnDate,
 } from '../utils/supplementSchedule'
 
 const StyledView = styled(View)
@@ -54,6 +55,7 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const SCHEDULE_OPTIONS: { value: SupplementScheduleType; label: string }[] = [
   { value: 'none', label: 'Not Scheduled' },
   { value: 'daily', label: 'Daily' },
+  { value: 'twice_daily', label: 'Twice Daily' },
   { value: 'specific_days', label: 'Specific Days' },
   { value: 'every_other_day', label: 'Every Other Day' },
 ]
@@ -146,15 +148,21 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   )
 
   const sortedSuggestions = useMemo(() => {
-    const takenOnDate = getSupplementsTakenOnDate(journalEntries, dateValue)
-    const isTaken = (name: string) =>
-      supplementsList.some(
-        (s) => s.name.toLowerCase() === name.toLowerCase(),
-      ) || takenOnDate.includes(name.toLowerCase())
+    const isTaken = (supp: SupplementSuggestion) => {
+      const reqCount = supp.schedule === 'twice_daily' ? 2 : 1
+      const listCount = supplementsList.filter(
+        (s) => s.name.toLowerCase() === supp.name.toLowerCase(),
+      ).length
+      const journalCount = getSupplementIntakeCountOnDate(
+        supp.name,
+        dateValue,
+        journalEntries,
+      )
+      return listCount + journalCount >= reqCount
+    }
 
     const isForgot = (supp: SupplementSuggestion) =>
-      isSupplementDueOnDate(supp, dateValue, journalEntries) &&
-      !isTaken(supp.name)
+      isSupplementDueOnDate(supp, dateValue, journalEntries) && !isTaken(supp)
 
     const forgotList: SupplementSuggestion[] = []
     const otherList: SupplementSuggestion[] = []
@@ -184,18 +192,22 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
       const nameLower = suppName.toLowerCase()
 
       if (existingEntry) {
-        const isAlreadyTaken = (existingEntry.supplements || []).some(
+        const suppObj = suggestions.find(
           (s) => s.name.toLowerCase() === nameLower,
         )
+        const reqCount = suppObj?.schedule === 'twice_daily' ? 2 : 1
+        const currentCount = (existingEntry.supplements || []).filter(
+          (s) => s.name.toLowerCase() === nameLower,
+        ).length
 
         let updatedSupplements: SupplementLog[]
-        if (isAlreadyTaken) {
-          // Remove it (toggle off)
+        if (currentCount >= reqCount) {
+          // Remove all instances of this supplement (toggle off)
           updatedSupplements = (existingEntry.supplements || []).filter(
             (s) => s.name.toLowerCase() !== nameLower,
           )
         } else {
-          // Add it
+          // Add one instance (log next dose)
           updatedSupplements = [
             ...(existingEntry.supplements || []),
             { name: suppName, dosage: defaultDosage || '' },
@@ -625,26 +637,42 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                 )}
               </StyledView>
               <StyledView className="flex-row flex-wrap gap-2">
-                {untakenSupplementsToday.map((supp) => (
-                  <StyledTouchableOpacity
-                    key={supp.name}
-                    testID={`supplement-status-${supp.name.replace(/\s+/g, '-').toLowerCase()}`}
-                    onPress={() =>
-                      handleToggleSupplementToday(supp.name, supp.defaultDosage)
-                    }
-                    activeOpacity={0.7}
-                    className="px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5 border bg-amber-500/10 border-amber-500/30">
-                    <AlertTriangle color="#f59e0b" size={10} />
-                    <StyledText className="text-[10px] font-semibold tracking-wide text-amber-400">
-                      {supp.name}
-                    </StyledText>
-                    {supp.defaultDosage ? (
-                      <StyledText className="text-[9px] font-medium text-amber-300">
-                        {supp.defaultDosage}
+                {untakenSupplementsToday.map((supp) => {
+                  const reqCount = supp.schedule === 'twice_daily' ? 2 : 1
+                  const takenCount = getSupplementIntakeCountOnDate(
+                    supp.name,
+                    today,
+                    journalEntries,
+                  )
+                  const progressText =
+                    supp.schedule === 'twice_daily' && takenCount > 0
+                      ? ` (${takenCount}/${reqCount})`
+                      : ''
+                  return (
+                    <StyledTouchableOpacity
+                      key={supp.name}
+                      testID={`supplement-status-${supp.name.replace(/\s+/g, '-').toLowerCase()}`}
+                      onPress={() =>
+                        handleToggleSupplementToday(
+                          supp.name,
+                          supp.defaultDosage,
+                        )
+                      }
+                      activeOpacity={0.7}
+                      className="px-2.5 py-1.5 rounded-xl flex-row items-center gap-1.5 border bg-amber-500/10 border-amber-500/30">
+                      <AlertTriangle color="#f59e0b" size={10} />
+                      <StyledText className="text-[10px] font-semibold tracking-wide text-amber-400">
+                        {supp.name}
+                        {progressText}
                       </StyledText>
-                    ) : null}
-                  </StyledTouchableOpacity>
-                ))}
+                      {supp.defaultDosage ? (
+                        <StyledText className="text-[9px] font-medium text-amber-300">
+                          {supp.defaultDosage}
+                        </StyledText>
+                      ) : null}
+                    </StyledTouchableOpacity>
+                  )
+                })}
               </StyledView>
             </StyledView>
           ) : null
@@ -1118,11 +1146,13 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       ? 'Not scheduled'
                       : supp.schedule === 'daily'
                         ? 'Daily'
-                        : supp.schedule === 'specific_days'
-                          ? (supp.scheduleDays || [])
-                              .map((d) => DAY_LABELS[d])
-                              .join(', ')
-                          : 'Every other day'
+                        : supp.schedule === 'twice_daily'
+                          ? 'Twice Daily'
+                          : supp.schedule === 'specific_days'
+                            ? (supp.scheduleDays || [])
+                                .map((d) => DAY_LABELS[d])
+                                .join(', ')
+                            : 'Every other day'
 
                   return (
                     <StyledView key={idx} className="mb-2">

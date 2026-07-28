@@ -3,10 +3,11 @@
 ## 1. Testing Requirements
 
 - **Update Tests on Every Change:** Whenever you modify, add, or delete any features, components, hooks, utilities, or application flow logic, you MUST update the corresponding unit tests and Playwright E2E tests.
-- **Maintain Test Coverage:** Ensure new code components or paths are covered by tests.
-- **Verify Test Execution:** Run and verify the relevant test suite (Jest unit tests/integration tests) after making changes to ensure that no regression is introduced. make sure to run e2e tests yourself using browser and update/add e2e test code for playwright when necessary.
-  - **Unit Tests:** Run `npm test` or `npm run coverage`.
-  - **E2E Tests:** Run `npx playwright test`.
+- **Test Each Scenario & Edge Case:** Systematically identify and verify every permutation and edge case for your feature (e.g., initial state, partial progress, full completion, toggling off, entry deletion, case-insensitivity, and date boundary conditions).
+- **Comprehensive Verification Workflow:**
+  - **Unit Tests:** Run `npm test` or `npm run coverage` to ensure 100% logic and utility coverage.
+  - **Playwright E2E Tests:** Add/update automated Playwright specs (`e2e/*.spec.ts`) and run `npx playwright test`.
+  - **Live Web & `/browser` Testing:** Start the web server (e.g., `EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_PLAYWRIGHT=1 ... npx expo start --web --port 8081`) and use the `/browser` subagent to interactively verify each UI scenario live on the browser.
 
 ## 2. E2E Testing & Authentication Mocking
 
@@ -28,7 +29,7 @@
 
 ## 3. Architecture & State Management
 
-- check CLAUDE.md file
+- **Mandatory Guidance (CLAUDE.md):** Always read and strictly adhere to [CLAUDE.md](file:///Users/maulik/Documents/GitHub/gym-rep-counter/CLAUDE.md) and activate the `claude-code-guide` skill for all architectural conventions, state management rules, timer engine behavior, audio queue rules, data persistence patterns, and repository invariants.
 
 ## 4. UI Styling & Layout
 
