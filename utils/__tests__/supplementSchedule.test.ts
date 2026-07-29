@@ -6,6 +6,7 @@ import {
   getUntakenSupplements,
   hasJournalEntryForDate,
   buildBedtimeReminderBody,
+  getRequiredIntakeCount,
   SupplementSuggestion,
 } from '../supplementSchedule'
 import type { JournalEntry } from '../../declarations'
@@ -358,6 +359,50 @@ describe('supplementSchedule', () => {
       ]
       expect(getSupplementIntakeCountOnDate('Protein', date, entries)).toBe(2)
       expect(getSupplementIntakeCountOnDate('Creatine', date, entries)).toBe(0)
+    })
+
+    test('counts multiple supplements within a single journal entry', () => {
+      const date = new Date(2026, 6, 6)
+      const entries: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Both doses',
+          date: makeTimestamp(new Date(2026, 6, 6, 12, 0)) as any,
+          supplements: [
+            { name: 'Protein', dosage: '1 scoop' },
+            { name: 'Protein', dosage: '1 scoop' },
+            { name: 'Creatine', dosage: '5g' },
+          ],
+        },
+      ]
+      expect(getSupplementIntakeCountOnDate('Protein', date, entries)).toBe(2)
+      expect(getSupplementIntakeCountOnDate('Creatine', date, entries)).toBe(1)
+    })
+  })
+
+  describe('getRequiredIntakeCount', () => {
+    test('returns 2 for twice_daily schedule', () => {
+      expect(getRequiredIntakeCount('twice_daily')).toBe(2)
+    })
+
+    test('returns 1 for daily schedule', () => {
+      expect(getRequiredIntakeCount('daily')).toBe(1)
+    })
+
+    test('returns 1 for specific_days schedule', () => {
+      expect(getRequiredIntakeCount('specific_days')).toBe(1)
+    })
+
+    test('returns 1 for every_other_day schedule', () => {
+      expect(getRequiredIntakeCount('every_other_day')).toBe(1)
+    })
+
+    test('returns 1 for none schedule', () => {
+      expect(getRequiredIntakeCount('none')).toBe(1)
+    })
+
+    test('returns 1 for undefined schedule', () => {
+      expect(getRequiredIntakeCount(undefined)).toBe(1)
     })
   })
 

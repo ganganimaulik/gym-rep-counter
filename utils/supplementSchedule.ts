@@ -18,6 +18,15 @@ export interface SupplementSuggestion {
 }
 
 /**
+ * Get the number of intakes required per day for a given schedule type.
+ */
+export function getRequiredIntakeCount(
+  schedule?: SupplementScheduleType,
+): number {
+  return schedule === 'twice_daily' ? 2 : 1
+}
+
+/**
  * Get the local date key (YYYY-MM-DD) for a given Date object.
  */
 function getLocalDateKey(date: Date): string {
@@ -202,7 +211,7 @@ export function getUntakenSupplements(
   date: Date,
 ): SupplementSuggestion[] {
   return dueSupplements.filter((supp) => {
-    const requiredCount = supp.schedule === 'twice_daily' ? 2 : 1
+    const requiredCount = getRequiredIntakeCount(supp.schedule)
     const takenCount = getSupplementIntakeCountOnDate(
       supp.name,
       date,

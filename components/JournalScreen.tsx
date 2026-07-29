@@ -41,6 +41,7 @@ import {
   isSupplementDueOnDate,
   getSupplementsTakenOnDate,
   getSupplementIntakeCountOnDate,
+  getRequiredIntakeCount,
 } from '../utils/supplementSchedule'
 
 const StyledView = styled(View)
@@ -149,7 +150,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
 
   const sortedSuggestions = useMemo(() => {
     const isTaken = (supp: SupplementSuggestion) => {
-      const reqCount = supp.schedule === 'twice_daily' ? 2 : 1
+      const reqCount = getRequiredIntakeCount(supp.schedule)
       const listCount = supplementsList.filter(
         (s) => s.name.toLowerCase() === supp.name.toLowerCase(),
       ).length
@@ -195,7 +196,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         const suppObj = suggestions.find(
           (s) => s.name.toLowerCase() === nameLower,
         )
-        const reqCount = suppObj?.schedule === 'twice_daily' ? 2 : 1
+        const reqCount = getRequiredIntakeCount(suppObj?.schedule)
         const currentCount = (existingEntry.supplements || []).filter(
           (s) => s.name.toLowerCase() === nameLower,
         ).length
@@ -228,7 +229,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         ])
       }
     },
-    [journalEntries, user, addJournalEntry, updateJournalEntry],
+    [journalEntries, user, addJournalEntry, updateJournalEntry, suggestions],
   )
 
   const handleUpdateSchedule = useCallback(
@@ -638,7 +639,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
               </StyledView>
               <StyledView className="flex-row flex-wrap gap-2">
                 {untakenSupplementsToday.map((supp) => {
-                  const reqCount = supp.schedule === 'twice_daily' ? 2 : 1
+                  const reqCount = getRequiredIntakeCount(supp.schedule)
                   const takenCount = getSupplementIntakeCountOnDate(
                     supp.name,
                     today,

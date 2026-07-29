@@ -258,5 +258,6 @@ test.describe('Journal Screen', () => {
     // Click badge again to log dose 2 -> supplement complete and removed from panel
     await wheyBadge.dispatchEvent('click')
     await expect(page.getByText('Whey Protein (1/2)')).not.toBeVisible()
+    await expect(wheyBadge).not.toBeVisible()
   })
 })
