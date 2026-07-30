@@ -11,7 +11,7 @@ if (typeof (global as any).window.dispatchEvent !== 'function') {
     return true
   }
 }
-import App from './App'
+import App from '../App'
 
 // These tests exercise the dynamic-set wiring in App.tsx (the "+" add-set
 // button and the long-press remove-set gesture). Unlike App.test.tsx, the real
@@ -65,13 +65,13 @@ jest.mock('react-native-toast-message', () => {
 
 // WorkoutSelector's picker leaf — render nothing so the surrounding tracker
 // stays intact.
-jest.mock('./components/WorkoutPicker', () => {
+jest.mock('../components/WorkoutPicker', () => {
   const { View } = require('react-native')
   return View
 })
 
 const mockUseAuth = jest.fn()
-jest.mock('./hooks/useAuth', () => ({
+jest.mock('../hooks/useAuth', () => ({
   useAuth: (onSuccess: any) => mockUseAuth(onSuccess),
 }))
 
@@ -125,12 +125,12 @@ const mockDataHookValue: any = {
     .mockResolvedValue({ workoutId: 'w1', exerciseIndex: 0 }),
   clearActiveSession: jest.fn(),
 }
-jest.mock('./hooks/useData', () => ({
+jest.mock('../hooks/useData', () => ({
   useData: () => mockDataHookValue,
 }))
 
 const mockSpeak = jest.fn()
-jest.mock('./hooks/useAudio', () => ({
+jest.mock('../hooks/useAudio', () => ({
   useAudio: () => ({
     speak: mockSpeak,
     stop: jest.fn(),
@@ -162,20 +162,20 @@ const mockWorkoutTimerValue: any = {
   endSet: jest.fn(),
   runNextSet: jest.fn(),
 }
-jest.mock('./hooks/useWorkoutTimer', () => ({
+jest.mock('../hooks/useWorkoutTimer', () => ({
   useWorkoutTimer: () => mockWorkoutTimerValue,
 }))
 
-jest.mock('./components/SettingsModal', () => () => null)
-jest.mock('./components/WorkoutManagementModal', () => () => null)
-jest.mock('./components/layout/MainDisplay', () => () => null)
-jest.mock('./components/layout/Controls', () => () => null)
-jest.mock('./components/layout/RepJumper', () => () => null)
-jest.mock('./components/AddSetDetailsModal', () => () => null)
-jest.mock('./components/SplashScreen', () => () => null)
-jest.mock('./components/HistoryScreen', () => () => null)
-jest.mock('./components/ProgressScreen', () => () => null)
-jest.mock('./components/JournalScreen', () => () => null)
+jest.mock('../components/SettingsModal', () => () => null)
+jest.mock('../components/WorkoutManagementModal', () => () => null)
+jest.mock('../components/layout/MainDisplay', () => () => null)
+jest.mock('../components/layout/Controls', () => () => null)
+jest.mock('../components/layout/RepJumper', () => () => null)
+jest.mock('../components/AddSetDetailsModal', () => () => null)
+jest.mock('../components/SplashScreen', () => () => null)
+jest.mock('../components/HistoryScreen', () => () => null)
+jest.mock('../components/ProgressScreen', () => () => null)
+jest.mock('../components/JournalScreen', () => () => null)
 
 const Toast = require('react-native-toast-message')
 

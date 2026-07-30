@@ -9,7 +9,7 @@ if (typeof (global as any).window.dispatchEvent !== 'function') {
     return true
   }
 }
-import App from './App'
+import App from '../App'
 
 // Proves App.tsx wires the "Last Time" panel: it fetches the active exercise's
 // recent sets, picks the previous session (never today), highlights the set the
@@ -54,13 +54,13 @@ jest.mock('react-native-toast-message', () => {
   return mockToast
 })
 
-jest.mock('./components/WorkoutPicker', () => {
+jest.mock('../components/WorkoutPicker', () => {
   const { View } = require('react-native')
   return View
 })
 
 const mockUseAuth = jest.fn()
-jest.mock('./hooks/useAuth', () => ({
+jest.mock('../hooks/useAuth', () => ({
   useAuth: (onSuccess: any) => mockUseAuth(onSuccess),
 }))
 
@@ -115,11 +115,11 @@ const mockDataHookValue: any = {
     .mockResolvedValue({ workoutId: 'w1', exerciseIndex: 0 }),
   clearActiveSession: jest.fn(),
 }
-jest.mock('./hooks/useData', () => ({
+jest.mock('../hooks/useData', () => ({
   useData: () => mockDataHookValue,
 }))
 
-jest.mock('./hooks/useAudio', () => ({
+jest.mock('../hooks/useAudio', () => ({
   useAudio: () => ({
     speak: jest.fn(),
     stop: jest.fn(),
@@ -154,23 +154,23 @@ const mockWorkoutTimerValue: any = {
   endSet: jest.fn(),
   runNextSet: jest.fn(),
 }
-jest.mock('./hooks/useWorkoutTimer', () => ({
+jest.mock('../hooks/useWorkoutTimer', () => ({
   useWorkoutTimer: (...args: any[]) => {
     mockTimerCapture.lastSetSummaryFor = args[6]
     return mockWorkoutTimerValue
   },
 }))
 
-jest.mock('./components/SettingsModal', () => () => null)
-jest.mock('./components/WorkoutManagementModal', () => () => null)
-jest.mock('./components/layout/MainDisplay', () => () => null)
-jest.mock('./components/layout/Controls', () => () => null)
-jest.mock('./components/layout/RepJumper', () => () => null)
-jest.mock('./components/AddSetDetailsModal', () => () => null)
-jest.mock('./components/SplashScreen', () => () => null)
-jest.mock('./components/HistoryScreen', () => () => null)
-jest.mock('./components/ProgressScreen', () => () => null)
-jest.mock('./components/JournalScreen', () => () => null)
+jest.mock('../components/SettingsModal', () => () => null)
+jest.mock('../components/WorkoutManagementModal', () => () => null)
+jest.mock('../components/layout/MainDisplay', () => () => null)
+jest.mock('../components/layout/Controls', () => () => null)
+jest.mock('../components/layout/RepJumper', () => () => null)
+jest.mock('../components/AddSetDetailsModal', () => () => null)
+jest.mock('../components/SplashScreen', () => () => null)
+jest.mock('../components/HistoryScreen', () => () => null)
+jest.mock('../components/ProgressScreen', () => () => null)
+jest.mock('../components/JournalScreen', () => () => null)
 
 // A set logged at noon `daysAgo` days back, so local-day grouping can't be
 // flipped by a timezone offset.

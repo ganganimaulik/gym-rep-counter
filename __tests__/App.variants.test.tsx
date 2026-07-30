@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, act, waitFor } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { loadSetPreferences } from './utils/exerciseSetPreference'
+import { loadSetPreferences } from '../utils/exerciseSetPreference'
 // See App.dynamicSets.test.tsx: re-throw effect errors so their real stack
 // surfaces instead of "window.dispatchEvent is not a function".
 ;(global as any).window = (global as any).window || {}
@@ -11,14 +11,17 @@ if (typeof (global as any).window.dispatchEvent !== 'function') {
     return true
   }
 }
-import App from './App'
+import App from '../App'
 
-// Proves App.tsx remembers, per exercise, how the user last logged a set —
-// weight unit and rep count — and feeds those back as the Set Complete modal's
-// defaults. Especially: ending a set during the "Get Ready" countdown reports
-// 0 reps, and the modal must then fall back to the remembered reps (or the
-// target) instead of showing 0. The real exerciseSetPreference util +
-// in-memory AsyncStorage persist for real, so this is a full round-trip.
+// The Set Complete modal offers a variant picker for the exercise just
+// performed, so a set can be logged as e.g. "Standing" vs "Sitting". App reads
+// those options off currentWorkout — a copy of the routine taken when the
+// session started — so these tests also cover a routine edited mid-session:
+// adding variants (or any other exercise field) must reach the live session
+// instead of leaving it on a stale snapshot. The variant of the last saved set
+// is remembered per exercise and preselected on the next one; the real
+// exerciseSetPreference util + in-memory AsyncStorage make that a full
+// round-trip.
 
 jest.mock('expo-background-timer', () => ({
   bgSetTimeout: jest.fn((callback, timeout) => setTimeout(callback, timeout)),
@@ -64,39 +67,37 @@ jest.mock('react-native-toast-message', () => {
   return mockToast
 })
 
-jest.mock('./components/WorkoutPicker', () => {
+jest.mock('../components/WorkoutPicker', () => {
   const { View } = require('react-native')
   return View
 })
 
 const mockUseAuth = jest.fn()
-jest.mock('./hooks/useAuth', () => ({
+jest.mock('../hooks/useAuth', () => ({
   useAuth: (onSuccess: any) => mockUseAuth(onSuccess),
 }))
 
+const exercise = (variants?: string[]) => ({
+  id: 'ex1',
+  name: 'Calf Raise',
+  sets: 3,
+  reps: 8,
+  weightUnit: 'kg',
+  ...(variants ? { variants } : {}),
+})
+
 const mockDataHookValue: any = {
-  // maxReps here (3) is only the last-resort rep fallback; the exercise's own
-  // target is 8. They differ so the test can tell which default is used.
   settings: {
     volume: 1,
     countdownSeconds: 3,
     restSeconds: 5,
-    maxReps: 3,
+    maxReps: 8,
     maxSets: 2,
     concentricSeconds: 1,
     eccentricSeconds: 2,
     eccentricCountdownEnabled: true,
   },
-  // ex1 is configured to log in kg.
-  workouts: [
-    {
-      id: 'w1',
-      name: 'Push Day',
-      exercises: [
-        { id: 'ex1', name: 'Bench Press', sets: 3, reps: 8, weightUnit: 'kg' },
-      ],
-    },
-  ],
+  workouts: [{ id: 'w1', name: 'Legs', exercises: [exercise()] }],
   loadSettings: jest.fn().mockResolvedValue({}),
   loadWorkouts: jest.fn().mockResolvedValue([]),
   saveSettings: jest.fn(),
@@ -129,11 +130,11 @@ const mockDataHookValue: any = {
     .mockResolvedValue({ workoutId: 'w1', exerciseIndex: 0 }),
   clearActiveSession: jest.fn(),
 }
-jest.mock('./hooks/useData', () => ({
+jest.mock('../hooks/useData', () => ({
   useData: () => mockDataHookValue,
 }))
 
-jest.mock('./hooks/useAudio', () => ({
+jest.mock('../hooks/useAudio', () => ({
   useAudio: () => ({
     speak: jest.fn(),
     stop: jest.fn(),
@@ -168,7 +169,7 @@ const mockWorkoutTimerValue: any = {
   endSet: jest.fn(),
   runNextSet: jest.fn(),
 }
-jest.mock('./hooks/useWorkoutTimer', () => ({
+jest.mock('../hooks/useWorkoutTimer', () => ({
   useWorkoutTimer: (...args: any[]) => {
     mockTimerCapture.onSetComplete = args[3]
     return mockWorkoutTimerValue
@@ -178,51 +179,49 @@ jest.mock('./hooks/useWorkoutTimer', () => ({
 // Capture the props App feeds the Set Complete modal.
 const mockModalCapture: any = {
   visible: false,
-  initialReps: undefined,
-  defaultWeightUnit: undefined,
-  onSubmit: null,
-  onClose: null,
+  variants: undefined,
+  defaultVariant: undefined,
 }
-jest.mock('./components/AddSetDetailsModal', () => (props: any) => {
+jest.mock('../components/AddSetDetailsModal', () => (props: any) => {
   mockModalCapture.visible = props.visible
-  mockModalCapture.initialReps = props.initialReps
-  mockModalCapture.defaultWeightUnit = props.defaultWeightUnit
+  mockModalCapture.variants = props.variants
+  mockModalCapture.defaultVariant = props.defaultVariant
   mockModalCapture.onSubmit = props.onSubmit
-  mockModalCapture.onClose = props.onClose
   return null
 })
 
-jest.mock('./components/SettingsModal', () => () => null)
-jest.mock('./components/WorkoutManagementModal', () => () => null)
-jest.mock('./components/layout/MainDisplay', () => () => null)
-jest.mock('./components/layout/Controls', () => () => null)
-jest.mock('./components/layout/RepJumper', () => () => null)
-jest.mock('./components/SplashScreen', () => () => null)
-jest.mock('./components/HistoryScreen', () => () => null)
-jest.mock('./components/ProgressScreen', () => () => null)
-jest.mock('./components/JournalScreen', () => () => null)
+jest.mock('../components/SettingsModal', () => () => null)
+jest.mock('../components/WorkoutManagementModal', () => () => null)
+jest.mock('../components/layout/MainDisplay', () => () => null)
+jest.mock('../components/layout/Controls', () => () => null)
+jest.mock('../components/layout/RepJumper', () => () => null)
+jest.mock('../components/SplashScreen', () => () => null)
+jest.mock('../components/HistoryScreen', () => () => null)
+jest.mock('../components/ProgressScreen', () => () => null)
+jest.mock('../components/JournalScreen', () => () => null)
 
-// Fire the timer's onSetComplete with the given rep count. reps === 0 mimics
-// ending a set during the "Get Ready" countdown (no rep was ever counted).
-const completeSet = (set: number, reps: number) =>
+const completeSet = (set: number) =>
   act(() => {
     mockTimerCapture.onSetComplete({
       exerciseId: 'ex1',
-      reps,
+      reps: 8,
       set,
       startTime: set * 10,
       endTime: set * 10 + 5,
     })
   })
 
-describe('App — remembers last set unit and reps per exercise', () => {
+describe('App — variant options on the Set Complete modal', () => {
   beforeEach(async () => {
     await AsyncStorage.clear()
     jest.clearAllMocks()
     mockTimerCapture.onSetComplete = null
     mockModalCapture.visible = false
-    mockModalCapture.initialReps = undefined
-    mockModalCapture.defaultWeightUnit = undefined
+    mockModalCapture.variants = undefined
+    mockModalCapture.defaultVariant = undefined
+    mockDataHookValue.workouts = [
+      { id: 'w1', name: 'Legs', exercises: [exercise()] },
+    ]
     mockDataHookValue.loadActiveSession.mockResolvedValue({
       workoutId: 'w1',
       exerciseIndex: 0,
@@ -251,72 +250,101 @@ describe('App — remembers last set unit and reps per exercise', () => {
     return utils
   }
 
-  it('falls back to the target reps (not 0) when a set is ended during the countdown', async () => {
+  it("passes the exercise's configured variants to the modal", async () => {
+    mockDataHookValue.workouts = [
+      {
+        id: 'w1',
+        name: 'Legs',
+        exercises: [exercise(['Standing', 'Sitting'])],
+      },
+    ]
     await renderActive()
 
-    // Ending during "Get Ready" reports 0 reps. With no memory yet, the modal
-    // must default to the exercise's configured rep target (8), never 0.
-    await completeSet(1, 0)
+    await completeSet(1)
     await waitFor(() => expect(mockModalCapture.visible).toBe(true))
-    expect(mockModalCapture.initialReps).toBe(8)
-    expect(mockModalCapture.defaultWeightUnit).toBe('kg')
+    expect(mockModalCapture.variants).toEqual(['Standing', 'Sitting'])
   })
 
-  it('defaults to the reps and unit last saved for the exercise', async () => {
+  it('picks up variants added to the routine mid-session', async () => {
+    const { rerender } = await renderActive()
+
+    await completeSet(1)
+    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
+    expect(mockModalCapture.variants).toBeUndefined()
+
+    // The user configures variants in Workout Management without ending the
+    // session. currentWorkout is a snapshot, so it has to be rebuilt from the
+    // edited routine — otherwise the picker never shows up for the sets that
+    // follow.
+    mockDataHookValue.workouts = [
+      {
+        id: 'w1',
+        name: 'Legs',
+        exercises: [exercise(['Standing', 'Sitting'])],
+      },
+    ]
+    rerender(<App />)
+
+    await completeSet(2)
+    await waitFor(() =>
+      expect(mockModalCapture.variants).toEqual(['Standing', 'Sitting']),
+    )
+  })
+
+  it('defaults to the variant the last set was logged with', async () => {
+    mockDataHookValue.workouts = [
+      {
+        id: 'w1',
+        name: 'Legs',
+        exercises: [exercise(['Standing', 'Sitting'])],
+      },
+    ]
     await renderActive()
 
-    // Log a set: user overrides to plates and 10 reps.
-    await completeSet(1, 0)
+    // First set has nothing to go on, and is saved as Sitting.
+    await completeSet(1)
+    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
+    expect(mockModalCapture.defaultVariant).toBeUndefined()
+    await act(async () => {
+      mockModalCapture.onSubmit(15, 40, 'kg', 'Sitting')
+    })
+
+    // The next set opens on Sitting, so a run of them needs no re-picking.
+    await completeSet(2)
+    await waitFor(() => expect(mockModalCapture.defaultVariant).toBe('Sitting'))
+  })
+
+  it('forgets the variant once a set is saved without one', async () => {
+    mockDataHookValue.workouts = [
+      {
+        id: 'w1',
+        name: 'Legs',
+        exercises: [exercise(['Standing', 'Sitting'])],
+      },
+    ]
+    await renderActive()
+
+    await completeSet(1)
     await waitFor(() => expect(mockModalCapture.visible).toBe(true))
     await act(async () => {
-      mockModalCapture.onSubmit(10, 100, 'plates')
+      mockModalCapture.onSubmit(15, 40, 'kg', 'Sitting')
+    })
+
+    // Set 2 opens on the remembered Sitting; the user deselects it and saves.
+    await completeSet(2)
+    await waitFor(() => expect(mockModalCapture.defaultVariant).toBe('Sitting'))
+    await act(async () => {
+      mockModalCapture.onSubmit(15, 40, 'kg', undefined)
     })
     await waitFor(async () => {
-      expect((await loadSetPreferences()).ex1).toEqual({
-        weightUnit: 'plates',
-        reps: 10,
-      })
+      expect((await loadSetPreferences()).ex1?.variant).toBeUndefined()
     })
 
-    // Next set is also ended during the countdown (0 reps). The modal now
-    // defaults to the remembered 10 reps and plates — values that can only come
-    // from memory, since the config says kg and the fallback reps is 3.
-    await completeSet(2, 0)
-    await waitFor(() => expect(mockModalCapture.initialReps).toBe(10))
-    expect(mockModalCapture.defaultWeightUnit).toBe('plates')
-  })
-
-  it('shows the actual counted reps when the timer did count them', async () => {
-    await renderActive()
-
-    // Remember 10 reps first.
-    await completeSet(1, 0)
-    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
-    await act(async () => {
-      mockModalCapture.onSubmit(10, 100, 'plates')
+    // Deselecting has to stick: Sitting must not come back on the next set.
+    await completeSet(3)
+    await waitFor(() => {
+      expect(mockModalCapture.visible).toBe(true)
+      expect(mockModalCapture.defaultVariant).toBeUndefined()
     })
-    await waitFor(async () => {
-      expect((await loadSetPreferences()).ex1?.reps).toBe(10)
-    })
-
-    // A normally-completed set counted 7 reps: the actual count wins over the
-    // remembered 10, but the remembered unit still applies.
-    await completeSet(2, 7)
-    await waitFor(() => expect(mockModalCapture.initialReps).toBe(7))
-    expect(mockModalCapture.defaultWeightUnit).toBe('plates')
-  })
-
-  it('does not remember anything when the modal is dismissed without a choice', async () => {
-    await renderActive()
-
-    await completeSet(1, 0)
-    await waitFor(() => expect(mockModalCapture.visible).toBe(true))
-
-    // Dismissing (Android back / tap-away) logs the set with no chosen unit.
-    await act(async () => {
-      mockModalCapture.onClose()
-    })
-
-    expect(await loadSetPreferences()).toEqual({})
   })
 })

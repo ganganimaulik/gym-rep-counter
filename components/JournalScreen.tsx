@@ -39,7 +39,6 @@ import {
   getUntakenSupplements,
   hasJournalEntryForDate,
   isSupplementDueOnDate,
-  getSupplementsTakenOnDate,
   getSupplementIntakeCountOnDate,
   getRequiredIntakeCount,
 } from '../utils/supplementSchedule'

@@ -10,7 +10,7 @@ if (typeof (global as any).window.dispatchEvent !== 'function') {
     return true
   }
 }
-import App from './App'
+import App from '../App'
 
 // These tests cover how App orders a session's exercises: finished ones first,
 // then anything with at least one set logged, then the untouched remainder.
@@ -62,7 +62,7 @@ jest.mock('react-native-toast-message', () => {
 })
 
 // Stand-in picker: one button per routine so a test can drive selectWorkout.
-jest.mock('./components/WorkoutPicker', () => {
+jest.mock('../components/WorkoutPicker', () => {
   const { Text, TouchableOpacity } = require('react-native')
   return ({ workouts, onValueChange }: any) => (
     <>
@@ -86,7 +86,7 @@ const EXERCISES = [
 ]
 
 const mockUseAuth = jest.fn()
-jest.mock('./hooks/useAuth', () => ({
+jest.mock('../hooks/useAuth', () => ({
   useAuth: (onSuccess: any) => mockUseAuth(onSuccess),
 }))
 
@@ -130,11 +130,11 @@ const mockDataHookValue: any = {
   loadActiveSession: jest.fn().mockResolvedValue(null),
   clearActiveSession: jest.fn(),
 }
-jest.mock('./hooks/useData', () => ({
+jest.mock('../hooks/useData', () => ({
   useData: () => mockDataHookValue,
 }))
 
-jest.mock('./hooks/useAudio', () => ({
+jest.mock('../hooks/useAudio', () => ({
   useAudio: () => ({
     speak: jest.fn(),
     stop: jest.fn(),
@@ -166,20 +166,20 @@ const mockWorkoutTimerValue: any = {
   endSet: jest.fn(),
   runNextSet: jest.fn(),
 }
-jest.mock('./hooks/useWorkoutTimer', () => ({
+jest.mock('../hooks/useWorkoutTimer', () => ({
   useWorkoutTimer: () => mockWorkoutTimerValue,
 }))
 
-jest.mock('./components/SettingsModal', () => () => null)
-jest.mock('./components/WorkoutManagementModal', () => () => null)
-jest.mock('./components/layout/MainDisplay', () => () => null)
-jest.mock('./components/layout/Controls', () => () => null)
-jest.mock('./components/layout/RepJumper', () => () => null)
-jest.mock('./components/AddSetDetailsModal', () => () => null)
-jest.mock('./components/SplashScreen', () => () => null)
-jest.mock('./components/HistoryScreen', () => () => null)
-jest.mock('./components/ProgressScreen', () => () => null)
-jest.mock('./components/JournalScreen', () => () => null)
+jest.mock('../components/SettingsModal', () => () => null)
+jest.mock('../components/WorkoutManagementModal', () => () => null)
+jest.mock('../components/layout/MainDisplay', () => () => null)
+jest.mock('../components/layout/Controls', () => () => null)
+jest.mock('../components/layout/RepJumper', () => () => null)
+jest.mock('../components/AddSetDetailsModal', () => () => null)
+jest.mock('../components/SplashScreen', () => () => null)
+jest.mock('../components/HistoryScreen', () => () => null)
+jest.mock('../components/ProgressScreen', () => () => null)
+jest.mock('../components/JournalScreen', () => () => null)
 
 // Report the given sets as logged today, e.g. { ex3: [1, 2, 3], ex4: [1] }.
 // Assigned as a fresh jest.fn so the new identity propagates through useData's

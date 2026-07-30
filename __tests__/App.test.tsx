@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, fireEvent, act, waitFor } from '@testing-library/react-native'
-import App from './App'
+import App from '../App'
 
 // Mock dependencies
 jest.mock('expo-background-timer', () => ({
@@ -51,7 +51,7 @@ jest.mock('react-native-toast-message', () => {
 })
 
 const mockUseAuth = jest.fn()
-jest.mock('./hooks/useAuth', () => ({
+jest.mock('../hooks/useAuth', () => ({
   useAuth: (onSuccess: any) => mockUseAuth(onSuccess),
 }))
 
@@ -99,11 +99,11 @@ const mockDataHookValue = {
   loadActiveSession: jest.fn().mockResolvedValue(null),
   clearActiveSession: jest.fn(),
 }
-jest.mock('./hooks/useData', () => ({
+jest.mock('../hooks/useData', () => ({
   useData: () => mockDataHookValue,
 }))
 
-jest.mock('./hooks/useAudio', () => ({
+jest.mock('../hooks/useAudio', () => ({
   useAudio: () => ({
     speak: jest.fn(),
     stop: jest.fn(),
@@ -133,30 +133,30 @@ const mockWorkoutTimerValue = {
   endSet: jest.fn(),
   runNextSet: jest.fn(),
 }
-jest.mock('./hooks/useWorkoutTimer', () => ({
+jest.mock('../hooks/useWorkoutTimer', () => ({
   useWorkoutTimer: () => mockWorkoutTimerValue,
 }))
 
-jest.mock('./components/SettingsModal', () => () => null)
-jest.mock('./components/WorkoutManagementModal', () => () => null)
-jest.mock('./components/layout/WorkoutSelector', () => () => null)
-jest.mock('./components/layout/MainDisplay', () => () => null)
-jest.mock('./components/layout/Controls', () => () => null)
-jest.mock('./components/layout/RepJumper', () => () => null)
-jest.mock('./components/AddSetDetailsModal', () => () => null)
-jest.mock('./components/SplashScreen', () => () => null)
+jest.mock('../components/SettingsModal', () => () => null)
+jest.mock('../components/WorkoutManagementModal', () => () => null)
+jest.mock('../components/layout/WorkoutSelector', () => () => null)
+jest.mock('../components/layout/MainDisplay', () => () => null)
+jest.mock('../components/layout/Controls', () => () => null)
+jest.mock('../components/layout/RepJumper', () => () => null)
+jest.mock('../components/AddSetDetailsModal', () => () => null)
+jest.mock('../components/SplashScreen', () => () => null)
 
-jest.mock('./components/HistoryScreen', () => {
+jest.mock('../components/HistoryScreen', () => {
   const { Text } = require('react-native')
   return ({ visible }: any) => (visible ? <Text>HISTORY</Text> : null)
 })
 
-jest.mock('./components/ProgressScreen', () => {
+jest.mock('../components/ProgressScreen', () => {
   const { Text } = require('react-native')
   return ({ visible }: any) => (visible ? <Text>PROGRESS</Text> : null)
 })
 
-jest.mock('./components/JournalScreen', () => {
+jest.mock('../components/JournalScreen', () => {
   const { Text } = require('react-native')
   return ({ visible }: any) => (visible ? <Text>JOURNAL</Text> : null)
 })
