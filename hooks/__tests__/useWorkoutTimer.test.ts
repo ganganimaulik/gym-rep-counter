@@ -1566,4 +1566,155 @@ describe('useWorkoutTimer', () => {
       expect(result.current.statusText.value).toBe('Get Ready… 8')
     })
   })
+
+  // Rest belongs to the athlete, not the exercise: supersets and a taken
+  // machine both mean switching exercises mid-rest, and the countdown has to
+  // survive it. Only the set-scoped state follows the new exercise.
+  describe('rest across an exercise change', () => {
+    // The rest tick re-aligns to the wall clock (1000 - now % 1000), so pin the
+    // clock to an exact second and the remaining-seconds reads are exact.
+    beforeEach(() => {
+      jest.setSystemTime(new Date('2026-07-25T10:00:00.000Z'))
+    })
+
+    const otherExercise: Exercise = { ...activeExercise, id: 'ex2' }
+    // Same switch, but this one rests 30s where the globals say 5s.
+    const longRestExercise: Exercise = {
+      ...activeExercise,
+      id: 'ex3',
+      name: 'Long Rest Exercise',
+      restSeconds: 30,
+    }
+
+    const renderResting = () =>
+      renderHook(
+        ({ exercise, set }: { exercise: Exercise; set: number }) =>
+          useWorkoutTimer(
+            defaultSettings,
+            mockAudioHandler,
+            exercise,
+            mockOnSetComplete,
+            set,
+          ),
+        { initialProps: { exercise: activeExercise, set: 1 } },
+      )
+
+    it('carries a running rest over to the new exercise instead of restarting it', async () => {
+      const { result, rerender } = renderResting()
+
+      act(() => result.current.continueToNextPhase())
+      await waitFor(() => expect(result.current.phase).toBe('Rest'))
+      act(() => jest.advanceTimersByTime(2000))
+      expect(result.current.statusText.value).toBe('Rest: 3s')
+      expect(result.current.currentSet.value).toBe(2)
+
+      rerender({ exercise: otherExercise, set: 1 })
+
+      expect(result.current.isResting).toBe(true)
+      expect(result.current.phase).toBe('Rest')
+      // Still anchored to the original rest start — a restart would read 5s.
+      expect(result.current.statusText.value).toBe('Rest: 3s')
+      // Set-scoped state does follow the new exercise.
+      expect(result.current.currentSet.value).toBe(1)
+      expect(result.current.currentRep.value).toBe(0)
+      expect(result.current.isRunning).toBe(false)
+
+      act(() => jest.advanceTimersByTime(1000))
+      expect(result.current.statusText.value).toBe('Rest: 2s')
+
+      // And the target lands 5s after the original start, not 5s after the switch.
+      act(() => jest.advanceTimersByTime(2000))
+      await waitFor(() => expect(result.current.isRestComplete).toBe(true))
+    })
+
+    it("re-targets the carried rest at the new exercise's rest time", async () => {
+      const { scheduleRestEndNotification } = jest.requireMock(
+        '../../utils/restNotification',
+      )
+      const { result, rerender } = renderResting()
+
+      act(() => result.current.continueToNextPhase())
+      await waitFor(() => expect(result.current.phase).toBe('Rest'))
+      act(() => jest.advanceTimersByTime(6000))
+      // Past the global 5s target.
+      expect(result.current.isRestComplete).toBe(true)
+
+      scheduleRestEndNotification.mockClear()
+      rerender({ exercise: longRestExercise, set: 1 })
+
+      // 6s into a 30s rest: no longer complete, and the lock-screen alert is
+      // re-armed against the remaining 24s under the new exercise's name.
+      expect(result.current.isRestComplete).toBe(false)
+      expect(result.current.statusText.value).toBe('Rest: 24s')
+      await waitFor(() =>
+        expect(scheduleRestEndNotification).toHaveBeenCalledWith(
+          expect.objectContaining({
+            secondsFromNow: 24,
+            exerciseName: 'Long Rest Exercise',
+            set: 1,
+          }),
+        ),
+      )
+
+      act(() => jest.advanceTimersByTime(24000))
+      await waitFor(() => expect(result.current.isRestComplete).toBe(true))
+    })
+
+    it('keeps a paused rest paused across the switch', async () => {
+      const { result, rerender } = renderResting()
+
+      act(() => result.current.continueToNextPhase())
+      await waitFor(() => expect(result.current.phase).toBe('Rest'))
+      act(() => jest.advanceTimersByTime(2000))
+      act(() => result.current.pauseWorkout())
+      expect(result.current.isPaused).toBe(true)
+
+      rerender({ exercise: otherExercise, set: 1 })
+
+      // Neither resumed behind the user's back nor reset.
+      expect(result.current.isPaused).toBe(true)
+      expect(result.current.phase).toBe('Rest')
+      expect(result.current.statusText.value).toBe('Paused')
+
+      // Time spent paused still doesn't count: resuming picks up 2s in.
+      act(() => jest.advanceTimersByTime(10000))
+      act(() => result.current.pauseWorkout())
+      expect(result.current.statusText.value).toBe('Rest: 3s')
+    })
+
+    it('turns a post-exercise rest into a rest for the new exercise', async () => {
+      const { result, rerender } = renderResting()
+
+      // Set 2 of 2 done: this is the rest that would end the exercise.
+      act(() => result.current.continueToNextPhase())
+      await waitFor(() => expect(result.current.phase).toBe('Rest'))
+      act(() => result.current.continueToNextPhase())
+      act(() => jest.advanceTimersByTime(1000))
+      expect(result.current.phase).toBe('Rest')
+
+      rerender({ exercise: otherExercise, set: 1 })
+      expect(result.current.phase).toBe('Rest')
+
+      // Starting the next set runs the new exercise instead of reporting the
+      // old one complete.
+      act(() => result.current.runNextSet())
+      expect(result.current.isRunning).toBe(true)
+      expect(result.current.phase).toBe('Get Ready')
+      expect(result.current.isExerciseComplete).toBe(false)
+    })
+
+    it('still resets a set in progress when the exercise changes', () => {
+      const { result, rerender } = renderResting()
+
+      act(() => result.current.startWorkout())
+      act(() => jest.advanceTimersByTime(1000))
+      expect(result.current.isRunning).toBe(true)
+
+      rerender({ exercise: otherExercise, set: 3 })
+
+      expect(result.current.isRunning).toBe(false)
+      expect(result.current.phase).toBe('')
+      expect(result.current.statusText.value).toBe('Press Start for Set 3')
+    })
+  })
 })

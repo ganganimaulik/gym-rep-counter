@@ -664,22 +664,25 @@ const App: React.FC = () => {
     [stopWorkout, workouts, orderExercisesByCompletion, clearActiveSession],
   )
 
+  // Switching exercises abandons a set in progress, but never the rest between
+  // sets — useWorkoutTimer carries a running rest over to the new exercise, and
+  // stopWorkout() here would wipe it before the switch ever reached the hook.
   const nextExercise = useCallback(() => {
     if (
       currentWorkout &&
       currentExerciseIndex < currentWorkout.exercises.length - 1
     ) {
-      stopWorkout()
+      if (!isResting) stopWorkout()
       setCurrentExerciseIndex((prev) => prev + 1)
     }
-  }, [currentWorkout, currentExerciseIndex, stopWorkout])
+  }, [currentWorkout, currentExerciseIndex, isResting, stopWorkout])
 
   const prevExercise = useCallback(() => {
     if (currentWorkout && currentExerciseIndex > 0) {
-      stopWorkout()
+      if (!isResting) stopWorkout()
       setCurrentExerciseIndex((prev) => prev - 1)
     }
-  }, [currentWorkout, currentExerciseIndex, stopWorkout])
+  }, [currentWorkout, currentExerciseIndex, isResting, stopWorkout])
 
   const handleSaveSettings = useCallback(
     (newSettings: Settings) => {

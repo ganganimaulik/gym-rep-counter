@@ -766,24 +766,64 @@ export function useWorkoutTimer(
     prevExerciseIdRef.current = currentId
 
     // Only reset when switching to a different exercise
-    if (prevId !== currentId) {
-      clearTimer()
-      if (activeExercise) {
-        resetInternalState(startingSet)
-        updateUI({
-          isRunning: false,
-          isPaused: false,
-          phase: '',
-          isExerciseComplete: false,
-        })
-        statusText.value = `Press Start for Set ${startingSet}`
-      } else {
-        fullReset()
-      }
+    if (prevId === currentId) return
+
+    // Rest belongs to the athlete, not to the exercise: switching exercises
+    // mid-rest (supersets, a taken machine, reordering on the fly) carries the
+    // countdown over instead of restarting it. Handing the elapsed rest to
+    // startRest re-anchors phaseStart to the same instant and re-arms the tick,
+    // the rest-end notification and the Live Activity against the *new*
+    // exercise's restSeconds. Everything set-scoped resets to the new exercise.
+    if (activeExercise && wState.current.phase === PHASES.REST) {
+      // While paused in rest, remainingTime already holds the elapsed rest
+      // (see pauseWorkout) and no timer is pending — keep it frozen.
+      const elapsed = ui.isPaused
+        ? wState.current.remainingTime
+        : Date.now() - wState.current.phaseStart
+      // The target is the new exercise's, so re-decide whether it is reached.
+      // Suppressing the announcement for an already-passed target keeps a
+      // switch from speaking "Rest target reached" a second time.
+      const reachedTarget = elapsed / 1000 >= settings.restSeconds
+
+      wState.current.rep = 0
+      wState.current.set = startingSet
+      wState.current.isJumping = false
+      wState.current.setStartTime = 0
+      // The new exercise has sets of its own, so this is no longer a rest that
+      // ends the exercise — the next start runs its set instead of completing.
+      wState.current.isPostExerciseRest = false
+      wState.current.restTargetAnnounced = reachedTarget
+      wState.current.remainingTime = elapsed
+      displayRep.value = 0
+      displaySet.value = startingSet
+      // phase stays 'Rest' — isResting, the Live Activity and the rest
+      // notification all derive rest-ness from it.
+      updateUI({ isExerciseComplete: false, isRestComplete: reachedTarget })
+      if (!ui.isPaused) startRest()
+      return
+    }
+
+    clearTimer()
+    if (activeExercise) {
+      resetInternalState(startingSet)
+      updateUI({
+        isRunning: false,
+        isPaused: false,
+        phase: '',
+        isExerciseComplete: false,
+      })
+      statusText.value = `Press Start for Set ${startingSet}`
+    } else {
+      fullReset()
     }
   }, [
     activeExercise,
     startingSet,
+    ui.isPaused,
+    settings.restSeconds,
+    startRest,
+    displayRep,
+    displaySet,
     resetInternalState,
     fullReset,
     updateUI,

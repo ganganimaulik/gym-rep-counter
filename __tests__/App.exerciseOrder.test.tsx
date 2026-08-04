@@ -202,6 +202,8 @@ describe('App — exercise ordering by completion', () => {
     mockDataHookValue.getNextUncompletedSet.mockReturnValue(1)
     mockDataHookValue.loadActiveSession.mockResolvedValue(null)
     mockWorkoutTimerValue.isRunning = false
+    mockWorkoutTimerValue.isResting = false
+    mockWorkoutTimerValue.phase = ''
     mockWorkoutTimerValue.currentSet = { value: 1 }
 
     mockUseAuth.mockImplementation((onSuccess?: any) => {
@@ -297,5 +299,55 @@ describe('App — exercise ordering by completion', () => {
       expect(getByText('Exercise 2 of 4')).toBeTruthy()
     })
     expect(getByText('Lateral Raise')).toBeTruthy()
+  })
+
+  // The Previous/Next buttons abandon a set in progress, but never the rest
+  // between sets — useWorkoutTimer carries a running rest over to the new
+  // exercise, and stopWorkout() here would wipe it before the switch landed.
+  describe('switching exercises while resting', () => {
+    it('leaves the rest timer running when advancing to the next exercise', async () => {
+      mockWorkoutTimerValue.isResting = true
+      mockWorkoutTimerValue.phase = 'Rest'
+      const { getByText } = await selectPushDay()
+      await waitFor(() => expect(getByText('Bench Press')).toBeTruthy())
+      // Picking the routine stops the timer by design; only the switch matters.
+      mockWorkoutTimerValue.stopWorkout.mockClear()
+
+      fireEvent.press(getByText('Next'))
+
+      await waitFor(() => expect(getByText('Incline Press')).toBeTruthy())
+      expect(getByText('Exercise 2 of 4')).toBeTruthy()
+      expect(mockWorkoutTimerValue.stopWorkout).not.toHaveBeenCalled()
+    })
+
+    it('leaves the rest timer running when going back an exercise', async () => {
+      mockWorkoutTimerValue.isResting = true
+      mockWorkoutTimerValue.phase = 'Rest'
+      mockDataHookValue.loadActiveSession.mockResolvedValue({
+        workoutId: 'w1',
+        exerciseIndex: 3,
+      })
+      const { getByText } = render(<App />)
+      await waitFor(() => expect(getByText('Lateral Raise')).toBeTruthy())
+
+      fireEvent.press(getByText('Previous'))
+
+      await waitFor(() => expect(getByText('Shoulder Press')).toBeTruthy())
+      expect(getByText('Exercise 3 of 4')).toBeTruthy()
+      expect(mockWorkoutTimerValue.stopWorkout).not.toHaveBeenCalled()
+    })
+
+    it('abandons a set in progress when advancing to the next exercise', async () => {
+      mockWorkoutTimerValue.isRunning = true
+      mockWorkoutTimerValue.phase = 'Concentric'
+      const { getByText } = await selectPushDay()
+      await waitFor(() => expect(getByText('Bench Press')).toBeTruthy())
+      mockWorkoutTimerValue.stopWorkout.mockClear()
+
+      fireEvent.press(getByText('Next'))
+
+      await waitFor(() => expect(getByText('Incline Press')).toBeTruthy())
+      expect(mockWorkoutTimerValue.stopWorkout).toHaveBeenCalled()
+    })
   })
 })
