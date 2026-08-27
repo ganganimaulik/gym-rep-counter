@@ -18,10 +18,8 @@ test.describe('Settings Screen', () => {
   test('should modify, save, and persist all settings configurations', async ({
     page,
   }) => {
-    // Verify default auto-sleep is visible when stat reminders are enabled (default)
-    await expect(
-      page.locator('[data-testid="toggle-auto-sleep"]'),
-    ).toBeVisible()
+    // Quiet-window controls are visible when stat reminders are enabled (default)
+    await expect(page.locator('[data-testid="sleep-start-text"]')).toBeVisible()
 
     // 1. Fill all remaining inputs
     await page.locator('[data-testid="setting-announcement"]').fill('3')
@@ -33,9 +31,9 @@ test.describe('Settings Screen', () => {
     // 2. Toggle off stat reminders
     await page.locator('[data-testid="toggle-stat-reminders"]').click()
 
-    // Verify auto-sleep switch is now hidden
+    // Verify the quiet-window controls are now hidden
     await expect(
-      page.locator('[data-testid="toggle-auto-sleep"]'),
+      page.locator('[data-testid="sleep-start-text"]'),
     ).not.toBeVisible()
 
     // 3. Save Changes
@@ -65,9 +63,9 @@ test.describe('Settings Screen', () => {
       '4.5',
     )
 
-    // Verify stat reminders toggle state is persisted (auto-sleep remains hidden)
+    // Verify stat reminders toggle state is persisted (controls remain hidden)
     await expect(
-      page.locator('[data-testid="toggle-auto-sleep"]'),
+      page.locator('[data-testid="sleep-start-text"]'),
     ).not.toBeVisible()
   })
 })

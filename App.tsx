@@ -36,7 +36,6 @@ import {
   enableBackgroundExecution,
   disableBackgroundExecution,
 } from './utils/backgroundTimer'
-import { detectSleepWindow } from './utils/sleepDetection'
 import { evaluateSetDeletion } from './utils/setDeletion'
 import { setupReminders, cancelAllReminders } from './utils/notifications'
 import { buildSupplementReminderSignature } from './utils/supplementSchedule'
@@ -384,59 +383,23 @@ const App: React.FC = () => {
     }
   }, [user, fetchAllTodaysCompletions])
 
-  const sleepWindow = useMemo(() => {
-    return detectSleepWindow(
-      weightLogs,
-      calorieLogs,
-      journalEntries,
-      todaysCompletions,
-    )
-  }, [weightLogs, calorieLogs, journalEntries, todaysCompletions])
-
-  // The journal's day boundary is the wake-up (sleep-end) hour, resolved the
-  // same way as reminder notifications: auto-detected window when enabled,
-  // manual "Quiet End" otherwise.
-  const journalDayRolloverHour = useMemo(() => {
-    if (settings.statRemindersUseAutoSleep ?? true) {
-      return sleepWindow.endHour
-    }
-    return settings.statRemindersSleepEnd ?? 7
-  }, [
-    sleepWindow,
-    settings.statRemindersUseAutoSleep,
-    settings.statRemindersSleepEnd,
-  ])
-
-  const formattedSleepWindow = useMemo(() => {
-    const formatHour = (hour: number) => {
-      const ampm = hour >= 12 ? 'PM' : 'AM'
-      const displayHour = hour % 12 === 0 ? 12 : hour % 12
-      return `${displayHour}:00 ${ampm}`
-    }
-
-    if (settings.statRemindersUseAutoSleep === false) {
-      const start = settings.statRemindersSleepStart ?? 23
-      const end = settings.statRemindersSleepEnd ?? 7
-      return `${formatHour(start)} - ${formatHour(end)}`
-    }
-
-    if (sleepWindow.isDefault) {
-      return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Default)`
-    }
-    return `${formatHour(sleepWindow.startHour)} - ${formatHour(sleepWindow.endHour)} (Auto-detected)`
-  }, [
-    sleepWindow,
-    settings.statRemindersUseAutoSleep,
-    settings.statRemindersSleepStart,
-    settings.statRemindersSleepEnd,
-  ])
+  // The journal's day boundary is the user's configured wake-up hour ("Quiet
+  // End"). It is deliberately an explicit setting rather than anything derived:
+  // a day boundary decides which date a journal entry belongs to, so it must
+  // never move on its own.
+  const journalDayRolloverHour = settings.statRemindersSleepEnd ?? 7
 
   // Logging a supplement usually edits the day's existing journal entry, so
   // journalEntries.length alone cannot tell the reminder effect that the
   // "Missing: ..." list is now out of date. Track the content instead.
   const supplementReminderSignature = useMemo(
-    () => buildSupplementReminderSignature(journalEntries, new Date()),
-    [journalEntries],
+    () =>
+      buildSupplementReminderSignature(
+        journalEntries,
+        new Date(),
+        journalDayRolloverHour,
+      ),
+    [journalEntries, journalDayRolloverHour],
   )
 
   useEffect(() => {
@@ -464,7 +427,6 @@ const App: React.FC = () => {
     triggerReminders()
   }, [
     settings.statRemindersEnabled,
-    settings.statRemindersUseAutoSleep,
     settings.statRemindersSleepStart,
     settings.statRemindersSleepEnd,
     settings.supplementSuggestions,
@@ -1067,7 +1029,6 @@ const App: React.FC = () => {
             user={user}
             disconnectAccount={disconnectAccount}
             isSigningIn={isSigningIn}
-            detectedSleepWindow={formattedSleepWindow}
           />
         )}
       </StyledView>

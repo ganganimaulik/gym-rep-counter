@@ -178,7 +178,6 @@ export interface Settings {
   volume: number
   supplementSuggestions?: SupplementSuggestion[]
   statRemindersEnabled?: boolean
-  statRemindersUseAutoSleep?: boolean
   statRemindersSleepStart?: number
   statRemindersSleepEnd?: number
 }
@@ -375,7 +374,6 @@ const defaultSettings: Settings = {
   countdownAnnouncementThreshold: 15,
   volume: 1.0,
   statRemindersEnabled: true,
-  statRemindersUseAutoSleep: true,
   statRemindersSleepStart: 23,
   statRemindersSleepEnd: 7,
   supplementSuggestions: [

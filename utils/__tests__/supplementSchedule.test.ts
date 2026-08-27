@@ -8,8 +8,10 @@ import {
   buildBedtimeReminderBody,
   buildSupplementReminderSignature,
   getRequiredIntakeCount,
+  getLocalDateKey,
   getJournalDayDate,
   getJournalDateKey,
+  journalDayKeyToDate,
   SupplementSuggestion,
 } from '../supplementSchedule'
 import type { JournalEntry } from '../../declarations'
@@ -677,6 +679,53 @@ describe('supplementSchedule', () => {
     })
   })
 
+  describe('buildBedtimeReminderBody with rollover', () => {
+    // A dose logged at 1 AM Tuesday belongs to journal day Monday. The evening
+    // reminder for Tuesday must therefore still list it as missing — with a
+    // calendar-day boundary it counted as "taken today" and the reminder went
+    // silent while the journal screen still showed it as missing.
+    const doseAt1AMTuesday: JournalEntry = {
+      id: '1',
+      note: 'Late dose',
+      date: makeTimestamp(new Date(2026, 6, 7, 1, 0)) as any,
+      supplements: [{ name: 'Creatine', dosage: '5g' }],
+    }
+    const suggestions: SupplementSuggestion[] = [
+      { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+    ]
+
+    test("Tuesday evening still reports the dose missing when it belongs to Monday's journal day", () => {
+      const result = buildBedtimeReminderBody(
+        suggestions,
+        [doseAt1AMTuesday],
+        new Date(2026, 6, 7, 19, 0),
+        7,
+      )
+      expect(result?.body).toContain('Creatine')
+    })
+
+    test('the calendar-day default counts the 1 AM dose toward Tuesday', () => {
+      const result = buildBedtimeReminderBody(
+        suggestions,
+        [doseAt1AMTuesday],
+        new Date(2026, 6, 7, 19, 0),
+      )
+      expect(result?.body ?? '').not.toContain('Creatine')
+    })
+
+    test("Monday evening does not yet know about Monday's later 1 AM dose", () => {
+      // Sanity check on attribution: at Monday 19:00 the dose has not happened
+      // yet, so it is still missing for journal day Monday.
+      const result = buildBedtimeReminderBody(
+        suggestions,
+        [],
+        new Date(2026, 6, 6, 19, 0),
+        7,
+      )
+      expect(result?.body).toContain('Creatine')
+    })
+  })
+
   describe('buildSupplementReminderSignature', () => {
     const today = new Date(2026, 6, 6)
 
@@ -819,6 +868,31 @@ describe('supplementSchedule', () => {
     })
   })
 
+  describe('buildSupplementReminderSignature with rollover', () => {
+    test('a 1 AM dose is keyed to the previous journal day', () => {
+      const entries: JournalEntry[] = [
+        {
+          id: 'e1',
+          note: 'Late dose',
+          date: makeTimestamp(new Date(2026, 6, 7, 1, 0)) as any,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        },
+      ]
+      const withRollover = buildSupplementReminderSignature(
+        entries,
+        new Date(2026, 6, 7, 19, 0),
+        7,
+      )
+      const calendarDay = buildSupplementReminderSignature(
+        entries,
+        new Date(2026, 6, 7, 19, 0),
+      )
+      expect(withRollover).toContain('2026-07-06#e1')
+      expect(calendarDay).toContain('2026-07-07#e1')
+      expect(withRollover).not.toBe(calendarDay)
+    })
+  })
+
   describe('journal-day rollover (dayRolloverHour)', () => {
     // 1 AM on Tuesday, July 7 2026 — with a 7 AM wake-up boundary this is
     // still journal-day Monday, July 6.
@@ -830,7 +904,27 @@ describe('supplementSchedule', () => {
       test('shifts times before the rollover hour to the previous day', () => {
         const adjusted = getJournalDayDate(tuesdayAt1AM, 7)
         expect(adjusted.getDate()).toBe(6)
-        expect(adjusted.getHours()).toBe(1)
+        // Anchored to the rollover hour, not the original time-of-day. This is
+        // what keeps the result out of the "before the rollover" range.
+        expect(adjusted.getHours()).toBe(7)
+      })
+
+      test('is idempotent — re-applying it never shifts a second time', () => {
+        for (const rolloverHour of [0, 1, 7, 12, 13, 22, 23]) {
+          const once = getJournalDayDate(tuesdayAt1AM, rolloverHour)
+          const twice = getJournalDayDate(once, rolloverHour)
+          expect(getLocalDateKey(twice)).toBe(getLocalDateKey(once))
+          expect(getJournalDateKey(once, rolloverHour)).toBe(
+            getJournalDateKey(tuesdayAt1AM, rolloverHour),
+          )
+        }
+      })
+
+      test('stepping back one day from the result lands on the previous journal day', () => {
+        // This is exactly the arithmetic the every_other_day branch performs.
+        const yesterday = getJournalDayDate(tuesdayAt1AM, 7)
+        yesterday.setDate(yesterday.getDate() - 1)
+        expect(getJournalDateKey(yesterday, 7)).toBe('2026-07-05')
       })
 
       test('leaves times at or after the rollover hour untouched', () => {
@@ -882,6 +976,31 @@ describe('supplementSchedule', () => {
       test('keeps the zero-padded YYYY-MM-DD format', () => {
         expect(getJournalDateKey(new Date(2026, 0, 5, 1, 0), 7)).toBe(
           '2026-01-04',
+        )
+      })
+    })
+
+    describe('journalDayKeyToDate', () => {
+      test('round-trips a journal-day key for every rollover hour', () => {
+        for (const rolloverHour of [0, 1, 7, 12, 13, 22, 23]) {
+          const rebuilt = journalDayKeyToDate(mondayKey, rolloverHour)
+          expect(getJournalDateKey(rebuilt, rolloverHour)).toBe(mondayKey)
+        }
+      })
+
+      test('preserves the calendar date it names', () => {
+        const rebuilt = journalDayKeyToDate('2026-07-06', 7)
+        expect(rebuilt.getFullYear()).toBe(2026)
+        expect(rebuilt.getMonth()).toBe(6)
+        expect(rebuilt.getDate()).toBe(6)
+      })
+
+      test('a midnight rebuild would land on the previous journal day', () => {
+        // Guards the bug this helper exists to prevent: rebuilding a key as
+        // new Date(y, m, d) puts it before the rollover, so it shifts again.
+        expect(getJournalDateKey(new Date(2026, 6, 6), 7)).toBe('2026-07-05')
+        expect(getJournalDateKey(journalDayKeyToDate('2026-07-06', 7), 7)).toBe(
+          '2026-07-06',
         )
       })
     })
@@ -1008,6 +1127,38 @@ describe('supplementSchedule', () => {
             [takenEntry],
             0,
           ),
+        ).toBe(true)
+      })
+
+      test('every_other_day queried before the rollover hour compares against the previous journal day', () => {
+        const supp: SupplementSuggestion = {
+          name: 'Creatine',
+          defaultDosage: '5g',
+          schedule: 'every_other_day',
+        }
+        // Asking at 1 AM Tuesday = journal-day Monday, so "yesterday" is
+        // journal-day Sunday July 5. A dose logged Sunday evening means it is
+        // NOT due. Before the anchor fix this compared against July 4 and
+        // wrongly reported the supplement as due.
+        const takenSunday: JournalEntry = {
+          id: '1',
+          note: 'dose',
+          date: makeTimestamp(new Date(2026, 6, 5, 20, 0)) as any,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        }
+        expect(
+          isSupplementDueOnDate(supp, tuesdayAt1AM, [takenSunday], 7),
+        ).toBe(false)
+
+        // A dose two journal days back must not suppress it.
+        const takenSaturday: JournalEntry = {
+          id: '2',
+          note: 'dose',
+          date: makeTimestamp(new Date(2026, 6, 4, 20, 0)) as any,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        }
+        expect(
+          isSupplementDueOnDate(supp, tuesdayAt1AM, [takenSaturday], 7),
         ).toBe(true)
       })
 

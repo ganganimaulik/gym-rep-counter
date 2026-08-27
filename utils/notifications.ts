@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications'
-import { detectSleepWindow } from './sleepDetection'
 import {
   WeightLog,
   CalorieLog,
@@ -77,20 +76,11 @@ export async function setupReminders(
     await cancelReminderNotifications()
     if (isAborted()) return
 
-    // 4. Get sleep window
-    let sleepStart = settings.statRemindersSleepStart ?? 23
-    let sleepEnd = settings.statRemindersSleepEnd ?? 7
-
-    if (settings.statRemindersUseAutoSleep ?? true) {
-      const sleepWindow = detectSleepWindow(
-        weightLogs,
-        calorieLogs,
-        journalEntries,
-        workoutHistory,
-      )
-      sleepStart = sleepWindow.startHour
-      sleepEnd = sleepWindow.endHour
-    }
+    // 4. Get the user's configured quiet window. This is always explicit:
+    // auto-detection was removed because app-activity timestamps are far too
+    // sparse to locate a sleep window, and a wrong guess inverts the window.
+    const sleepStart = settings.statRemindersSleepStart ?? 23
+    const sleepEnd = settings.statRemindersSleepEnd ?? 7
 
     const isInSleepWindow = (date: Date) => {
       const hour = date.getHours()
@@ -172,6 +162,7 @@ export async function setupReminders(
     // 7. Schedule bedtime supplement/journal reminders
     await scheduleBedtimeReminders(
       sleepStart,
+      sleepEnd,
       settings.supplementSuggestions || [],
       journalEntries,
       isAborted,
@@ -188,6 +179,10 @@ export async function setupReminders(
  */
 async function scheduleBedtimeReminders(
   sleepStartHour: number,
+  /** Wake-up hour, which is also the journal-day rollover. Forwarded to
+   * buildBedtimeReminderBody so the reminder describes the same journal day
+   * the journal screen shows. */
+  sleepEndHour: number,
   supplementSuggestions: NonNullable<Settings['supplementSuggestions']>,
   journalEntries: JournalEntry[],
   isAborted?: () => boolean,
@@ -217,6 +212,7 @@ async function scheduleBedtimeReminders(
       supplementSuggestions,
       journalEntries,
       targetDate,
+      sleepEndHour,
     )
 
     // For future days beyond today, we can't know what supplements will

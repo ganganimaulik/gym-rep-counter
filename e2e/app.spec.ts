@@ -474,12 +474,7 @@ test.describe('Gym Rep Counter E2E Tests', () => {
     await expect(eccentricSwitch).toBeVisible()
     await eccentricSwitch.click()
 
-    // Toggle Auto-Sleep off to show manual sleep controls
-    const autoSleepSwitch = page.locator('[data-testid="toggle-auto-sleep"]')
-    await expect(autoSleepSwitch).toBeVisible()
-    await autoSleepSwitch.click()
-
-    // Verify manual sleep settings title is visible
+    // Manual sleep settings are always shown while stat reminders are on
     await expect(page.getByText('Manual Sleep Settings')).toBeVisible()
 
     // Test quiet bedtime adjustments (+/- buttons)

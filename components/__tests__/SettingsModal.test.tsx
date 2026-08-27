@@ -76,7 +76,6 @@ describe('SettingsModal', () => {
         user={null}
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={undefined}
       />,
     )
 
@@ -98,7 +97,6 @@ describe('SettingsModal', () => {
         user={null}
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={undefined}
       />,
     )
 
@@ -130,7 +128,6 @@ describe('SettingsModal', () => {
         user={null}
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={undefined}
       />,
     )
 
@@ -158,7 +155,6 @@ describe('SettingsModal', () => {
         user={null} // not logged in
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={undefined}
       />,
     )
 
@@ -180,7 +176,6 @@ describe('SettingsModal', () => {
         user={{ uid: 'test-user', email: 'user@test.com' } as any} // logged in
         disconnectAccount={mockDisconnectAccount}
         isSigningIn={false}
-        detectedSleepWindow={undefined}
       />,
     )
 
@@ -385,16 +380,25 @@ describe('SettingsModal', () => {
       const { getByTestId } = renderModal()
 
       expect(getByTestId('toggle-stat-reminders').props.value).toBe(true)
-      expect(getByTestId('toggle-auto-sleep').props.value).toBe(true)
     })
 
-    it('hides the auto-sleep row when reminders are turned off', () => {
+    it('always shows the manual quiet-window controls while reminders are on', () => {
+      // The quiet window is user-set only: auto-detection was removed because
+      // app-activity timestamps cannot locate a sleep window.
+      const { getByTestId, getByText } = renderModal()
+
+      expect(getByText('Manual Sleep Settings')).toBeTruthy()
+      expect(getByTestId('sleep-start-text')).toBeTruthy()
+      expect(getByTestId('sleep-end-text')).toBeTruthy()
+    })
+
+    it('hides the quiet-window controls when reminders are turned off', () => {
       const { getByTestId, queryByTestId } = renderModal()
 
       fireEvent(getByTestId('toggle-stat-reminders'), 'valueChange', false)
 
-      expect(queryByTestId('toggle-auto-sleep')).toBeNull()
       expect(queryByTestId('sleep-start-text')).toBeNull()
+      expect(queryByTestId('sleep-end-text')).toBeNull()
     })
 
     it('saves the disabled reminder preference', async () => {
@@ -409,39 +413,10 @@ describe('SettingsModal', () => {
         )
       })
     })
-
-    it('shows the detected sleep window while auto-detect is on', () => {
-      const { getByText } = renderModal(
-        { statRemindersUseAutoSleep: true },
-        { detectedSleepWindow: '11:00 PM - 6:00 AM' },
-      )
-
-      expect(getByText('Quiet Sleep Window')).toBeTruthy()
-      expect(getByText('11:00 PM - 6:00 AM')).toBeTruthy()
-    })
-
-    it('omits the sleep window row when none has been detected yet', () => {
-      const { queryByText } = renderModal({ statRemindersUseAutoSleep: true })
-
-      expect(queryByText('Quiet Sleep Window')).toBeNull()
-    })
-
-    it('hides the detected window and shows manual controls once auto-detect is off', () => {
-      const { getByTestId, queryByText } = renderModal(
-        { statRemindersUseAutoSleep: true },
-        { detectedSleepWindow: '11:00 PM - 6:00 AM' },
-      )
-
-      fireEvent(getByTestId('toggle-auto-sleep'), 'valueChange', false)
-
-      expect(queryByText('Quiet Sleep Window')).toBeNull()
-      expect(getByTestId('sleep-start-text')).toBeTruthy()
-      expect(getByTestId('sleep-end-text')).toBeTruthy()
-    })
   })
 
   describe('manual sleep window', () => {
-    const manual = { statRemindersUseAutoSleep: false }
+    const manual = {}
 
     it('formats the default bedtime and wake-up hours', () => {
       const { getByTestId } = renderModal(manual)

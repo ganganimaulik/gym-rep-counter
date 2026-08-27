@@ -888,6 +888,158 @@ describe('JournalScreen', () => {
       expect(queryByText(unexpectedHeader)).toBeNull()
     })
 
+    test('a past section reports its own journal day, not the day before', async () => {
+      // "Now" is 12:00 on Aug 27, so journal-day today is 2026-08-27 and both
+      // sections below are in the past. Creatine was taken on journal-day
+      // Aug 25 and missed on journal-day Aug 26.
+      jest.setSystemTime(new Date(2026, 7, 27, 12, 0))
+
+      const dataHook: any = {
+        ...mockDataHook,
+        settings: {
+          supplementSuggestions: [
+            {
+              name: 'Creatine',
+              defaultDosage: '5g',
+              schedule: 'daily',
+              scheduleActivatedDate: '2020-01-01',
+            },
+          ],
+        },
+        journalEntries: [
+          {
+            id: 'aug25',
+            note: 'took it',
+            date: makeTs(new Date(2026, 7, 25, 20, 0)),
+            supplements: [{ name: 'Creatine', dosage: '5g' }],
+          },
+          {
+            id: 'aug26',
+            note: 'forgot',
+            date: makeTs(new Date(2026, 7, 26, 20, 0)),
+            supplements: [],
+          },
+        ],
+      }
+
+      const { queryByTestId } = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      // Taken on Aug 25 → no footer. Rebuilding the section key at midnight
+      // would look at Aug 24 (nothing taken) and wrongly flag it.
+      expect(queryByTestId('missed-supplements-2026-08-25')).toBeNull()
+      // Missed on Aug 26 → footer. Rebuilding at midnight would look at
+      // Aug 25, find the dose, and wrongly suppress it.
+      expect(queryByTestId('missed-supplements-2026-08-26')).toBeTruthy()
+    })
+
+    test('the schedule-activation migration stamps the journal-day key', async () => {
+      const mockSave = jest.fn().mockResolvedValue(undefined)
+      const dataHook: any = {
+        ...mockDataHook,
+        settings: {
+          supplementSuggestions: [
+            // Scheduled but never stamped → triggers the migration effect.
+            { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+          ],
+        },
+        journalEntries: [],
+        saveSettings: mockSave,
+      }
+
+      render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(mockSave).toHaveBeenCalled()
+      const saved = mockSave.mock.calls[0][0]
+      // At 1 AM the journal day is still yesterday. Stamping the calendar date
+      // would gate the supplement off for the rest of the journal day.
+      expect(saved.supplementSuggestions[0].scheduleActivatedDate).toBe(
+        journalTodayKey,
+      )
+      expect(saved.supplementSuggestions[0].scheduleActivatedDate).not.toBe(
+        calendarTodayKey,
+      )
+    })
+
+    test('the status panel advances to the new journal day when the tab is reopened', async () => {
+      // Mounted at 23:00 on Aug 26 (journal day Aug 26) while on another tab,
+      // with Creatine already taken for that journal day.
+      jest.setSystemTime(new Date(2026, 7, 26, 23, 0))
+
+      const dataHook: any = {
+        ...mockDataHook,
+        settings: {
+          supplementSuggestions: [
+            {
+              name: 'Creatine',
+              defaultDosage: '5g',
+              schedule: 'daily',
+              scheduleActivatedDate: '2020-01-01',
+            },
+          ],
+        },
+        journalEntries: [
+          {
+            id: 'aug26',
+            note: 'took it',
+            date: makeTs(new Date(2026, 7, 26, 20, 0)),
+            supplements: [{ name: 'Creatine', dosage: '5g' }],
+          },
+        ],
+      }
+
+      const { rerender, queryByTestId } = render(
+        <JournalScreen
+          user={null}
+          visible={false}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      // The journal day has rolled over to Aug 27 — Creatine is untaken again.
+      jest.setSystemTime(new Date(2026, 7, 27, 8, 0))
+
+      rerender(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      // A "now" frozen at mount would still report journal day Aug 26, where
+      // Creatine was taken, and hide the panel.
+      expect(queryByTestId('supplement-status-panel')).toBeTruthy()
+      expect(queryByTestId('supplement-status-creatine')).toBeTruthy()
+    })
+
     test('the journal-current day does not show a missed-supplements footer after midnight', async () => {
       // Entry from yesterday evening (current journal day) with nothing taken.
       const yesterdayEvening = new Date(nowAt1AM)

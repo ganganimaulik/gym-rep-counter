@@ -42,12 +42,22 @@ export function getLocalDateKey(date: Date): string {
  * previous calendar date, so a supplement logged at 1 AM counts toward the
  * day the user is still awake in instead of the new calendar day.
  * `rolloverHour` 0 means a midnight boundary (calendar day) and never shifts.
+ *
+ * The result is anchored to `rolloverHour` local time, which is what makes
+ * this function **idempotent**: the Date it returns is never itself "before
+ * the rollover", so feeding it back through any rollover-aware helper cannot
+ * shift it a second time. Callers that do date arithmetic on the result (see
+ * the every_other_day branch below) and callers that rebuild a Date from a
+ * journal-day key (journalDayKeyToDate) both depend on that. Anchoring to a
+ * fixed hour such as noon is NOT enough — a rolloverHour above 12 is a legal
+ * setting and would shift noon back a day.
  */
 export function getJournalDayDate(date: Date, rolloverHour = 0): Date {
   const adjusted = new Date(date)
   if (rolloverHour > 0 && adjusted.getHours() < rolloverHour) {
     adjusted.setDate(adjusted.getDate() - 1)
   }
+  adjusted.setHours(rolloverHour, 0, 0, 0)
   return adjusted
 }
 
@@ -58,6 +68,18 @@ export function getJournalDayDate(date: Date, rolloverHour = 0): Date {
  */
 export function getJournalDateKey(date: Date, rolloverHour = 0): string {
   return getLocalDateKey(getJournalDayDate(date, rolloverHour))
+}
+
+/**
+ * Turn a journal-day key (YYYY-MM-DD, as produced by getJournalDateKey) back
+ * into a Date belonging to that same journal day. Anchoring to `rolloverHour`
+ * is what makes the round-trip safe: reconstructing at midnight would put the
+ * Date *before* the rollover, so every rollover-aware helper would shift it
+ * into the previous journal day.
+ */
+export function journalDayKeyToDate(dateKey: string, rolloverHour = 0): Date {
+  const [year, month, day] = dateKey.split('-').map((p) => parseInt(p, 10))
+  return new Date(year, month - 1, day, rolloverHour, 0, 0, 0)
 }
 
 /**
@@ -154,6 +176,10 @@ export function isSupplementDueOnDate(
       // If we have journal entries, use last-taken logic:
       // Due today only if NOT taken yesterday
       if (journalEntries && journalEntries.length > 0) {
+        // getJournalDayDate anchors to rolloverHour, so stepping back one day
+        // lands on the previous journal day and wasSupplementTakenOnDate
+        // cannot shift it again. Without that anchor this double-shifts and
+        // compares against two journal days back.
         const yesterday = getJournalDayDate(date, rolloverHour)
         yesterday.setDate(yesterday.getDate() - 1)
         const takenYesterday = wasSupplementTakenOnDate(
@@ -288,18 +314,19 @@ export function hasJournalEntryForDate(
 export function buildSupplementReminderSignature(
   journalEntries: JournalEntry[],
   date: Date,
+  rolloverHour = 0,
 ): string {
-  const yesterday = new Date(date)
+  const yesterday = getJournalDayDate(date, rolloverHour)
   yesterday.setDate(yesterday.getDate() - 1)
   const relevantKeys = new Set([
-    getLocalDateKey(date),
-    getLocalDateKey(yesterday),
+    getJournalDateKey(date, rolloverHour),
+    getJournalDateKey(yesterday, rolloverHour),
   ])
 
   const parts: string[] = []
   journalEntries.forEach((entry) => {
     if (!entry.date || typeof entry.date.toDate !== 'function') return
-    const key = getLocalDateKey(entry.date.toDate())
+    const key = getJournalDateKey(entry.date.toDate(), rolloverHour)
     if (!relevantKeys.has(key)) return
     // Duplicates are kept, not deduped: twice_daily needs the dose count.
     const names = (entry.supplements || [])
@@ -320,13 +347,28 @@ export function buildBedtimeReminderBody(
   suggestions: SupplementSuggestion[],
   journalEntries: JournalEntry[],
   date: Date,
+  rolloverHour = 0,
 ): { title: string; body: string } | null {
   // journalEntries must be forwarded: without it every_other_day falls back to
   // the anchor-date algorithm, so the notification and the on-screen chips can
   // disagree about whether the same supplement is due today.
-  const dueToday = getSupplementsDueToday(suggestions, date, journalEntries)
-  const untaken = getUntakenSupplements(dueToday, journalEntries, date)
-  const hasJournal = hasJournalEntryForDate(journalEntries, date)
+  // rolloverHour must be forwarded for the same reason: with a calendar-day
+  // boundary a dose logged at 1 AM counts toward the wrong day here but not on
+  // the journal screen, so the reminder would omit a supplement the screen
+  // still lists as missing.
+  const dueToday = getSupplementsDueToday(
+    suggestions,
+    date,
+    journalEntries,
+    rolloverHour,
+  )
+  const untaken = getUntakenSupplements(
+    dueToday,
+    journalEntries,
+    date,
+    rolloverHour,
+  )
+  const hasJournal = hasJournalEntryForDate(journalEntries, date, rolloverHour)
 
   // Nothing to remind about
   if (untaken.length === 0 && hasJournal) {

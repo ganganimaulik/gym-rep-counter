@@ -42,6 +42,7 @@ import {
   getSupplementIntakeCountOnDate,
   getRequiredIntakeCount,
   getJournalDateKey,
+  journalDayKeyToDate,
 } from '../utils/supplementSchedule'
 
 const StyledView = styled(View)
@@ -123,7 +124,11 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     )
     if (needsMigration) {
       const now = new Date()
-      const todayStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+      // Journal-day key, not the calendar date: isSupplementDueOnDate gates on
+      // `getJournalDateKey(date) < activatedKey`, so a calendar stamp written
+      // after midnight would suppress the supplement for the rest of the
+      // current journal day.
+      const todayStr = getJournalDateKey(now, dayRolloverHour)
       const migrated = suggestions.map((s) => {
         if (s.schedule && s.schedule !== 'none' && !s.scheduleActivatedDate) {
           return { ...s, scheduleActivatedDate: todayStr }
@@ -139,7 +144,14 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
 
   // Today's supplement status. "Today" is the journal day: before the
   // configured wake-up hour the app still counts it as the previous day.
-  const today = useMemo(() => new Date(), [])
+  //
+  // App.tsx keeps this screen mounted under `display: 'none'`, so an empty
+  // dependency list would freeze "now" at app launch and the panel would keep
+  // describing a journal day that has already ended — while
+  // handleToggleSupplementToday, which reads a fresh Date, wrote to the
+  // current one. Re-reading the clock whenever the tab is shown or the entries
+  // change keeps the two in agreement.
+  const today = useMemo(() => new Date(), [visible, journalEntries])
   const supplementsDueToday = useMemo(
     () =>
       getSupplementsDueToday(
@@ -276,15 +288,20 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
             delete updated.scheduleDays
           }
           if (schedule === 'every_other_day' && !s.scheduleStartDate) {
-            const now = new Date()
-            updated.scheduleStartDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+            updated.scheduleStartDate = getJournalDateKey(
+              new Date(),
+              dayRolloverHour,
+            )
           } else if (schedule !== 'every_other_day') {
             delete updated.scheduleStartDate
           }
           // Track when the schedule was activated (only set if not already present)
           if (schedule !== 'none' && !s.scheduleActivatedDate) {
-            const now = new Date()
-            updated.scheduleActivatedDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
+            // Journal-day key: see the migration stamp above.
+            updated.scheduleActivatedDate = getJournalDateKey(
+              new Date(),
+              dayRolloverHour,
+            )
           } else if (schedule === 'none') {
             delete updated.scheduleActivatedDate
           }
@@ -304,7 +321,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         setScheduleModalSupp(updatedSupp)
       }
     },
-    [dataHook, user],
+    [dataHook, user, dayRolloverHour],
   )
 
   const weightLookup = useMemo(() => {
@@ -559,11 +576,11 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   // Compute missed supplements for a given date key (YYYY-MM-DD)
   const getMissedSupplementsForDate = useCallback(
     (dateKey: string): SupplementSuggestion[] => {
-      const parts = dateKey.split('-')
-      const year = parseInt(parts[0], 10)
-      const month = parseInt(parts[1], 10) - 1
-      const day = parseInt(parts[2], 10)
-      const date = new Date(year, month, day)
+      // dateKey is already a journal-day key. It must be rebuilt anchored to
+      // the rollover hour — a midnight Date is "before the rollover", so every
+      // helper below would shift it into the *previous* journal day and report
+      // that day's misses under this section.
+      const date = journalDayKeyToDate(dateKey, dayRolloverHour)
 
       // Only show missed for past days. Today is handled by the
       // clickable "Today's Supplements" panel at the top of the screen.
@@ -711,11 +728,9 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           ) : null
         }
         renderSectionHeader={({ section: { title } }) => {
-          const parts = title.split('-')
-          const year = parseInt(parts[0], 10)
-          const month = parseInt(parts[1], 10) - 1 // Month is 0-indexed
-          const day = parseInt(parts[2], 10)
-          const date = new Date(year, month, day)
+          // title is a journal-day key; rebuild it inside its own journal day
+          // for the same reason as getMissedSupplementsForDate.
+          const date = journalDayKeyToDate(title, dayRolloverHour)
 
           const weight = weightLookup[title]
           const calories = calorieLookup[title]
@@ -1026,12 +1041,13 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       mode="date"
                       display="compact"
                       onChange={(_, selectedDate) => {
-                        // Normalize to local noon: an explicitly picked
+                        // Anchor to the rollover hour: an explicitly picked
                         // calendar date must never be shifted by the
-                        // journal-day rollover.
+                        // journal-day rollover. Noon is not safe — a rollover
+                        // hour above 12 is a legal setting and would shift it.
                         if (selectedDate) {
                           const normalized = new Date(selectedDate)
-                          normalized.setHours(12, 0, 0, 0)
+                          normalized.setHours(dayRolloverHour, 0, 0, 0)
                           setDateValue(normalized)
                         }
                       }}
@@ -1064,9 +1080,9 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                     onChange={(event, selectedDate) => {
                       setShowDatePicker(false)
                       if (selectedDate) {
-                        // Normalize to local noon (see iOS picker above).
+                        // Anchor to the rollover hour (see iOS picker above).
                         const normalized = new Date(selectedDate)
-                        normalized.setHours(12, 0, 0, 0)
+                        normalized.setHours(dayRolloverHour, 0, 0, 0)
                         setDateValue(normalized)
                       }
                     }}

@@ -1,5 +1,4 @@
 import { setupReminders, cancelAllReminders } from '../notifications'
-import { detectSleepWindow } from '../sleepDetection'
 
 // Mock expo-notifications
 const mockScheduleNotification = jest.fn().mockResolvedValue('notification-id')
@@ -22,15 +21,6 @@ jest.mock('expo-notifications', () => ({
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }))
 
-// Mock sleep detection
-jest.mock('../sleepDetection', () => ({
-  detectSleepWindow: jest.fn().mockReturnValue({
-    startHour: 23,
-    endHour: 7,
-    isDefault: true,
-  }),
-}))
-
 describe('notifications', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -39,7 +29,6 @@ describe('notifications', () => {
   describe('setupReminders', () => {
     const baseSettings: any = {
       statRemindersEnabled: true,
-      statRemindersUseAutoSleep: false,
       statRemindersSleepStart: 23,
       statRemindersSleepEnd: 7,
       supplementSuggestions: [
@@ -150,14 +139,42 @@ describe('notifications', () => {
       expect(statReminders.length).toBe(0)
     })
 
-    test('uses auto-detected sleep window when statRemindersUseAutoSleep is true', async () => {
-      const detectSleep = detectSleepWindow
-      const autoSleepSettings = {
-        ...baseSettings,
-        statRemindersUseAutoSleep: true,
-      }
-      await setupReminders(autoSleepSettings, [], [], [], [])
-      expect(detectSleep).toHaveBeenCalled()
+    const statReminderHours = () =>
+      mockScheduleNotification.mock.calls
+        .filter((call: any[]) => call[0].content.title === 'Update Stats 📊')
+        .map((call: any[]) => new Date(call[0].trigger.date).getHours())
+
+    test('never schedules a stat reminder inside a wrap-around quiet window', async () => {
+      // baseSettings is 23:00 - 07:00, i.e. the window crosses midnight.
+      await setupReminders(baseSettings, [], [], [], [])
+
+      const hours = statReminderHours()
+      expect(hours.length).toBeGreaterThan(0)
+      hours.forEach((hour) => {
+        expect(hour >= 7 && hour < 23).toBe(true)
+      })
+    })
+
+    test('never schedules a stat reminder inside a daytime quiet window', async () => {
+      // A daytime sleeper: asleep 06:00 - 16:00. This is the non-wrapping
+      // branch, which a 23:00 - 07:00 default never exercises.
+      await setupReminders(
+        {
+          ...baseSettings,
+          statRemindersSleepStart: 6,
+          statRemindersSleepEnd: 16,
+        },
+        [],
+        [],
+        [],
+        [],
+      )
+
+      const hours = statReminderHours()
+      expect(hours.length).toBeGreaterThan(0)
+      hours.forEach((hour) => {
+        expect(hour < 6 || hour >= 16).toBe(true)
+      })
     })
 
     test('bedtime reminder includes supplement info for today', async () => {
