@@ -8,6 +8,8 @@ import {
   buildBedtimeReminderBody,
   buildSupplementReminderSignature,
   getRequiredIntakeCount,
+  getJournalDayDate,
+  getJournalDateKey,
   SupplementSuggestion,
 } from '../supplementSchedule'
 import type { JournalEntry } from '../../declarations'
@@ -814,6 +816,215 @@ describe('supplementSchedule', () => {
         { id: '1', note: 'Broken', date: undefined as any },
       ]
       expect(buildSupplementReminderSignature(entries, today)).toBe('')
+    })
+  })
+
+  describe('journal-day rollover (dayRolloverHour)', () => {
+    // 1 AM on Tuesday, July 7 2026 — with a 7 AM wake-up boundary this is
+    // still journal-day Monday, July 6.
+    const tuesdayAt1AM = new Date(2026, 6, 7, 1, 0)
+    const mondayKey = '2026-07-06'
+    const tuesdayKey = '2026-07-07'
+
+    describe('getJournalDayDate', () => {
+      test('shifts times before the rollover hour to the previous day', () => {
+        const adjusted = getJournalDayDate(tuesdayAt1AM, 7)
+        expect(adjusted.getDate()).toBe(6)
+        expect(adjusted.getHours()).toBe(1)
+      })
+
+      test('leaves times at or after the rollover hour untouched', () => {
+        expect(getJournalDayDate(new Date(2026, 6, 7, 7, 0), 7).getDate()).toBe(
+          7,
+        )
+        expect(
+          getJournalDayDate(new Date(2026, 6, 7, 23, 30), 7).getDate(),
+        ).toBe(7)
+      })
+
+      test('rolloverHour 0 never shifts (calendar-day boundary)', () => {
+        expect(getJournalDayDate(tuesdayAt1AM, 0).getDate()).toBe(7)
+      })
+
+      test('crosses a month boundary', () => {
+        const aug1At2AM = new Date(2026, 7, 1, 2, 0)
+        const adjusted = getJournalDayDate(aug1At2AM, 7)
+        expect(adjusted.getMonth()).toBe(6) // July
+        expect(adjusted.getDate()).toBe(31)
+      })
+
+      test('crosses a year boundary', () => {
+        const jan1At3AM = new Date(2027, 0, 1, 3, 0)
+        const adjusted = getJournalDayDate(jan1At3AM, 7)
+        expect(adjusted.getFullYear()).toBe(2026)
+        expect(adjusted.getMonth()).toBe(11)
+        expect(adjusted.getDate()).toBe(31)
+      })
+
+      test('does not mutate the input date', () => {
+        const input = new Date(2026, 6, 7, 1, 0)
+        getJournalDayDate(input, 7)
+        expect(input.getDate()).toBe(7)
+      })
+    })
+
+    describe('getJournalDateKey', () => {
+      test('maps pre-rollover times to the previous day key', () => {
+        expect(getJournalDateKey(tuesdayAt1AM, 7)).toBe(mondayKey)
+      })
+
+      test('maps post-rollover times to the same-day key', () => {
+        expect(getJournalDateKey(new Date(2026, 6, 7, 10, 0), 7)).toBe(
+          tuesdayKey,
+        )
+      })
+
+      test('keeps the zero-padded YYYY-MM-DD format', () => {
+        expect(getJournalDateKey(new Date(2026, 0, 5, 1, 0), 7)).toBe(
+          '2026-01-04',
+        )
+      })
+    })
+
+    describe('entry attribution', () => {
+      // Entry logged at 1 AM Tuesday belongs to journal-day Monday.
+      const entryAt1AM: JournalEntry = {
+        id: '1',
+        note: 'Late night log',
+        date: makeTimestamp(tuesdayAt1AM) as any,
+        supplements: [{ name: 'Creatine', dosage: '5g' }],
+      }
+
+      test('getSupplementIntakeCountOnDate counts pre-rollover entries toward the previous day', () => {
+        expect(
+          getSupplementIntakeCountOnDate(
+            'Creatine',
+            new Date(2026, 6, 6, 12, 0),
+            [entryAt1AM],
+            7,
+          ),
+        ).toBe(1)
+        expect(
+          getSupplementIntakeCountOnDate(
+            'Creatine',
+            new Date(2026, 6, 7, 12, 0),
+            [entryAt1AM],
+            7,
+          ),
+        ).toBe(0)
+      })
+
+      test('hasJournalEntryForDate finds a pre-rollover entry on the previous day', () => {
+        expect(
+          hasJournalEntryForDate([entryAt1AM], new Date(2026, 6, 6, 12, 0), 7),
+        ).toBe(true)
+        expect(
+          hasJournalEntryForDate([entryAt1AM], new Date(2026, 6, 7, 12, 0), 7),
+        ).toBe(false)
+      })
+
+      test('a late-night query attributes the entry to its own journal day', () => {
+        // Asking at 1 AM Tuesday "was this taken today?" must see the entry.
+        expect(
+          getSupplementIntakeCountOnDate(
+            'Creatine',
+            tuesdayAt1AM,
+            [entryAt1AM],
+            7,
+          ),
+        ).toBe(1)
+        expect(hasJournalEntryForDate([entryAt1AM], tuesdayAt1AM, 7)).toBe(true)
+      })
+
+      test('getUntakenSupplements treats a pre-rollover dose as taken for the current journal day', () => {
+        const due: SupplementSuggestion[] = [
+          { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+        ]
+        // entryAt1AM (Tuesday 1 AM) is the same journal day as the query.
+        expect(
+          getUntakenSupplements(due, [entryAt1AM], tuesdayAt1AM, 7),
+        ).toEqual([])
+      })
+
+      test('getSupplementsTakenOnDate attributes pre-rollover entries to the previous day', () => {
+        expect(
+          getSupplementsTakenOnDate(
+            [entryAt1AM],
+            new Date(2026, 6, 6, 12, 0),
+            7,
+          ),
+        ).toEqual(['creatine'])
+        expect(
+          getSupplementsTakenOnDate(
+            [entryAt1AM],
+            new Date(2026, 6, 7, 12, 0),
+            7,
+          ),
+        ).toEqual([])
+      })
+    })
+
+    describe('isSupplementDueOnDate with rollover', () => {
+      test('specific_days uses the journal-day weekday', () => {
+        // Monday = weekday 1. At 1 AM Tuesday it is still journal-day Monday.
+        const supp: SupplementSuggestion = {
+          name: 'Creatine',
+          defaultDosage: '5g',
+          schedule: 'specific_days',
+          scheduleDays: [1],
+        }
+        expect(isSupplementDueOnDate(supp, tuesdayAt1AM, [], 7)).toBe(true)
+        // Without rollover it would be Tuesday (weekday 2) → not due.
+        expect(isSupplementDueOnDate(supp, tuesdayAt1AM, [], 0)).toBe(false)
+      })
+
+      test('every_other_day compares against the previous journal day', () => {
+        const supp: SupplementSuggestion = {
+          name: 'Creatine',
+          defaultDosage: '5g',
+          schedule: 'every_other_day',
+        }
+        // Taken at 1 AM Tuesday = journal-day Monday. Asking at 9 AM Tuesday
+        // (journal-day Tuesday): taken "yesterday" → not due.
+        const takenEntry: JournalEntry = {
+          id: '1',
+          note: 'dose',
+          date: makeTimestamp(tuesdayAt1AM) as any,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        }
+        expect(
+          isSupplementDueOnDate(
+            supp,
+            new Date(2026, 6, 7, 9, 0),
+            [takenEntry],
+            7,
+          ),
+        ).toBe(false)
+        // With calendar-day keys the entry is "today", so it would look due.
+        expect(
+          isSupplementDueOnDate(
+            supp,
+            new Date(2026, 6, 7, 9, 0),
+            [takenEntry],
+            0,
+          ),
+        ).toBe(true)
+      })
+
+      test('scheduleActivatedDate gate uses the journal-day key', () => {
+        const supp: SupplementSuggestion = {
+          name: 'Creatine',
+          defaultDosage: '5g',
+          schedule: 'daily',
+          scheduleActivatedDate: tuesdayKey,
+        }
+        // 1 AM Tuesday is still journal-day Monday, before activation.
+        expect(isSupplementDueOnDate(supp, tuesdayAt1AM, [], 7)).toBe(false)
+        // After wake-up it is journal-day Tuesday → due.
+        expect(
+          isSupplementDueOnDate(supp, new Date(2026, 6, 7, 9, 0), [], 7),
+        ).toBe(true)
+      })
     })
   })
 })

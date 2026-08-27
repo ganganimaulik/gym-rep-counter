@@ -37,20 +37,45 @@ export function getLocalDateKey(date: Date): string {
 }
 
 /**
+ * The "journal day" boundary: moments whose local hour is before
+ * `rolloverHour` (the configured wake-up / sleep-end hour) belong to the
+ * previous calendar date, so a supplement logged at 1 AM counts toward the
+ * day the user is still awake in instead of the new calendar day.
+ * `rolloverHour` 0 means a midnight boundary (calendar day) and never shifts.
+ */
+export function getJournalDayDate(date: Date, rolloverHour = 0): Date {
+  const adjusted = new Date(date)
+  if (rolloverHour > 0 && adjusted.getHours() < rolloverHour) {
+    adjusted.setDate(adjusted.getDate() - 1)
+  }
+  return adjusted
+}
+
+/**
+ * Get the local date key (YYYY-MM-DD) of the journal day a moment belongs to.
+ * Same hand-rolled format as getLocalDateKey, so lexicographic sorting still
+ * works.
+ */
+export function getJournalDateKey(date: Date, rolloverHour = 0): string {
+  return getLocalDateKey(getJournalDayDate(date, rolloverHour))
+}
+
+/**
  * Check if a supplement was taken on a specific date by looking through journal entries.
  */
 function wasSupplementTakenOnDate(
   supplementName: string,
   date: Date,
   journalEntries: JournalEntry[],
+  rolloverHour = 0,
 ): boolean {
-  const dateKey = getLocalDateKey(date)
+  const dateKey = getJournalDateKey(date, rolloverHour)
   const nameLower = supplementName.toLowerCase()
 
   return journalEntries.some((entry) => {
     if (!entry.date || typeof entry.date.toDate !== 'function') return false
     const entryDate = entry.date.toDate()
-    if (getLocalDateKey(entryDate) !== dateKey) return false
+    if (getJournalDateKey(entryDate, rolloverHour) !== dateKey) return false
     return (entry.supplements || []).some(
       (s) => s.name.toLowerCase() === nameLower,
     )
@@ -64,15 +89,19 @@ export function getSupplementIntakeCountOnDate(
   supplementName: string,
   date: Date,
   journalEntries: JournalEntry[],
+  rolloverHour = 0,
 ): number {
-  const dateKey = getLocalDateKey(date)
+  const dateKey = getJournalDateKey(date, rolloverHour)
   const nameLower = supplementName.toLowerCase()
   let count = 0
 
   journalEntries.forEach((entry) => {
     if (!entry.date || typeof entry.date.toDate !== 'function') return
     const entryDate = entry.date.toDate()
-    if (getLocalDateKey(entryDate) === dateKey && entry.supplements) {
+    if (
+      getJournalDateKey(entryDate, rolloverHour) === dateKey &&
+      entry.supplements
+    ) {
       entry.supplements.forEach((s) => {
         if (s.name.toLowerCase() === nameLower) {
           count++
@@ -93,6 +122,7 @@ export function isSupplementDueOnDate(
   supplement: SupplementSuggestion,
   date: Date,
   journalEntries?: JournalEntry[],
+  rolloverHour = 0,
 ): boolean {
   const schedule = supplement.schedule ?? 'none'
 
@@ -100,7 +130,7 @@ export function isSupplementDueOnDate(
   // as due on dates before it was activated
   if (schedule !== 'none' && supplement.scheduleActivatedDate) {
     const activatedKey = supplement.scheduleActivatedDate
-    const dateKey = getLocalDateKey(date)
+    const dateKey = getJournalDateKey(date, rolloverHour)
     if (dateKey < activatedKey) {
       return false
     }
@@ -115,7 +145,7 @@ export function isSupplementDueOnDate(
       return true
 
     case 'specific_days': {
-      const dayOfWeek = date.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+      const dayOfWeek = getJournalDayDate(date, rolloverHour).getDay() // 0=Sun, 1=Mon, ..., 6=Sat
       const days = supplement.scheduleDays ?? []
       return days.includes(dayOfWeek)
     }
@@ -124,12 +154,13 @@ export function isSupplementDueOnDate(
       // If we have journal entries, use last-taken logic:
       // Due today only if NOT taken yesterday
       if (journalEntries && journalEntries.length > 0) {
-        const yesterday = new Date(date)
+        const yesterday = getJournalDayDate(date, rolloverHour)
         yesterday.setDate(yesterday.getDate() - 1)
         const takenYesterday = wasSupplementTakenOnDate(
           supplement.name,
           yesterday,
           journalEntries,
+          rolloverHour,
         )
         return !takenYesterday
       }
@@ -147,10 +178,11 @@ export function isSupplementDueOnDate(
         anchorDate.getMonth(),
         anchorDate.getDate(),
       ).getTime()
+      const journalDate = getJournalDayDate(date, rolloverHour)
       const targetMidnight = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
+        journalDate.getFullYear(),
+        journalDate.getMonth(),
+        journalDate.getDate(),
       ).getTime()
 
       const daysDiff = Math.round((targetMidnight - anchorMidnight) / msPerDay)
@@ -169,9 +201,10 @@ export function getSupplementsDueToday(
   suggestions: SupplementSuggestion[],
   date: Date,
   journalEntries?: JournalEntry[],
+  rolloverHour = 0,
 ): SupplementSuggestion[] {
   return suggestions.filter((supp) =>
-    isSupplementDueOnDate(supp, date, journalEntries),
+    isSupplementDueOnDate(supp, date, journalEntries, rolloverHour),
   )
 }
 
@@ -181,15 +214,16 @@ export function getSupplementsDueToday(
 export function getSupplementsTakenOnDate(
   journalEntries: JournalEntry[],
   date: Date,
+  rolloverHour = 0,
 ): string[] {
-  const dateKey = getLocalDateKey(date)
+  const dateKey = getJournalDateKey(date, rolloverHour)
   const takenNames: Set<string> = new Set()
 
   journalEntries.forEach((entry) => {
     if (!entry.date || typeof entry.date.toDate !== 'function') return
 
     const entryDate = entry.date.toDate()
-    const entryKey = getLocalDateKey(entryDate)
+    const entryKey = getJournalDateKey(entryDate, rolloverHour)
 
     if (entryKey === dateKey && entry.supplements) {
       entry.supplements.forEach((supp) => {
@@ -209,6 +243,7 @@ export function getUntakenSupplements(
   dueSupplements: SupplementSuggestion[],
   journalEntries: JournalEntry[],
   date: Date,
+  rolloverHour = 0,
 ): SupplementSuggestion[] {
   return dueSupplements.filter((supp) => {
     const requiredCount = getRequiredIntakeCount(supp.schedule)
@@ -216,6 +251,7 @@ export function getUntakenSupplements(
       supp.name,
       date,
       journalEntries,
+      rolloverHour,
     )
     return takenCount < requiredCount
   })
@@ -227,13 +263,14 @@ export function getUntakenSupplements(
 export function hasJournalEntryForDate(
   journalEntries: JournalEntry[],
   date: Date,
+  rolloverHour = 0,
 ): boolean {
-  const dateKey = getLocalDateKey(date)
+  const dateKey = getJournalDateKey(date, rolloverHour)
 
   return journalEntries.some((entry) => {
     if (!entry.date || typeof entry.date.toDate !== 'function') return false
     const entryDate = entry.date.toDate()
-    return getLocalDateKey(entryDate) === dateKey
+    return getJournalDateKey(entryDate, rolloverHour) === dateKey
   })
 }
 

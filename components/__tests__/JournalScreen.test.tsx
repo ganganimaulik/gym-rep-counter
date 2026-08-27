@@ -723,4 +723,217 @@ describe('JournalScreen', () => {
       'remove-suggestion-Beta ScheduledUntaken',
     ])
   })
+
+  describe('journal-day rollover (dayRolloverHour)', () => {
+    // Freeze "now" at 1 AM local. With a 7 AM wake-up boundary the journal
+    // still counts this as yesterday.
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    const localKey = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+    const realDate = Date
+    let nowAt1AM: Date
+    let calendarTodayKey: string
+    let journalTodayKey: string
+
+    const makeTs = (d: Date): any => ({
+      toDate: () => d,
+      toMillis: () => d.getTime(),
+    })
+
+    beforeEach(() => {
+      nowAt1AM = new Date()
+      nowAt1AM.setHours(1, 0, 0, 0)
+      const journalDay = new Date(nowAt1AM)
+      journalDay.setDate(journalDay.getDate() - 1)
+      calendarTodayKey = localKey(nowAt1AM)
+      journalTodayKey = localKey(journalDay)
+
+      jest.useFakeTimers()
+      jest.setSystemTime(nowAt1AM)
+    })
+
+    afterEach(() => {
+      jest.useRealTimers()
+      global.Date = realDate
+    })
+
+    test("status panel shows the previous day's supplements after midnight", async () => {
+      const dataHook: any = {
+        ...mockDataHook,
+        settings: {
+          supplementSuggestions: [
+            { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+          ],
+        },
+        journalEntries: [],
+      }
+
+      const { getByTestId } = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      // Creatine is due daily and untaken for the current journal day
+      // (yesterday) → panel visible with the badge.
+      expect(getByTestId('supplement-status-panel')).toBeTruthy()
+      expect(getByTestId('supplement-status-creatine')).toBeTruthy()
+      expect(getByTestId('journal-reminder-badge')).toBeTruthy()
+    })
+
+    test("toggling a supplement after midnight appends to the previous day's entry", async () => {
+      const mockUpdateJournalEntry = jest.fn().mockResolvedValue(undefined)
+      const mockAddJournalEntry = jest.fn().mockResolvedValue(undefined)
+      // Entry created yesterday evening — calendar-wise "yesterday", but it
+      // is the current journal day at 1 AM.
+      const yesterdayEvening = new Date(nowAt1AM)
+      yesterdayEvening.setDate(yesterdayEvening.getDate() - 1)
+      yesterdayEvening.setHours(22, 0, 0, 0)
+
+      const dataHook: any = {
+        ...mockDataHook,
+        settings: {
+          supplementSuggestions: [
+            { name: 'Creatine', defaultDosage: '5g', schedule: 'daily' },
+          ],
+        },
+        journalEntries: [
+          {
+            id: 'evening-entry',
+            note: 'Evening notes',
+            date: makeTs(yesterdayEvening),
+            supplements: [],
+          },
+        ],
+        updateJournalEntry: mockUpdateJournalEntry,
+        addJournalEntry: mockAddJournalEntry,
+      }
+
+      const { getByTestId } = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      fireEvent.press(getByTestId('supplement-status-creatine'))
+
+      expect(mockUpdateJournalEntry).toHaveBeenCalledWith(
+        'evening-entry',
+        'Evening notes',
+        yesterdayEvening,
+        null,
+        [{ name: 'Creatine', dosage: '5g' }],
+      )
+      expect(mockAddJournalEntry).not.toHaveBeenCalled()
+    })
+
+    test("an entry logged after midnight is grouped under the previous day's section", async () => {
+      const dataHook: any = {
+        ...mockDataHook,
+        settings: { supplementSuggestions: [] },
+        journalEntries: [
+          {
+            id: 'late-entry',
+            note: 'Logged at 1 AM',
+            date: makeTs(nowAt1AM),
+            supplements: [],
+          },
+        ],
+      }
+
+      const { getByText, queryByText } = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      const journalDay = new Date(nowAt1AM)
+      journalDay.setDate(journalDay.getDate() - 1)
+      const expectedHeader = journalDay.toLocaleDateString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+      const unexpectedHeader = nowAt1AM.toLocaleDateString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+
+      expect(getByText(expectedHeader)).toBeTruthy()
+      expect(queryByText(unexpectedHeader)).toBeNull()
+    })
+
+    test('the journal-current day does not show a missed-supplements footer after midnight', async () => {
+      // Entry from yesterday evening (current journal day) with nothing taken.
+      const yesterdayEvening = new Date(nowAt1AM)
+      yesterdayEvening.setDate(yesterdayEvening.getDate() - 1)
+      yesterdayEvening.setHours(22, 0, 0, 0)
+
+      const dataHook: any = {
+        ...mockDataHook,
+        settings: {
+          supplementSuggestions: [
+            {
+              name: 'Creatine',
+              defaultDosage: '5g',
+              schedule: 'daily',
+              scheduleActivatedDate: '2020-01-01',
+            },
+          ],
+        },
+        journalEntries: [
+          {
+            id: 'evening-entry',
+            note: 'Evening notes',
+            date: makeTs(yesterdayEvening),
+            supplements: [],
+          },
+        ],
+      }
+
+      const { queryByTestId } = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      // The entry's journal-day section is yesterday's key — it must NOT be
+      // flagged as missed while still "today" in journal terms, and there is
+      // no section under the calendar-day key at all.
+      expect(queryByTestId(`missed-supplements-${journalTodayKey}`)).toBeNull()
+      expect(queryByTestId(`missed-supplements-${calendarTodayKey}`)).toBeNull()
+    })
+  })
 })

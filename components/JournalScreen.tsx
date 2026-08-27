@@ -41,6 +41,7 @@ import {
   isSupplementDueOnDate,
   getSupplementIntakeCountOnDate,
   getRequiredIntakeCount,
+  getJournalDateKey,
 } from '../utils/supplementSchedule'
 
 const StyledView = styled(View)
@@ -64,6 +65,9 @@ interface JournalScreenProps {
   visible: boolean
   user: FirebaseUser | null
   dataHook: DataHook
+  /** Local hour (0-23) at which the journal day rolls over to the next day —
+   * the configured wake-up (sleep-end) hour. 0 = calendar-day boundary. */
+  dayRolloverHour?: number
 }
 
 interface EditModalState {
@@ -82,6 +86,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
   visible,
   user,
   dataHook,
+  dayRolloverHour = 0,
 }) => {
   const {
     fetchJournalEntries,
@@ -132,19 +137,32 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     }
   }, [])
 
-  // Today's supplement status
+  // Today's supplement status. "Today" is the journal day: before the
+  // configured wake-up hour the app still counts it as the previous day.
   const today = useMemo(() => new Date(), [])
   const supplementsDueToday = useMemo(
-    () => getSupplementsDueToday(suggestions, today, journalEntries),
-    [suggestions, today, journalEntries],
+    () =>
+      getSupplementsDueToday(
+        suggestions,
+        today,
+        journalEntries,
+        dayRolloverHour,
+      ),
+    [suggestions, today, journalEntries, dayRolloverHour],
   )
   const untakenSupplementsToday = useMemo(
-    () => getUntakenSupplements(supplementsDueToday, journalEntries, today),
-    [supplementsDueToday, journalEntries, today],
+    () =>
+      getUntakenSupplements(
+        supplementsDueToday,
+        journalEntries,
+        today,
+        dayRolloverHour,
+      ),
+    [supplementsDueToday, journalEntries, today, dayRolloverHour],
   )
   const hasJournalToday = useMemo(
-    () => hasJournalEntryForDate(journalEntries, today),
-    [journalEntries, today],
+    () => hasJournalEntryForDate(journalEntries, today, dayRolloverHour),
+    [journalEntries, today, dayRolloverHour],
   )
 
   const sortedSuggestions = useMemo(() => {
@@ -157,12 +175,14 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         supp.name,
         dateValue,
         journalEntries,
+        dayRolloverHour,
       )
       return listCount + journalCount >= reqCount
     }
 
     const isForgot = (supp: SupplementSuggestion) =>
-      isSupplementDueOnDate(supp, dateValue, journalEntries) && !isTaken(supp)
+      isSupplementDueOnDate(supp, dateValue, journalEntries, dayRolloverHour) &&
+      !isTaken(supp)
 
     const forgotList: SupplementSuggestion[] = []
     const otherList: SupplementSuggestion[] = []
@@ -176,17 +196,19 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     }
 
     return [...forgotList, ...otherList]
-  }, [suggestions, dateValue, journalEntries, supplementsList])
+  }, [suggestions, dateValue, journalEntries, supplementsList, dayRolloverHour])
 
   const handleToggleSupplementToday = useCallback(
     async (suppName: string, defaultDosage?: string) => {
       const todayDate = new Date()
-      const dateKey = getLocalDateKey(todayDate)
+      const dateKey = getJournalDateKey(todayDate, dayRolloverHour)
 
-      // Find if there is an existing journal entry for today
+      // Find if there is an existing journal entry for the current journal day
       const existingEntry = journalEntries.find((entry) => {
         if (!entry.date || typeof entry.date.toDate !== 'function') return false
-        return getLocalDateKey(entry.date.toDate()) === dateKey
+        return (
+          getJournalDateKey(entry.date.toDate(), dayRolloverHour) === dateKey
+        )
       })
 
       const nameLower = suppName.toLowerCase()
@@ -228,7 +250,14 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         ])
       }
     },
-    [journalEntries, user, addJournalEntry, updateJournalEntry, suggestions],
+    [
+      journalEntries,
+      user,
+      addJournalEntry,
+      updateJournalEntry,
+      suggestions,
+      dayRolloverHour,
+    ],
   )
 
   const handleUpdateSchedule = useCallback(
@@ -539,19 +568,25 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
       // Only show missed for past days. Today is handled by the
       // clickable "Today's Supplements" panel at the top of the screen.
       const now = new Date()
-      const todayKey = getLocalDateKey(now)
+      const todayKey = getJournalDateKey(now, dayRolloverHour)
       if (dateKey >= todayKey) return []
 
       const dueSupplements = getSupplementsDueToday(
         suggestions,
         date,
         journalEntries,
+        dayRolloverHour,
       )
       if (dueSupplements.length === 0) return []
 
-      return getUntakenSupplements(dueSupplements, journalEntries, date)
+      return getUntakenSupplements(
+        dueSupplements,
+        journalEntries,
+        date,
+        dayRolloverHour,
+      )
     },
-    [suggestions, journalEntries],
+    [suggestions, journalEntries, dayRolloverHour],
   )
 
   const sections = useMemo(() => {
@@ -560,10 +595,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
       .reduce(
         (acc, item) => {
           const d = item.date.toDate()
-          const year = d.getFullYear()
-          const month = (d.getMonth() + 1).toString().padStart(2, '0')
-          const day = d.getDate().toString().padStart(2, '0')
-          const dateKey = `${year}-${month}-${day}`
+          const dateKey = getJournalDateKey(d, dayRolloverHour)
 
           if (!acc[dateKey]) {
             acc[dateKey] = []
@@ -580,7 +612,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
         title: date,
         data: grouped[date],
       }))
-  }, [journalEntries])
+  }, [journalEntries, dayRolloverHour])
 
   if (!visible) return null
 
@@ -643,6 +675,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                     supp.name,
                     today,
                     journalEntries,
+                    dayRolloverHour,
                   )
                   const progressText =
                     supp.schedule === 'twice_daily' && takenCount > 0
@@ -993,7 +1026,14 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       mode="date"
                       display="compact"
                       onChange={(_, selectedDate) => {
-                        if (selectedDate) setDateValue(selectedDate)
+                        // Normalize to local noon: an explicitly picked
+                        // calendar date must never be shifted by the
+                        // journal-day rollover.
+                        if (selectedDate) {
+                          const normalized = new Date(selectedDate)
+                          normalized.setHours(12, 0, 0, 0)
+                          setDateValue(normalized)
+                        }
                       }}
                       themeVariant="dark"
                     />
@@ -1024,7 +1064,10 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                     onChange={(event, selectedDate) => {
                       setShowDatePicker(false)
                       if (selectedDate) {
-                        setDateValue(selectedDate)
+                        // Normalize to local noon (see iOS picker above).
+                        const normalized = new Date(selectedDate)
+                        normalized.setHours(12, 0, 0, 0)
+                        setDateValue(normalized)
                       }
                     }}
                   />

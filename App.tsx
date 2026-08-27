@@ -393,6 +393,20 @@ const App: React.FC = () => {
     )
   }, [weightLogs, calorieLogs, journalEntries, todaysCompletions])
 
+  // The journal's day boundary is the wake-up (sleep-end) hour, resolved the
+  // same way as reminder notifications: auto-detected window when enabled,
+  // manual "Quiet End" otherwise.
+  const journalDayRolloverHour = useMemo(() => {
+    if (settings.statRemindersUseAutoSleep ?? true) {
+      return sleepWindow.endHour
+    }
+    return settings.statRemindersSleepEnd ?? 7
+  }, [
+    sleepWindow,
+    settings.statRemindersUseAutoSleep,
+    settings.statRemindersSleepEnd,
+  ])
+
   const formattedSleepWindow = useMemo(() => {
     const formatHour = (hour: number) => {
       const ampm = hour >= 12 ? 'PM' : 'AM'
@@ -1039,6 +1053,7 @@ const App: React.FC = () => {
             visible={currentTab === 'journal'}
             user={user}
             dataHook={dataHook}
+            dayRolloverHour={journalDayRolloverHour}
           />
         </StyledView>
 
