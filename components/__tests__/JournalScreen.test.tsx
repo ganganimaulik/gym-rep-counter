@@ -888,6 +888,60 @@ describe('JournalScreen', () => {
       expect(queryByText(unexpectedHeader)).toBeNull()
     })
 
+    test('a supplement activated during the current journal day shows in the panel', async () => {
+      // Regression guard for the E2E failure in app.spec.ts / journal.spec.ts:
+      // enabling a schedule after midnight stamped the calendar date while the
+      // due-check compares a journal-day key, so the panel never rendered and
+      // "Today's Supplements" timed out. The E2E specs only catch this when CI
+      // happens to run between midnight and the rollover hour; this does not
+      // depend on the wall clock.
+      const makeHook = (activatedDate: string): any => ({
+        ...mockDataHook,
+        settings: {
+          supplementSuggestions: [
+            {
+              name: 'Creatine',
+              defaultDosage: '5g',
+              schedule: 'daily',
+              scheduleActivatedDate: activatedDate,
+            },
+          ],
+        },
+        journalEntries: [],
+      })
+
+      // Stamped with the journal-day key (what handleUpdateSchedule now writes).
+      const good = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={makeHook(journalTodayKey)}
+          dayRolloverHour={7}
+        />,
+      )
+      await act(async () => {
+        await Promise.resolve()
+      })
+      expect(good.queryByTestId('supplement-status-panel')).toBeTruthy()
+      expect(good.queryByTestId('supplement-status-creatine')).toBeTruthy()
+      good.unmount()
+
+      // Stamped with the calendar date (the old behaviour): the journal day is
+      // still yesterday, so the gate suppresses it and the panel is missing.
+      const bad = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={makeHook(calendarTodayKey)}
+          dayRolloverHour={7}
+        />,
+      )
+      await act(async () => {
+        await Promise.resolve()
+      })
+      expect(bad.queryByTestId('supplement-status-panel')).toBeNull()
+    })
+
     test('a past section reports its own journal day, not the day before', async () => {
       // "Now" is 12:00 on Aug 27, so journal-day today is 2026-08-27 and both
       // sections below are in the past. Creatine was taken on journal-day
