@@ -6,6 +6,7 @@ import {
   getUntakenSupplements,
   hasJournalEntryForDate,
   buildBedtimeReminderBody,
+  buildSupplementReminderSignature,
   getRequiredIntakeCount,
   SupplementSuggestion,
 } from '../supplementSchedule'
@@ -639,6 +640,180 @@ describe('supplementSchedule', () => {
         new Date(2026, 6, 6),
       )
       expect(result).toBeNull()
+    })
+
+    test('uses last-taken logic for every_other_day, matching the on-screen chips', () => {
+      const suggestions: SupplementSuggestion[] = [
+        {
+          name: 'Test E',
+          defaultDosage: '250mg',
+          schedule: 'every_other_day',
+          // Anchor says due on the 6th; the journal says it was taken on the 5th.
+          scheduleStartDate: '2026-07-06',
+        },
+      ]
+      const entries: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Yesterday',
+          date: makeTimestamp(new Date(2026, 6, 5, 9, 0)) as any,
+          supplements: [{ name: 'Test E', dosage: '250mg' }],
+        },
+        {
+          id: '2',
+          note: 'Today',
+          date: makeTimestamp(new Date(2026, 6, 6, 9, 0)) as any,
+        },
+      ]
+
+      const result = buildBedtimeReminderBody(
+        suggestions,
+        entries,
+        new Date(2026, 6, 6),
+      )
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('buildSupplementReminderSignature', () => {
+    const today = new Date(2026, 6, 6)
+
+    test('changes when a supplement is added to an existing entry', () => {
+      const before: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Logged supplements',
+          date: makeTimestamp(new Date(2026, 6, 6, 9, 0)) as any,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        },
+      ]
+      const after: JournalEntry[] = [
+        {
+          ...before[0],
+          supplements: [
+            { name: 'Creatine', dosage: '5g' },
+            { name: 'Magnesium', dosage: '400mg' },
+          ],
+        },
+      ]
+
+      expect(before.length).toBe(after.length)
+      expect(buildSupplementReminderSignature(before, today)).not.toBe(
+        buildSupplementReminderSignature(after, today),
+      )
+    })
+
+    test('changes when a second dose of the same supplement is logged', () => {
+      const once: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Logged supplements',
+          date: makeTimestamp(new Date(2026, 6, 6, 9, 0)) as any,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        },
+      ]
+      const twice: JournalEntry[] = [
+        {
+          ...once[0],
+          supplements: [
+            { name: 'Creatine', dosage: '5g' },
+            { name: 'Creatine', dosage: '5g' },
+          ],
+        },
+      ]
+
+      expect(buildSupplementReminderSignature(once, today)).not.toBe(
+        buildSupplementReminderSignature(twice, today),
+      )
+    })
+
+    test('changes when the day gains its first journal entry', () => {
+      const entry: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Entry',
+          date: makeTimestamp(new Date(2026, 6, 6, 9, 0)) as any,
+        },
+      ]
+
+      expect(buildSupplementReminderSignature([], today)).not.toBe(
+        buildSupplementReminderSignature(entry, today),
+      )
+    })
+
+    test('tracks yesterday, which every_other_day is decided from', () => {
+      const before: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Yesterday',
+          date: makeTimestamp(new Date(2026, 6, 5, 9, 0)) as any,
+          supplements: [],
+        },
+      ]
+      const after: JournalEntry[] = [
+        {
+          ...before[0],
+          supplements: [{ name: 'Test E', dosage: '250mg' }],
+        },
+      ]
+
+      expect(buildSupplementReminderSignature(before, today)).not.toBe(
+        buildSupplementReminderSignature(after, today),
+      )
+    })
+
+    test('ignores entries outside today and yesterday', () => {
+      const entries: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Last week',
+          date: makeTimestamp(new Date(2026, 5, 30, 9, 0)) as any,
+          supplements: [{ name: 'Creatine', dosage: '5g' }],
+        },
+      ]
+
+      expect(buildSupplementReminderSignature(entries, today)).toBe('')
+    })
+
+    test('is stable across re-sorting and entry object identity', () => {
+      const a: JournalEntry[] = [
+        {
+          id: '1',
+          note: 'Today',
+          date: makeTimestamp(new Date(2026, 6, 6, 9, 0)) as any,
+          supplements: [
+            { name: 'Magnesium', dosage: '400mg' },
+            { name: 'Creatine', dosage: '5g' },
+          ],
+        },
+        {
+          id: '2',
+          note: 'Yesterday',
+          date: makeTimestamp(new Date(2026, 6, 5, 9, 0)) as any,
+          supplements: [],
+        },
+      ]
+      const b: JournalEntry[] = [
+        { ...a[1], supplements: [] },
+        {
+          ...a[0],
+          supplements: [
+            { name: 'Creatine', dosage: '5g' },
+            { name: 'Magnesium', dosage: '400mg' },
+          ],
+        },
+      ]
+
+      expect(buildSupplementReminderSignature(a, today)).toBe(
+        buildSupplementReminderSignature(b, today),
+      )
+    })
+
+    test('skips entries with a malformed date', () => {
+      const entries: JournalEntry[] = [
+        { id: '1', note: 'Broken', date: undefined as any },
+      ]
+      expect(buildSupplementReminderSignature(entries, today)).toBe('')
     })
   })
 })

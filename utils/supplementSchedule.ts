@@ -29,7 +29,7 @@ export function getRequiredIntakeCount(
 /**
  * Get the local date key (YYYY-MM-DD) for a given Date object.
  */
-function getLocalDateKey(date: Date): string {
+export function getLocalDateKey(date: Date): string {
   const year = date.getFullYear()
   const month = (date.getMonth() + 1).toString().padStart(2, '0')
   const day = date.getDate().toString().padStart(2, '0')
@@ -238,6 +238,44 @@ export function hasJournalEntryForDate(
 }
 
 /**
+ * Build a stable string that changes whenever anything the bedtime reminder
+ * reads out of the journal changes: which entries exist for today, and which
+ * supplements (and how many doses of each) were logged today or yesterday —
+ * yesterday matters because every_other_day is decided from it.
+ *
+ * The reminder's text is baked in when the notification is *scheduled*, so it
+ * has to be rescheduled on every such change. Toggling a supplement normally
+ * updates the day's existing entry rather than adding one, which leaves
+ * journalEntries.length untouched — a count is not enough to notice it.
+ */
+export function buildSupplementReminderSignature(
+  journalEntries: JournalEntry[],
+  date: Date,
+): string {
+  const yesterday = new Date(date)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const relevantKeys = new Set([
+    getLocalDateKey(date),
+    getLocalDateKey(yesterday),
+  ])
+
+  const parts: string[] = []
+  journalEntries.forEach((entry) => {
+    if (!entry.date || typeof entry.date.toDate !== 'function') return
+    const key = getLocalDateKey(entry.date.toDate())
+    if (!relevantKeys.has(key)) return
+    // Duplicates are kept, not deduped: twice_daily needs the dose count.
+    const names = (entry.supplements || [])
+      .map((s) => s.name.toLowerCase())
+      .sort()
+      .join(',')
+    parts.push(`${key}#${entry.id}#${names}`)
+  })
+
+  return parts.sort().join('|')
+}
+
+/**
  * Build the bedtime reminder notification body.
  * Returns null if there's nothing to remind about.
  */
@@ -246,7 +284,10 @@ export function buildBedtimeReminderBody(
   journalEntries: JournalEntry[],
   date: Date,
 ): { title: string; body: string } | null {
-  const dueToday = getSupplementsDueToday(suggestions, date)
+  // journalEntries must be forwarded: without it every_other_day falls back to
+  // the anchor-date algorithm, so the notification and the on-screen chips can
+  // disagree about whether the same supplement is due today.
+  const dueToday = getSupplementsDueToday(suggestions, date, journalEntries)
   const untaken = getUntakenSupplements(dueToday, journalEntries, date)
   const hasJournal = hasJournalEntryForDate(journalEntries, date)
 

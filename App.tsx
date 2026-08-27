@@ -39,6 +39,7 @@ import {
 import { detectSleepWindow } from './utils/sleepDetection'
 import { evaluateSetDeletion } from './utils/setDeletion'
 import { setupReminders, cancelAllReminders } from './utils/notifications'
+import { buildSupplementReminderSignature } from './utils/supplementSchedule'
 import {
   loadSetPreferences,
   recordSetPreference,
@@ -416,6 +417,14 @@ const App: React.FC = () => {
     settings.statRemindersSleepEnd,
   ])
 
+  // Logging a supplement usually edits the day's existing journal entry, so
+  // journalEntries.length alone cannot tell the reminder effect that the
+  // "Missing: ..." list is now out of date. Track the content instead.
+  const supplementReminderSignature = useMemo(
+    () => buildSupplementReminderSignature(journalEntries, new Date()),
+    [journalEntries],
+  )
+
   useEffect(() => {
     const triggerReminders = async () => {
       if (settings.statRemindersEnabled ?? true) {
@@ -448,6 +457,7 @@ const App: React.FC = () => {
     weightLogs.length,
     calorieLogs.length,
     journalEntries.length,
+    supplementReminderSignature,
     todaysCompletions.length,
   ])
 

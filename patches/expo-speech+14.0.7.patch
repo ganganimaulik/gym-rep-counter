@@ -1,0 +1,86 @@
+diff --git a/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechModule.kt b/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechModule.kt
+index 33b9587..74671f9 100644
+--- a/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechModule.kt
++++ b/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechModule.kt
+@@ -123,10 +123,16 @@ class SpeechModule : Module() {
+         ?.let(textToSpeech::setVoice)
+     }
+ 
++    val params = Bundle().apply {
++      options.volume?.let {
++        putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, it.coerceIn(0f, 1f))
++      }
++    }
++
+     textToSpeech.speak(
+       text,
+       TextToSpeech.QUEUE_ADD,
+-      null,
++      params,
+       id
+     )
+   }
+diff --git a/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechOptions.kt b/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechOptions.kt
+index b86a623..5609ed9 100644
+--- a/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechOptions.kt
++++ b/node_modules/expo-speech/android/src/main/java/expo/modules/speech/SpeechOptions.kt
+@@ -7,5 +7,6 @@ data class SpeechOptions(
+   @Field val language: String?,
+   @Field val pitch: Float?,
+   @Field val rate: Float?,
+-  @Field val voice: String?
++  @Field val voice: String?,
++  @Field val volume: Float?
+ ) : Record
+diff --git a/node_modules/expo-speech/build/Speech.types.d.ts b/node_modules/expo-speech/build/Speech.types.d.ts
+index 8472229..099ae12 100644
+--- a/node_modules/expo-speech/build/Speech.types.d.ts
++++ b/node_modules/expo-speech/build/Speech.types.d.ts
+@@ -51,7 +51,6 @@ export type SpeechOptions = {
+      * Volume of the voice to speak `text`. A number between `0.0` (muted) and `1.0` (max volume)
+      *
+      * @default 1.0
+-     * @platform web
+      */
+     volume?: number;
+     /**
+diff --git a/node_modules/expo-speech/ios/SpeechModule.swift b/node_modules/expo-speech/ios/SpeechModule.swift
+index 485d5d3..f86d4b3 100644
+--- a/node_modules/expo-speech/ios/SpeechModule.swift
++++ b/node_modules/expo-speech/ios/SpeechModule.swift
+@@ -49,6 +49,10 @@ public final class SpeechModule: Module, SpeechResultHadler {
+         utterance.rate = Float(rate) * AVSpeechUtteranceDefaultSpeechRate
+       }
+ 
++      if let volume = options.volume {
++        utterance.volume = Float(min(max(volume, 0.0), 1.0))
++      }
++
+       if let useApplicationAudioSession = options.useApplicationAudioSession {
+         synthesizer.usesApplicationAudioSession = useApplicationAudioSession
+       }
+diff --git a/node_modules/expo-speech/ios/SpeechOptions.swift b/node_modules/expo-speech/ios/SpeechOptions.swift
+index a072cb8..dbf50dc 100644
+--- a/node_modules/expo-speech/ios/SpeechOptions.swift
++++ b/node_modules/expo-speech/ios/SpeechOptions.swift
+@@ -10,6 +10,8 @@ struct SpeechOptions: Record {
+   @Field
+   var voice: String?
+   @Field
++  var volume: Double?
++  @Field
+   var useApplicationAudioSession: Bool?
+ }
+ 
+diff --git a/node_modules/expo-speech/src/Speech/Speech.types.ts b/node_modules/expo-speech/src/Speech/Speech.types.ts
+index fb2b81c..5c730e3 100644
+--- a/node_modules/expo-speech/src/Speech/Speech.types.ts
++++ b/node_modules/expo-speech/src/Speech/Speech.types.ts
+@@ -51,7 +51,6 @@ export type SpeechOptions = {
+    * Volume of the voice to speak `text`. A number between `0.0` (muted) and `1.0` (max volume)
+    *
+    * @default 1.0
+-   * @platform web
+    */
+   volume?: number;
+   /**
