@@ -320,7 +320,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
     return [...tdeeData.weeks]
       .filter((w) => w.avgWeight !== null || w.avgCalories !== null)
       .reverse()
-      .slice(0, 8)
+      .slice(0, 20)
   }, [tdeeData.weeks])
 
   // ── Derived display values ──

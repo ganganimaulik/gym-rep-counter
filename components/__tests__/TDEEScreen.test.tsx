@@ -705,8 +705,8 @@ describe('TDEEScreen', () => {
       ).toBeNull()
     })
 
-    it('caps the breakdown at eight weeks', () => {
-      mockTDEEData.weeks = Array.from({ length: 12 }, (_, i) => ({
+    it('caps the breakdown at 20 weeks', () => {
+      mockTDEEData.weeks = Array.from({ length: 25 }, (_, i) => ({
         weekStart: new Date(2026, 0, 5 + i * 7),
         weekEnd: new Date(2026, 0, 11 + i * 7),
         avgWeight: 80 - i,
@@ -718,7 +718,7 @@ describe('TDEEScreen', () => {
 
       fireEvent.press(getByTestId('weekly-average-tab'))
 
-      expect(getAllByText('-0.5')).toHaveLength(8)
+      expect(getAllByText('-0.5')).toHaveLength(20)
     })
 
     it('shows an empty state with no weekly data', () => {
