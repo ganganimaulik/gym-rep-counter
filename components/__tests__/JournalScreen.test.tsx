@@ -1,6 +1,7 @@
 import React from 'react'
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native'
 import { Alert, Platform } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import JournalScreen from '../JournalScreen'
 
 // Mock Lucide icons
@@ -1140,6 +1141,78 @@ describe('JournalScreen', () => {
       // no section under the calendar-day key at all.
       expect(queryByTestId(`missed-supplements-${journalTodayKey}`)).toBeNull()
       expect(queryByTestId(`missed-supplements-${calendarTodayKey}`)).toBeNull()
+    })
+  })
+
+  describe('entry date picker per platform', () => {
+    const originalOS = Platform.OS
+
+    afterEach(() => {
+      Platform.OS = originalOS
+    })
+
+    const openNewEntry = async (dataHook: any) => {
+      const utils = render(
+        <JournalScreen
+          user={null}
+          visible={true}
+          dataHook={dataHook}
+          dayRolloverHour={7}
+        />,
+      )
+      await act(async () => {
+        await Promise.resolve()
+      })
+      fireEvent.press(utils.getByTestId('add-journal-note-button'))
+      return utils
+    }
+
+    test('opens the date dialog from the date row on Android', async () => {
+      Platform.OS = 'android'
+      const { getByText, UNSAFE_queryAllByType } =
+        await openNewEntry(mockDataHook)
+
+      expect(UNSAFE_queryAllByType(DateTimePicker)).toHaveLength(0)
+      fireEvent.press(getByText('Change'))
+      expect(UNSAFE_queryAllByType(DateTimePicker)).toHaveLength(1)
+    })
+
+    test('saves the day picked in the browser picker on web, anchored to the rollover hour', async () => {
+      Platform.OS = 'web'
+      const mockAddJournalEntry = jest.fn().mockResolvedValue(undefined)
+      const {
+        getByPlaceholderText,
+        getByText,
+        UNSAFE_getByProps,
+        UNSAFE_queryAllByType,
+      } = await openNewEntry({
+        ...mockDataHook,
+        addJournalEntry: mockAddJournalEntry,
+      })
+
+      // DateTimePicker renders nothing on web, so the row must not rely on it
+      fireEvent.press(getByText('Change'))
+      expect(UNSAFE_queryAllByType(DateTimePicker)).toHaveLength(0)
+
+      fireEvent.changeText(
+        getByPlaceholderText('How did you feel today?'),
+        'Leg day',
+      )
+      act(() => {
+        UNSAFE_getByProps({
+          'data-testid': 'journal-web-datepicker',
+        }).props.onChange({ target: { value: '2026-09-21' } })
+      })
+      fireEvent.press(getByText('Save'))
+
+      await waitFor(() => {
+        expect(mockAddJournalEntry).toHaveBeenCalledWith(
+          'Leg day',
+          new Date(2026, 8, 21, 7, 0, 0, 0),
+          null,
+          [],
+        )
+      })
     })
   })
 })

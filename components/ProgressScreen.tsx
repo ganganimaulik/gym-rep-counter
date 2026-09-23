@@ -28,6 +28,7 @@ import type {
 import { useAnalytics } from '../hooks/useAnalytics'
 import { DataHook } from '../hooks/useData'
 import TDEEScreen, { HealthLogGroup } from './TDEEScreen'
+import WebDatePicker from './WebDatePicker'
 import { globalStyles } from '../utils/globalStyles'
 
 const StyledView = styled(View)
@@ -667,7 +668,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
               <StyledTextInput
                 testID="health-weight-input"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl mb-4 font-bold text-sm"
-                keyboardType="numeric"
+                // On web 'numeric' becomes inputmode="numeric", a keypad with
+                // no decimal key on iOS Safari. Native 'numeric' has one.
+                keyboardType={Platform.OS === 'web' ? 'decimal-pad' : 'numeric'}
                 value={weightInput}
                 onChangeText={setWeightInput}
                 placeholder="e.g. 75.5"
@@ -724,10 +727,16 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                   <StyledText className="text-indigo-400 font-extrabold text-xs uppercase tracking-wider">
                     Change
                   </StyledText>
+                  <WebDatePicker
+                    testID="health-web-datepicker"
+                    accessibilityLabel="Date"
+                    value={dateValue}
+                    onChange={setDateValue}
+                  />
                 </StyledTouchableOpacity>
               )}
 
-              {Platform.OS !== 'ios' && showDatePicker && (
+              {Platform.OS === 'android' && showDatePicker && (
                 <DateTimePicker
                   value={dateValue}
                   mode="date"

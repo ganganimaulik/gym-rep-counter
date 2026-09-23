@@ -28,6 +28,7 @@ import {
 import { BlurView } from 'expo-blur'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import ExportDataModal from './ExportDataModal'
+import WebDatePicker from './WebDatePicker'
 
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { JournalEntry, SupplementLog } from '../declarations'
@@ -475,6 +476,15 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     setSearchQuery('')
     setDosageQuery('')
     setIsSearchFocused(false)
+  }
+
+  // Anchor a picked date to the rollover hour: an explicitly picked calendar
+  // date must never be shifted by the journal-day rollover. Noon is not
+  // safe — a rollover hour above 12 is a legal setting and would shift it.
+  const setPickedDate = (selectedDate: Date) => {
+    const normalized = new Date(selectedDate)
+    normalized.setHours(dayRolloverHour, 0, 0, 0)
+    setDateValue(normalized)
   }
 
   const handleEditSave = async () => {
@@ -1041,15 +1051,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                       mode="date"
                       display="compact"
                       onChange={(_, selectedDate) => {
-                        // Anchor to the rollover hour: an explicitly picked
-                        // calendar date must never be shifted by the
-                        // journal-day rollover. Noon is not safe — a rollover
-                        // hour above 12 is a legal setting and would shift it.
-                        if (selectedDate) {
-                          const normalized = new Date(selectedDate)
-                          normalized.setHours(dayRolloverHour, 0, 0, 0)
-                          setDateValue(normalized)
-                        }
+                        if (selectedDate) setPickedDate(selectedDate)
                       }}
                       themeVariant="dark"
                     />
@@ -1069,22 +1071,23 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
                     <StyledText className="text-sky-400 font-extrabold text-xs uppercase tracking-wider">
                       Change
                     </StyledText>
+                    <WebDatePicker
+                      testID="journal-web-datepicker"
+                      accessibilityLabel="Date"
+                      value={dateValue}
+                      onChange={setPickedDate}
+                    />
                   </StyledTouchableOpacity>
                 )}
 
-                {Platform.OS !== 'ios' && showDatePicker && (
+                {Platform.OS === 'android' && showDatePicker && (
                   <DateTimePicker
                     value={dateValue}
                     mode="date"
                     display="default"
                     onChange={(event, selectedDate) => {
                       setShowDatePicker(false)
-                      if (selectedDate) {
-                        // Anchor to the rollover hour (see iOS picker above).
-                        const normalized = new Date(selectedDate)
-                        normalized.setHours(dayRolloverHour, 0, 0, 0)
-                        setDateValue(normalized)
-                      }
+                      if (selectedDate) setPickedDate(selectedDate)
                     }}
                   />
                 )}

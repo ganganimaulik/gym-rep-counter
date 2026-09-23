@@ -440,6 +440,61 @@ describe('ExportDataModal', () => {
     })
   })
 
+  describe('web date pickers', () => {
+    const originalOS = Platform.OS
+
+    beforeEach(() => {
+      Platform.OS = 'web'
+    })
+
+    afterEach(() => {
+      Platform.OS = originalOS
+    })
+
+    it('never mounts DateTimePicker, which renders nothing on web', () => {
+      const { getByTestId, queryByTestId } = renderCustomRange()
+
+      fireEvent.press(getByTestId('export-start-date-input'))
+      fireEvent.press(getByTestId('export-end-date-input'))
+
+      expect(queryByTestId('export-start-datepicker')).toBeNull()
+      expect(queryByTestId('export-end-datepicker')).toBeNull()
+    })
+
+    it('applies a date picked in the browser picker to the typed fields', () => {
+      const { getByTestId, UNSAFE_getByProps } = renderCustomRange()
+
+      act(() => {
+        UNSAFE_getByProps({
+          'data-testid': 'export-start-web-datepicker',
+        }).props.onChange({ target: { value: '2026-01-15' } })
+      })
+      act(() => {
+        UNSAFE_getByProps({
+          'data-testid': 'export-end-web-datepicker',
+        }).props.onChange({ target: { value: '2026-12-09' } })
+      })
+
+      expect(getByTestId('export-start-date-input').props.value).toBe(
+        '2026-01-15',
+      )
+      expect(getByTestId('export-end-date-input').props.value).toBe(
+        '2026-12-09',
+      )
+    })
+
+    it('shows a typed date in the browser picker', () => {
+      const { getByTestId, UNSAFE_getByProps } = renderCustomRange()
+
+      fireEvent.changeText(getByTestId('export-start-date-input'), '2026-03-04')
+
+      expect(
+        UNSAFE_getByProps({ 'data-testid': 'export-start-web-datepicker' })
+          .props.value,
+      ).toBe('2026-03-04')
+    })
+  })
+
   describe('range filtering', () => {
     it('drops logs that fall outside the selected window', () => {
       const old = { toDate: () => new Date(2020, 0, 1) }

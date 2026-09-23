@@ -69,6 +69,59 @@ test.describe('Analytics Screen', () => {
     await expect(page.locator('text=79.2 kg')).not.toBeVisible()
   })
 
+  test('should log a decimal weight on a day picked in the date picker', async ({
+    page,
+  }) => {
+    await page.click('text=Health & TDEE')
+    await page.waitForTimeout(1000)
+    await page.click('text=Start Tracking')
+
+    // iOS Safari shows no decimal key for inputmode="numeric"
+    await expect(
+      page.locator('[data-testid="goal-weight-input"]'),
+    ).toHaveAttribute('inputmode', 'decimal')
+    await expect(
+      page.locator('[data-testid="goal-rate-input"]'),
+    ).toHaveAttribute('inputmode', 'decimal')
+
+    await page.click('text=Log Weight / Calories')
+    const weightInput = page.locator('[data-testid="health-weight-input"]')
+    await expect(weightInput).toHaveAttribute('inputmode', 'decimal')
+    await weightInput.fill('78.5')
+
+    // Three days back, in the browser's own locale and time zone
+    const day = await page.evaluate(() => {
+      const d = new Date()
+      d.setDate(d.getDate() - 3)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      return {
+        value: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+        rowLabel: d.toLocaleDateString(undefined, {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+        listLabel: d.toLocaleDateString(undefined, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+      }
+    })
+
+    // The browser's own date input lies invisibly over the date row; the
+    // trial click asserts it is what a tap on the row actually hits
+    const datePicker = page.locator('[data-testid="health-web-datepicker"]')
+    await datePicker.click({ trial: true })
+    await datePicker.fill(day.value)
+    await expect(page.getByText(day.rowLabel)).toBeVisible()
+
+    await page.click('[data-testid="save-health-button"]')
+    await expect(page.getByText(day.listLabel)).toBeVisible()
+    await expect(page.locator('text=78.5 kg').first()).toBeVisible()
+  })
+
   test('should support switching chart timeframes and display appropriate warnings', async ({
     page,
   }) => {

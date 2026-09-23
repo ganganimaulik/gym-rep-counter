@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'
-import { Alert } from 'react-native'
+import { Alert, Platform } from 'react-native'
 import TDEEScreen from '../TDEEScreen'
 
 // Mock dependencies
@@ -195,6 +195,25 @@ describe('TDEEScreen', () => {
   })
 
   describe('goal validation', () => {
+    it('asks for a decimal keypad for goal weight and rate on web', () => {
+      // RNW turns 'numeric' into inputmode="numeric", which on iOS Safari is
+      // a keypad with no decimal key
+      const originalOS = Platform.OS
+      Platform.OS = 'web'
+      try {
+        const { getByTestId } = renderScreen()
+
+        expect(getByTestId('goal-weight-input').props.keyboardType).toBe(
+          'decimal-pad',
+        )
+        expect(getByTestId('goal-rate-input').props.keyboardType).toBe(
+          'decimal-pad',
+        )
+      } finally {
+        Platform.OS = originalOS
+      }
+    })
+
     it('rejects a non-numeric goal weight', () => {
       const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
       const { getByTestId } = renderScreen()

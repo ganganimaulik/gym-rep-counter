@@ -38,4 +38,24 @@ test.describe('Export Data Flow', () => {
     await page.locator('[data-testid="close-export-modal-button"]').click()
     await expect(page.locator('text=EXPORT DATA')).not.toBeVisible()
   })
+
+  test('should apply a date picked in the date picker to the custom range', async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="export-journal-button"]').click()
+    await page.locator('[data-testid="export-range-custom"]').click()
+
+    // The browser's own date input lies invisibly over the calendar icon,
+    // which must be visible and must be what a tap there actually hits
+    const startPicker = page.locator(
+      '[data-testid="export-start-web-datepicker"]',
+    )
+    await expect(startPicker.locator('xpath=..').locator('svg')).toBeVisible()
+    await startPicker.click({ trial: true })
+    await startPicker.fill('2026-01-15')
+
+    await expect(
+      page.locator('[data-testid="export-start-date-input"]'),
+    ).toHaveValue('2026-01-15')
+  })
 })

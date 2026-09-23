@@ -1,5 +1,7 @@
 import React from 'react'
-import { render, fireEvent, waitFor } from '@testing-library/react-native'
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native'
+import { Platform } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import ProgressScreen from '../ProgressScreen'
 
 // Mock dependencies
@@ -253,6 +255,84 @@ describe('ProgressScreen', () => {
         2650,
         expect.any(Date),
         mockUser,
+      )
+    })
+  })
+
+  describe('log modal per platform', () => {
+    const originalOS = Platform.OS
+
+    afterEach(() => {
+      Platform.OS = originalOS
+    })
+
+    const openLogModal = () => {
+      const utils = render(
+        <ProgressScreen
+          visible={true}
+          onClose={jest.fn()}
+          user={mockUser}
+          dataHook={mockDataHook}
+        />,
+      )
+      fireEvent.press(utils.getByText('Log Weight / Calories'))
+      return utils
+    }
+
+    it('opens the date dialog from the date row on Android', () => {
+      Platform.OS = 'android'
+      const { getByText, UNSAFE_queryAllByType } = openLogModal()
+
+      expect(UNSAFE_queryAllByType(DateTimePicker)).toHaveLength(0)
+      fireEvent.press(getByText('Change'))
+      expect(UNSAFE_queryAllByType(DateTimePicker)).toHaveLength(1)
+    })
+
+    it('logs on the day picked in the browser picker on web', async () => {
+      Platform.OS = 'web'
+      const {
+        getByText,
+        getByPlaceholderText,
+        getByTestId,
+        UNSAFE_getByProps,
+        UNSAFE_queryAllByType,
+      } = openLogModal()
+
+      // DateTimePicker renders nothing on web, so the row must not rely on it
+      fireEvent.press(getByText('Change'))
+      expect(UNSAFE_queryAllByType(DateTimePicker)).toHaveLength(0)
+
+      fireEvent.changeText(getByPlaceholderText('e.g. 75.5'), '78.5')
+      act(() => {
+        UNSAFE_getByProps({
+          'data-testid': 'health-web-datepicker',
+        }).props.onChange({ target: { value: '2026-07-10' } })
+      })
+      fireEvent.press(getByTestId('save-health-button'))
+
+      await waitFor(() => {
+        expect(mockDataHook.addWeightLog).toHaveBeenCalledWith(
+          78.5,
+          expect.any(Date),
+          mockUser,
+        )
+      })
+      const loggedOn: Date = mockDataHook.addWeightLog.mock.calls[0][1]
+      expect([
+        loggedOn.getFullYear(),
+        loggedOn.getMonth(),
+        loggedOn.getDate(),
+      ]).toEqual([2026, 6, 10])
+    })
+
+    it('asks for a decimal keypad for weight on web', () => {
+      // RNW turns 'numeric' into inputmode="numeric", which on iOS Safari is
+      // a keypad with no decimal key
+      Platform.OS = 'web'
+      const { getByTestId } = openLogModal()
+
+      expect(getByTestId('health-weight-input').props.keyboardType).toBe(
+        'decimal-pad',
       )
     })
   })

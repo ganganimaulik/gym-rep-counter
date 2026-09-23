@@ -23,6 +23,39 @@ test.describe('Journal Screen', () => {
     await expect(page.locator('text=My new test note').first()).toBeVisible()
   })
 
+  test('should add an entry on a day picked in the date picker', async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="add-journal-note-button"]').click()
+    await page.fill('textarea', 'Backdated note')
+
+    // Two days back, in the browser's own locale and time zone
+    const day = await page.evaluate(() => {
+      const d = new Date()
+      d.setDate(d.getDate() - 2)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      return {
+        value: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+        sectionLabel: d.toLocaleDateString(undefined, {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }),
+      }
+    })
+
+    // The browser's own date input lies invisibly over the date row; the
+    // trial click asserts it is what a tap on the row actually hits
+    const datePicker = page.locator('[data-testid="journal-web-datepicker"]')
+    await datePicker.click({ trial: true })
+    await datePicker.fill(day.value)
+    await page.click('text=Save')
+
+    await expect(page.getByText(day.sectionLabel)).toBeVisible()
+    await expect(page.locator('text=Backdated note').first()).toBeVisible()
+  })
+
   test('should filter supplement suggestions and add custom supplement', async ({
     page,
   }) => {

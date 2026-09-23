@@ -8,6 +8,7 @@ import {
   TextInput,
   Keyboard,
   Alert,
+  Platform,
 } from 'react-native'
 import { styled } from 'nativewind'
 import {
@@ -516,7 +517,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               <StyledTextInput
                 testID="goal-weight-input"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                keyboardType="numeric"
+                // On web 'numeric' becomes inputmode="numeric", a keypad with
+                // no decimal key on iOS Safari. Native 'numeric' has one.
+                keyboardType={Platform.OS === 'web' ? 'decimal-pad' : 'numeric'}
                 value={goalWeightInput}
                 onChangeText={setGoalWeightInput}
                 placeholder={`e.g. ${weightUnit === 'kg' ? '75' : '165'}`}
@@ -533,7 +536,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               <StyledTextInput
                 testID="goal-rate-input"
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
-                keyboardType="numeric"
+                keyboardType={Platform.OS === 'web' ? 'decimal-pad' : 'numeric'}
                 value={goalRateInput}
                 onChangeText={setGoalRateInput}
                 placeholder="e.g. 0.5"

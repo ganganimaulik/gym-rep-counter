@@ -12,6 +12,7 @@ import { styled } from 'nativewind'
 import { X, Copy, Calendar, Check, Download } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import Toast from 'react-native-toast-message'
+import WebDatePicker from './WebDatePicker'
 import type { JournalEntry, WeightLog, CalorieLog } from '../declarations'
 import {
   ExportDateRangeOption,
@@ -40,6 +41,14 @@ const formatDateToYYYYMMDD = (d: Date): string => {
   const month = (d.getMonth() + 1).toString().padStart(2, '0')
   const day = d.getDate().toString().padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+// The web picker covers only the calendar-icon end of a custom-range row, so
+// the typed YYYY-MM-DD field beside it stays clickable.
+const WEB_PICKER_HIT_AREA: React.CSSProperties = {
+  left: 'auto',
+  right: 0,
+  width: 44,
 }
 
 const parseYYYYMMDD = (str: string): Date | null => {
@@ -280,10 +289,20 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
                         placeholder="YYYY-MM-DD"
                         placeholderTextColor="#52525b"
                         className="text-white text-xs font-mono flex-1 p-0"
+                        // On web an <input>'s intrinsic width would otherwise
+                        // squeeze the calendar icon to 0px
+                        style={{ minWidth: 0 }}
                       />
                       <Calendar color="#71717a" size={16} />
+                      <WebDatePicker
+                        testID="export-start-web-datepicker"
+                        accessibilityLabel="Start date"
+                        value={customStartDate}
+                        onChange={(date) => handleCustomStartChange(null, date)}
+                        style={WEB_PICKER_HIT_AREA}
+                      />
                     </StyledTouchableOpacity>
-                    {showStartPicker && (
+                    {showStartPicker && Platform.OS !== 'web' && (
                       <DateTimePicker
                         testID="export-start-datepicker"
                         value={customStartDate}
@@ -308,10 +327,18 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
                         placeholder="YYYY-MM-DD"
                         placeholderTextColor="#52525b"
                         className="text-white text-xs font-mono flex-1 p-0"
+                        style={{ minWidth: 0 }}
                       />
                       <Calendar color="#71717a" size={16} />
+                      <WebDatePicker
+                        testID="export-end-web-datepicker"
+                        accessibilityLabel="End date"
+                        value={customEndDate}
+                        onChange={(date) => handleCustomEndChange(null, date)}
+                        style={WEB_PICKER_HIT_AREA}
+                      />
                     </StyledTouchableOpacity>
-                    {showEndPicker && (
+                    {showEndPicker && Platform.OS !== 'web' && (
                       <DateTimePicker
                         testID="export-end-datepicker"
                         value={customEndDate}
