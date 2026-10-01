@@ -42,6 +42,7 @@ jest.mock('@react-native-community/datetimepicker', () => () => null)
 
 const baseTDEEData = {
   weeks: [] as any[],
+  archivedWeeks: [] as any[],
   currentWeight: 75.5,
   totalWeightChange: -1.2,
   weeksWithData: 4,
@@ -738,6 +739,51 @@ describe('TDEEScreen', () => {
       fireEvent.press(getByTestId('weekly-average-tab'))
 
       expect(getAllByText('-0.5')).toHaveLength(20)
+    })
+
+    it('pages to older and back to newer weeks', () => {
+      mockTDEEData.weeks = Array.from({ length: 25 }, (_, i) => ({
+        weekStart: new Date(2026, 0, 5 + i * 7),
+        weekEnd: new Date(2026, 0, 11 + i * 7),
+        avgWeight: 80 - i,
+        avgCalories: 2500,
+        weightDelta: -0.5,
+        displayTDEE: 2600,
+      }))
+      const { getByTestId, getAllByText, getByText, queryByText } =
+        renderScreen()
+
+      fireEvent.press(getByTestId('weekly-average-tab'))
+
+      // Newest first: week index 24 (avgWeight 56) on page 1, oldest (80) not.
+      expect(getByText('56.0')).toBeTruthy()
+      expect(queryByText('80.0')).toBeNull()
+      expect(getByText(/1–20\s*of 25 weeks/)).toBeTruthy()
+
+      fireEvent.press(getByTestId('weekly-older-button'))
+
+      expect(getAllByText('-0.5')).toHaveLength(5)
+      expect(getByText('80.0')).toBeTruthy()
+      expect(queryByText('56.0')).toBeNull()
+      expect(getByText(/21–25\s*of 25 weeks/)).toBeTruthy()
+
+      // Already on the oldest page — pressing again stays put.
+      fireEvent.press(getByTestId('weekly-older-button'))
+      expect(getAllByText('-0.5')).toHaveLength(5)
+
+      fireEvent.press(getByTestId('weekly-newer-button'))
+      expect(getAllByText('-0.5')).toHaveLength(20)
+      expect(getByText('56.0')).toBeTruthy()
+    })
+
+    it('hides the pager when everything fits on one page', () => {
+      mockTDEEData.weeks = weeks
+      const { getByTestId, queryByTestId } = renderScreen()
+
+      fireEvent.press(getByTestId('weekly-average-tab'))
+
+      expect(queryByTestId('weekly-older-button')).toBeNull()
+      expect(queryByTestId('weekly-newer-button')).toBeNull()
     })
 
     it('shows an empty state with no weekly data', () => {

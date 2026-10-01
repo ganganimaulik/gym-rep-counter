@@ -95,6 +95,12 @@ function groupLogsByWeek(
 export interface UseTDEEResult {
   /** Per-week TDEE data */
   weeks: TDEEPipelineResult['weeks']
+  /**
+   * Display-only rows for weeks older than the one-year window. They come
+   * from a separate pipeline run over the full log history and feed nothing
+   * else — `weeks` and every headline number stay on the one-year window.
+   */
+  archivedWeeks: TDEEPipelineResult['weeks']
   /** Latest smoothed TDEE (raw number) */
   currentTDEE: number | null
   /** Display-ready TDEE rounded to nearest 25 */
@@ -154,6 +160,7 @@ export function useTDEE(
         : 0
       return {
         weeks: [],
+        archivedWeeks: [],
         currentTDEE: null,
         displayTDEE: fallbackSeed ? roundDisplayTDEE(fallbackSeed) : null,
         seedTDEE: fallbackSeed,
@@ -184,6 +191,37 @@ export function useTDEE(
     // Run the pipeline
     const result = calculateTDEEPipeline(weekInputs, pipelineConfig)
 
+    // Weeks before the window, for the history breakdown only. Runs only when
+    // logs actually predate the cutoff, so the common case pays nothing.
+    let archivedWeeks: TDEEPipelineResult['weeks'] = []
+    const hasOlderLogs =
+      weightLogs.length > recentWeightLogs.length ||
+      calorieLogs.length > recentCalorieLogs.length
+    if (hasOlderLogs) {
+      const fullResult = calculateTDEEPipeline(
+        groupLogsByWeek(weightLogs, calorieLogs),
+        {
+          ...pipelineConfig,
+          startingWeight:
+            weightLogs.length > 0
+              ? weightLogs[weightLogs.length - 1].weight
+              : null,
+        },
+      )
+      // Both runs bucket on Monday-aligned weeks, so anything strictly before
+      // the window's first week never overlaps it.
+      const windowStart =
+        result.weeks.length > 0 ? result.weeks[0].weekStart.getTime() : Infinity
+      // Only weeks with a real log: in the full run, a gap between the old
+      // logs and the window gets interpolated weights that would otherwise
+      // show up as rows nobody logged.
+      archivedWeeks = fullResult.weeks.filter(
+        (w) =>
+          w.weekStart.getTime() < windowStart &&
+          w.weightDayCount + w.calorieDayCount > 0,
+      )
+    }
+
     // Count weeks that have a calculated TDEE
     const weeksWithData = result.weeks.filter(
       (w) => w.displayTDEE !== null,
@@ -194,6 +232,7 @@ export function useTDEE(
 
     return {
       weeks: result.weeks,
+      archivedWeeks,
       currentTDEE: result.currentTDEE,
       displayTDEE: result.displayTDEE,
       seedTDEE: result.seedTDEE,

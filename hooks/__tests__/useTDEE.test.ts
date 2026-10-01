@@ -263,4 +263,70 @@ describe('useTDEE Hook', () => {
     // If twoYearsAgo was included, we'd have over 52 weeks. Since it's filtered, we should have around 26 weeks.
     expect(result.current.weeks.length).toBeLessThan(52)
   })
+
+  describe('archivedWeeks', () => {
+    const daysAgo = (n: number) =>
+      new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString()
+
+    const recentWeights = [
+      createWeightLog(80, daysAgo(3)),
+      createWeightLog(81, daysAgo(10)),
+      createWeightLog(82, daysAgo(17)),
+    ]
+    const recentCalories = [
+      createCalorieLog(2200, daysAgo(3)),
+      createCalorieLog(2300, daysAgo(10)),
+      createCalorieLog(2400, daysAgo(17)),
+    ]
+
+    it('is empty when every log is inside the one-year window', () => {
+      const { result } = renderHook(() =>
+        useTDEE(recentWeights, recentCalories, baseConfig),
+      )
+      expect(result.current.archivedWeeks).toEqual([])
+    })
+
+    it('surfaces older weeks without touching the windowed result', () => {
+      const olderWeights = [
+        ...recentWeights,
+        createWeightLog(90, daysAgo(400)),
+        createWeightLog(91, daysAgo(407)),
+      ]
+      const olderCalories = [
+        ...recentCalories,
+        createCalorieLog(2800, daysAgo(400)),
+        createCalorieLog(2900, daysAgo(407)),
+      ]
+
+      const { result: windowed } = renderHook(() =>
+        useTDEE(recentWeights, recentCalories, baseConfig),
+      )
+      const { result: full } = renderHook(() =>
+        useTDEE(olderWeights, olderCalories, baseConfig),
+      )
+
+      // Headline numbers and in-window weeks are identical with or without
+      // the stale logs.
+      expect(full.current.weeks).toEqual(windowed.current.weeks)
+      expect(full.current.displayTDEE).toBe(windowed.current.displayTDEE)
+      expect(full.current.currentWeight).toBe(windowed.current.currentWeight)
+      expect(full.current.totalWeightChange).toBe(
+        windowed.current.totalWeightChange,
+      )
+
+      const archived = full.current.archivedWeeks
+      expect(archived.length).toBeGreaterThan(0)
+      const windowStart = full.current.weeks[0].weekStart.getTime()
+      archived.forEach((w) =>
+        expect(w.weekStart.getTime()).toBeLessThan(windowStart),
+      )
+      // Only the two logged weeks (~400 days ago) — not the interpolated
+      // stretch between them and the window.
+      expect(archived).toHaveLength(2)
+      archived.forEach((w) => {
+        expect(w.avgWeight).not.toBeNull()
+        expect(w.avgCalories).not.toBeNull()
+      })
+    })
+  })
 })
