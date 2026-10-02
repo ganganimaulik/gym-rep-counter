@@ -76,12 +76,73 @@ const tdeeChartConfig = {
 }
 
 const WEEKS_PER_PAGE = 20
+const DAYS_PER_PAGE = 15
 
 const formatWeekDate = (date: Date): string =>
   date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
 const formatWeekRange = (start: Date, end: Date): string =>
   `${formatWeekDate(start)} – ${formatWeekDate(end)}`
+
+interface HistoryPagerProps {
+  testIDPrefix: string
+  page: number
+  pageCount: number
+  pageSize: number
+  shownCount: number
+  total: number
+  noun: string
+  onPageChange: (page: number) => void
+}
+
+/** Newer/Older pager shared by the daily and weekly history tabs. */
+const HistoryPager: React.FC<HistoryPagerProps> = ({
+  testIDPrefix,
+  page,
+  pageCount,
+  pageSize,
+  shownCount,
+  total,
+  noun,
+  onPageChange,
+}) => {
+  if (pageCount <= 1) return null
+  const isNewest = page === 0
+  const isOldest = page >= pageCount - 1
+  return (
+    <StyledView className="flex-row items-center justify-between pt-3 mt-1 border-t border-zinc-800">
+      <StyledTouchableOpacity
+        testID={`${testIDPrefix}-newer-button`}
+        onPress={() => onPageChange(Math.max(0, page - 1))}
+        disabled={isNewest}
+        activeOpacity={0.7}
+        className={`flex-row items-center py-1.5 pr-2 ${
+          isNewest ? 'opacity-30' : ''
+        }`}>
+        <ChevronLeft color="#a1a1aa" size={14} />
+        <StyledText className="text-zinc-400 text-[10px] font-black uppercase tracking-wider ml-1">
+          Newer
+        </StyledText>
+      </StyledTouchableOpacity>
+      <StyledText className="text-zinc-500 text-[10px] font-bold">
+        {`${page * pageSize + 1}–${page * pageSize + shownCount} of ${total} ${noun}`}
+      </StyledText>
+      <StyledTouchableOpacity
+        testID={`${testIDPrefix}-older-button`}
+        onPress={() => onPageChange(Math.min(pageCount - 1, page + 1))}
+        disabled={isOldest}
+        activeOpacity={0.7}
+        className={`flex-row items-center py-1.5 pl-2 ${
+          isOldest ? 'opacity-30' : ''
+        }`}>
+        <StyledText className="text-zinc-400 text-[10px] font-black uppercase tracking-wider mr-1">
+          Older
+        </StyledText>
+        <ChevronRight color="#a1a1aa" size={14} />
+      </StyledTouchableOpacity>
+    </StyledView>
+  )
+}
 
 const TDEEScreen: React.FC<TDEEScreenProps> = ({
   user,
@@ -124,6 +185,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
   const [timeframeDaily, setTimeframeDaily] = useState<number>(7) // default to 7 days
   const [timeframeWeekly, setTimeframeWeekly] = useState<number>(84) // default to 12 weeks = 84 days
   const [weeklyPage, setWeeklyPage] = useState(0) // 0 = most recent weeks
+  const [dailyPage, setDailyPage] = useState(0) // 0 = most recent days
 
   // ── Date Formatting Helpers ──
   const formatChartDate = useCallback((date: Date): string => {
@@ -343,6 +405,21 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
         (currentWeeklyPage + 1) * WEEKS_PER_PAGE,
       ),
     [allWeeklyBreakdown, currentWeeklyPage],
+  )
+
+  const dailyPageCount = Math.max(
+    1,
+    Math.ceil(healthLogsByDate.length / DAYS_PER_PAGE),
+  )
+  const currentDailyPage = Math.min(dailyPage, dailyPageCount - 1)
+
+  const dailyLogsPage = useMemo(
+    () =>
+      healthLogsByDate.slice(
+        currentDailyPage * DAYS_PER_PAGE,
+        (currentDailyPage + 1) * DAYS_PER_PAGE,
+      ),
+    [healthLogsByDate, currentDailyPage],
   )
 
   // ── Derived display values ──
@@ -1012,53 +1089,16 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                     )
                   })}
 
-                  {weeklyPageCount > 1 && (
-                    <StyledView className="flex-row items-center justify-between pt-3 mt-1 border-t border-zinc-800">
-                      <StyledTouchableOpacity
-                        testID="weekly-newer-button"
-                        onPress={() =>
-                          setWeeklyPage(Math.max(0, currentWeeklyPage - 1))
-                        }
-                        disabled={currentWeeklyPage === 0}
-                        activeOpacity={0.7}
-                        className={`flex-row items-center py-1.5 pr-2 ${
-                          currentWeeklyPage === 0 ? 'opacity-30' : ''
-                        }`}>
-                        <ChevronLeft color="#a1a1aa" size={14} />
-                        <StyledText className="text-zinc-400 text-[10px] font-black uppercase tracking-wider ml-1">
-                          Newer
-                        </StyledText>
-                      </StyledTouchableOpacity>
-                      <StyledText className="text-zinc-500 text-[10px] font-bold">
-                        {currentWeeklyPage * WEEKS_PER_PAGE + 1}–
-                        {currentWeeklyPage * WEEKS_PER_PAGE +
-                          weeklyBreakdown.length}{' '}
-                        of {allWeeklyBreakdown.length} weeks
-                      </StyledText>
-                      <StyledTouchableOpacity
-                        testID="weekly-older-button"
-                        onPress={() =>
-                          setWeeklyPage(
-                            Math.min(
-                              weeklyPageCount - 1,
-                              currentWeeklyPage + 1,
-                            ),
-                          )
-                        }
-                        disabled={currentWeeklyPage >= weeklyPageCount - 1}
-                        activeOpacity={0.7}
-                        className={`flex-row items-center py-1.5 pl-2 ${
-                          currentWeeklyPage >= weeklyPageCount - 1
-                            ? 'opacity-30'
-                            : ''
-                        }`}>
-                        <StyledText className="text-zinc-400 text-[10px] font-black uppercase tracking-wider mr-1">
-                          Older
-                        </StyledText>
-                        <ChevronRight color="#a1a1aa" size={14} />
-                      </StyledTouchableOpacity>
-                    </StyledView>
-                  )}
+                  <HistoryPager
+                    testIDPrefix="weekly"
+                    page={currentWeeklyPage}
+                    pageCount={weeklyPageCount}
+                    pageSize={WEEKS_PER_PAGE}
+                    shownCount={weeklyBreakdown.length}
+                    total={allWeeklyBreakdown.length}
+                    noun="weeks"
+                    onPageChange={setWeeklyPage}
+                  />
                 </StyledView>
               ) : (
                 <StyledText className="text-zinc-500 text-xs italic text-center py-6">
@@ -1073,44 +1113,56 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
           {activeHistoryTab === 'daily' && (
             <StyledView>
               {healthLogsByDate.length > 0 ? (
-                healthLogsByDate.slice(0, 15).map((group, index) => (
-                  <StyledTouchableOpacity
-                    key={group.dateStr}
-                    onPress={() => onEditLogPress?.(group)}
-                    activeOpacity={0.7}
-                    className={`flex-row justify-between items-center py-3.5 ${
-                      index < Math.min(healthLogsByDate.length, 15) - 1
-                        ? 'border-b border-zinc-800/60'
-                        : ''
-                    }`}>
-                    <StyledView className="flex-row items-center">
-                      <Activity color="#10b981" size={16} />
-                      <StyledView className="ml-3">
-                        {group.weightLog && (
-                          <StyledText className="text-white font-extrabold text-sm">
-                            {group.weightLog.weight} {weightUnit}
-                          </StyledText>
-                        )}
-                        {group.calorieLog && (
-                          <StyledText className="text-zinc-400 font-bold text-xs">
-                            {group.calorieLog.calories} {energyLabel}
-                          </StyledText>
-                        )}
+                <StyledView>
+                  {dailyLogsPage.map((group, index) => (
+                    <StyledTouchableOpacity
+                      key={group.dateStr}
+                      onPress={() => onEditLogPress?.(group)}
+                      activeOpacity={0.7}
+                      className={`flex-row justify-between items-center py-3.5 ${
+                        index < dailyLogsPage.length - 1
+                          ? 'border-b border-zinc-800/60'
+                          : ''
+                      }`}>
+                      <StyledView className="flex-row items-center">
+                        <Activity color="#10b981" size={16} />
+                        <StyledView className="ml-3">
+                          {group.weightLog && (
+                            <StyledText className="text-white font-extrabold text-sm">
+                              {group.weightLog.weight} {weightUnit}
+                            </StyledText>
+                          )}
+                          {group.calorieLog && (
+                            <StyledText className="text-zinc-400 font-bold text-xs">
+                              {group.calorieLog.calories} {energyLabel}
+                            </StyledText>
+                          )}
+                        </StyledView>
                       </StyledView>
-                    </StyledView>
-                    <StyledView className="flex-row items-center">
-                      <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mr-3">
-                        {group.date.toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </StyledText>
-                      <Pencil color="#71717a" size={12} />
-                    </StyledView>
-                  </StyledTouchableOpacity>
-                ))
+                      <StyledView className="flex-row items-center">
+                        <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider mr-3">
+                          {group.date.toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </StyledText>
+                        <Pencil color="#71717a" size={12} />
+                      </StyledView>
+                    </StyledTouchableOpacity>
+                  ))}
+                  <HistoryPager
+                    testIDPrefix="daily"
+                    page={currentDailyPage}
+                    pageCount={dailyPageCount}
+                    pageSize={DAYS_PER_PAGE}
+                    shownCount={dailyLogsPage.length}
+                    total={healthLogsByDate.length}
+                    noun="days"
+                    onPageChange={setDailyPage}
+                  />
+                </StyledView>
               ) : (
                 <StyledText className="text-zinc-500 text-xs italic text-center py-6">
                   No daily stats logged yet. Tap &apos;Log Weight /

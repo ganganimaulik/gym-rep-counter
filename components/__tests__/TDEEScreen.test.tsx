@@ -641,6 +641,45 @@ describe('TDEEScreen', () => {
 
       expect(getAllByText(/ kg$/)).toHaveLength(15)
     })
+
+    it('pages to older and back to newer days', () => {
+      mockDataHook.weightLogs = Array.from({ length: 20 }, (_, i) => ({
+        id: `w${i}`,
+        weight: 70 + i,
+        date: createMockTimestamp(daysAgo(i + 1)),
+      }))
+      mockDataHook.calorieLogs = []
+      const { getAllByText, getByTestId, getByText, queryByText } =
+        renderScreen()
+
+      // Newest first: 70 kg (1 day ago) on page 1, 89 kg (20 days ago) not.
+      expect(getByText('70 kg')).toBeTruthy()
+      expect(queryByText('89 kg')).toBeNull()
+      expect(getByText('1–15 of 20 days')).toBeTruthy()
+
+      fireEvent.press(getByTestId('daily-older-button'))
+
+      expect(getAllByText(/ kg$/)).toHaveLength(5)
+      expect(getByText('89 kg')).toBeTruthy()
+      expect(queryByText('70 kg')).toBeNull()
+      expect(getByText('16–20 of 20 days')).toBeTruthy()
+
+      fireEvent.press(getByTestId('daily-newer-button'))
+      expect(getAllByText(/ kg$/)).toHaveLength(15)
+      expect(getByText('70 kg')).toBeTruthy()
+    })
+
+    it('hides the daily pager when everything fits on one page', () => {
+      mockDataHook.weightLogs = Array.from({ length: 3 }, (_, i) => ({
+        id: `w${i}`,
+        weight: 70 + i,
+        date: createMockTimestamp(daysAgo(i + 1)),
+      }))
+      mockDataHook.calorieLogs = []
+      const { queryByTestId } = renderScreen()
+
+      expect(queryByTestId('daily-older-button')).toBeNull()
+    })
   })
 
   describe('weekly history', () => {
