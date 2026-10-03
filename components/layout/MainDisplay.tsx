@@ -7,6 +7,7 @@ import Animated, {
   runOnJS,
   SharedValue,
 } from 'react-native-reanimated'
+import { demoHint } from '../../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -104,11 +105,19 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
   }
 
   const colors = getPhaseColor(phase)
+  const showsStatus = phase === 'Rest' || phase === 'Get Ready' || !phase
 
   return (
     <StyledView className="items-center py-2">
       <StyledTouchableOpacity
         testID="main-display-pressable"
+        {...demoHint({
+          'aria-label': !phase
+            ? `Stopped: ${statusLabel}`
+            : showsStatus
+              ? statusLabel
+              : phase,
+        })}
         onPress={handlePress}
         activeOpacity={phase === 'Get Ready' ? 0.7 : 1}>
         <StyledView
@@ -130,7 +139,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
 
           {/* Main Display Area */}
           <StyledView className="items-center justify-center mt-2">
-            {phase === 'Rest' || phase === 'Get Ready' || !phase ? (
+            {showsStatus ? (
               <StyledText
                 testID="main-display-status"
                 className="text-3xl font-black text-white text-center w-52">
@@ -140,6 +149,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
               <StyledView className="items-center">
                 <StyledAnimatedTextInput
                   testID="main-display-reps"
+                  {...demoHint({ 'aria-label': 'Rep' })}
                   className="text-8xl font-black text-white text-center h-24 w-40"
                   editable={false}
                   pointerEvents="none"
@@ -161,6 +171,7 @@ const MainDisplay: React.FC<MainDisplayProps> = ({
               </StyledText>
               <StyledAnimatedTextInput
                 testID="main-display-sets"
+                {...demoHint({ 'aria-label': 'Set' })}
                 className="text-zinc-300 text-sm font-black text-center w-8"
                 editable={false}
                 pointerEvents="none"

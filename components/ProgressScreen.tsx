@@ -30,6 +30,7 @@ import { DataHook } from '../hooks/useData'
 import TDEEScreen, { HealthLogGroup } from './TDEEScreen'
 import WebDatePicker from './WebDatePicker'
 import { globalStyles } from '../utils/globalStyles'
+import { demoHint } from '../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -357,7 +358,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
     <StyledView className="flex-1 bg-zinc-950 p-4">
       {/* Header */}
       <StyledView className="flex-row justify-between items-center pb-3 border-b border-zinc-900 mb-4">
-        <StyledText className="text-2xl font-black text-white">
+        <StyledText
+          {...demoHint({ role: 'heading' })}
+          className="text-2xl font-black text-white">
           ANALYTICS
         </StyledText>
       </StyledView>
@@ -412,7 +415,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 60 }}>
             {/* Streak Section */}
-            <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+            <StyledView
+              {...demoHint({ role: 'group', 'aria-label': 'Activity streak' })}
+              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
               <StyledView className="flex-row items-center mb-3">
                 <Flame color="#fb923c" size={18} fill="#fb923c" />
                 <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
@@ -458,7 +463,16 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
 
             {/* Weekly Volume Charts — one per weight unit in the history */}
             {(hasKgVolume || hasPlatesVolume) && (
-              <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+              <StyledView
+                {...demoHint({
+                  role: 'group',
+                  'aria-label': hasKgVolume
+                    ? `Weekly volume in kg, oldest week first: ${weeklyVolume
+                        .map((v) => `${((v.kgVolume || 0) / 1000).toFixed(1)}k`)
+                        .join(', ')}`
+                    : 'Weekly volume',
+                })}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
                 <StyledView className="flex-row items-center mb-1">
                   <TrendingUp color="#3b82f6" size={18} />
                   <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
@@ -518,7 +532,9 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
             )}
 
             {/* Personal Records */}
-            <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+            <StyledView
+              {...demoHint({ role: 'group', 'aria-label': 'Personal records' })}
+              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
               <StyledView className="flex-row items-center mb-3">
                 <Trophy color="#fbbf24" size={18} fill="#fbbf24" />
                 <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
@@ -547,6 +563,10 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                       {group.records.slice(0, 5).map((pr, index) => (
                         <StyledView
                           key={`${pr.exerciseId}-${pr.weightUnit ?? 'kg'}`}
+                          {...demoHint({
+                            role: 'group',
+                            'aria-label': pr.exerciseName,
+                          })}
                           className={`flex-row justify-between items-center py-3 ${
                             index < group.records.slice(0, 5).length - 1
                               ? 'border-b border-zinc-800/60'
@@ -577,7 +597,12 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
 
             {/* Exercise Trends */}
             {exercises.length > 0 && (
-              <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+              <StyledView
+                {...demoHint({
+                  role: 'group',
+                  'aria-label': 'Exercise trends',
+                })}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
                 <StyledView className="flex-row items-center mb-3">
                   <TrendingUp color="#10b981" size={18} />
                   <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
@@ -587,6 +612,7 @@ const ProgressScreen: React.FC<ProgressScreenProps> = ({
                 <StyledView className="bg-zinc-950 border border-zinc-800 rounded-xl mb-3 overflow-hidden">
                   <Picker
                     testID="trends-exercise-picker"
+                    {...demoHint({ 'aria-label': 'Exercise' })}
                     selectedValue={selectedExercise}
                     onValueChange={setSelectedExercise}
                     style={globalStyles.picker}

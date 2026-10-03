@@ -62,6 +62,8 @@ npx --yes firebase-tools emulators:exec --project gym-rep-counter "npx playwrigh
   ```bash
   EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_PLAYWRIGHT=1 EXPO_PUBLIC_API_KEY=test-api-key EXPO_PUBLIC_AUTH_DOMAIN=test-domain EXPO_PUBLIC_PROJECT_ID=test-project npx expo export -p web
   ```
+- `npm run demo` — the demo build for DemoPilot (see Demo build below): `scripts/demo-web.sh` exports to `dist-demo/` with `EXPO_PUBLIC_DEMO_MODE=1`, `EXPO_NO_DOTENV=1` and placeholder Firebase config, in a Metro cache of its own, then `http-server` serves it on :8090 (`npm run demo:build` stops after the build). `.claude/launch.json` has it as `demopilot-target`, and `expo-web-demo` is the same app on a dev server (:8083).
+- `npm run demo:deploy` — builds the same and publishes it to https://gym-rep-counter-demo.vercel.app: the production deployment of a Vercel project of its own (`gym-rep-counter-demo`), apart from the app's `gym-rep-counter`. It uploads `dist-demo/` as prebuilt static output (Build Output API v3, staged in `node_modules/.cache/demo-deploy`), so Vercel runs no install or build, and the repo's `.vercel` link (the production app) isn't used. Nothing deploys the demo on push: it changes only when someone runs this.
 
 ### Native
 
@@ -74,7 +76,7 @@ npx --yes firebase-tools emulators:exec --project gym-rep-counter "npx playwrigh
 
 ### Shell: no router
 
-`index.js` → `importGlobalCSS()` → `registerRootComponent(App)`. Navigation is one `useState` in `App.tsx` (`currentTab: 'workout' | 'routines' | 'history' | 'analytics' | 'settings' | 'journal'`) plus a hand-rolled tab bar. There is no react-navigation. Deep links (`repcounterapp://workout`, opened by the Live Activity) only set the tab.
+`index.js` → `importGlobalCSS()` → (demo builds only: seed the browser) → `registerRootComponent(App)`. Navigation is one `useState` in `App.tsx` (`currentTab: 'workout' | 'routines' | 'history' | 'analytics' | 'settings' | 'journal'`) plus a hand-rolled tab bar. There is no react-navigation. Deep links (`repcounterapp://workout`, opened by the Live Activity) only set the tab.
 
 Three mounting strategies coexist and the difference matters:
 
@@ -134,6 +136,15 @@ Two unrelated stacks that only share a screen. **TDEE**: `weightLogs` + `calorie
 
 Supplements: a schedule is a field on the autocomplete suggestion in `settings.supplementSuggestions`; "taken" is inferred by scanning `journalEntries[].supplements[]` by lowercased name on a local date key. `scheduleActivatedDate` retroactively gates everything. `every_other_day` runs **two different algorithms** depending on whether the caller passes `journalEntries`, so bedtime reminders and the on-screen chips can disagree for the same day.
 
+### Demo build (DemoPilot)
+
+DemoPilot (`../DemoPilot`) demos the web app live, as an agent its owner adds in the dashboard (app URL `https://gym-rep-counter-demo.vercel.app`, or `http://localhost:8090` for a local build; start page `/`, no login): its own Chromium opens the demo build signed out, in a fresh browser per visitor, and an agent reads the page through the accessibility tree and clicks through it. Everything demo-specific is gated on `EXPO_PUBLIC_DEMO_MODE=1`, which no shipped build sets:
+
+- `index.js` requires `utils/demoData.ts` inside `if (process.env.EXPO_PUBLIC_DEMO_MODE === '1')`. Inlining plus Metro's constant folding drops the branch and the module from every other bundle (check: no `demoDataSeededAt` in `dist/`). `startDemo()` writes ten weeks of a fictional lifter's data straight into the guest stores in `localStorage`, once per browser (`demoDataSeededAt`), before the app first reads storage.
+- The demo data is a pure function of how many weeks or days ago each log is, so its records don't depend on the weekday (Bench Press 82.5 kg, Back Squat 110 kg, Deadlift 150 kg). Playbooks and knowledge written for the agent can name those numbers and the routines, so keep them in step when changing the program. The program trains five days a week because the streak only counts weeks with 5+ workout days.
+- `utils/demoMode.ts`: `DEMO_MODE` (web and the flag) and `demoHint(...)`, the `role`/`aria-*` props a demo build adds so the agent can name things: headings, cards of numbers, icon-only buttons and unlabeled fields. Elsewhere `demoHint` returns `{}`, so normal builds render the same DOM (verified tab by tab against a build without it). React Native Web renders every touchable as a role-less `div`; DemoPilot names one by its text, so text buttons need no hint, but icon-only controls and fields without a label or placeholder do.
+- `SettingsModal` shows a note instead of Google sign-in in a demo build: the agent can't finish Google's popup, and signing in would migrate the seeded data into a real account.
+
 ## Conventions and invariants
 
 - **Local `YYYY-MM-DD` date keys are a repo-wide invariant.** The format is hand-rolled in five places (`utils/getLocalDateString.ts`, `analyticsUtils.toLocalYMD`, `supplementSchedule.getLocalDateKey`, `JournalScreen.getLocalDateKey`, and `HistoryScreen`'s section grouping). Everything is device-local, never UTC, and supplement retroactive-miss suppression plus last-session day ordering both rely on it sorting lexicographically. Changing the format anywhere breaks those silently.
@@ -168,6 +179,7 @@ Two traps that cost real time:
 
 - `EXPO_PUBLIC_*` flags are **inlined at bundle time**, and `playwright.config.ts` sets `reuseExistingServer: !CI`. A stray `npm run web` already on :8081 (e.g. from `.claude/launch.json`) gets reused, and its bundle has no `setMockUser` at all — auth tests then fail for reasons that look nothing like the cause. Kill stray dev servers first.
 - The emulator start is best-effort and `e2e/app.spec.ts` only warns when it is offline. **A green E2E run does not prove the emulator was involved.**
+- **Metro's production transform cache doesn't key on `EXPO_PUBLIC_*` values.** Two `expo export`s from one checkout with different flags reuse each other's transforms: a demo export once came out byte-identical to the normal export before it, placeholder API key included. Pass `--clear` when switching flags (before the CI-identical build, say), or give the build its own cache through `TMPDIR` (Metro keeps it under `os.tmpdir()`), as `scripts/demo-web.sh` does. Dev servers are immune: in development the flags are read from `expo/virtual/env` at runtime, not inlined.
 
 ## Environment and CI
 

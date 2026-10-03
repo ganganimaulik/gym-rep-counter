@@ -18,6 +18,7 @@ import { BlurView } from 'expo-blur'
 import type { User as FirebaseUser } from 'firebase/auth'
 import type { WorkoutSet, WeightUnit } from '../declarations'
 import { DataHook } from '../hooks/useData'
+import { demoHint } from '../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -316,7 +317,9 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
     <StyledView className="flex-1 bg-zinc-950 p-4">
       {/* Header */}
       <StyledView className="flex-row justify-between items-center pb-3 border-b border-zinc-900 mb-4">
-        <StyledText className="text-2xl font-black text-white">
+        <StyledText
+          {...demoHint({ role: 'heading' })}
+          className="text-2xl font-black text-white">
           HISTORY
         </StyledText>
       </StyledView>
@@ -334,7 +337,9 @@ const HistoryScreen: React.FC<HistoryScreenProps> = ({
           const date = new Date(year, month, day)
 
           return (
-            <StyledText className="text-zinc-500 text-xs font-black tracking-[0.2em] mt-6 mb-3 uppercase">
+            <StyledText
+              {...demoHint({ role: 'heading' })}
+              className="text-zinc-500 text-xs font-black tracking-[0.2em] mt-6 mb-3 uppercase">
               {date.toLocaleDateString(undefined, {
                 weekday: 'short',
                 year: 'numeric',

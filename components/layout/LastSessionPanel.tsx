@@ -9,6 +9,7 @@ import {
   resolveSetForNumber,
   type LastSession,
 } from '../../utils/lastSession'
+import { demoHint } from '../../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -38,6 +39,7 @@ const LastSessionPanel: React.FC<LastSessionPanelProps> = ({
   return (
     <StyledView
       testID="last-session-panel"
+      {...demoHint({ role: 'group', 'aria-label': 'Last time' })}
       className="bg-zinc-900/90 border border-zinc-800/80 rounded-xl px-3 py-2">
       <StyledView className="flex-row justify-between items-center mb-1.5">
         <StyledView className="flex-row items-center flex-1 mr-2">

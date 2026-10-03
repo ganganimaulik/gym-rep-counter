@@ -14,6 +14,7 @@ import {
 import { BlurView } from 'expo-blur'
 import { styled } from 'nativewind'
 import type { WeightUnit } from '../declarations'
+import { demoHint } from '../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -111,6 +112,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
             className="flex-1 justify-center items-center">
             <StyledView className="bg-gray-800 p-6 rounded-lg w-11/12">
               <StyledText
+                {...demoHint({ role: 'heading' })}
                 className={`text-white text-2xl font-bold text-center ${exerciseName ? 'mb-1' : 'mb-4'}`}>
                 Set Complete
               </StyledText>
@@ -131,6 +133,10 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
                       <StyledTouchableOpacity
                         key={v}
                         testID={`variant-option-${v}`}
+                        {...demoHint({
+                          role: 'radio',
+                          'aria-checked': variant === v,
+                        })}
                         onPress={() =>
                           setVariant((prev) => (prev === v ? undefined : v))
                         }
@@ -160,6 +166,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
                 testID="reps-input"
+                {...demoHint({ 'aria-label': 'Reps' })}
               />
               <StyledView className="flex-row justify-between items-center mb-2">
                 <StyledText className="text-gray-300">
@@ -170,6 +177,10 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
                     <StyledTouchableOpacity
                       key={unit}
                       testID={`weight-unit-${unit}`}
+                      {...demoHint({
+                        role: 'radio',
+                        'aria-checked': weightUnit === unit,
+                      })}
                       onPress={() => setWeightUnit(unit)}
                       activeOpacity={0.7}
                       className={`px-3 py-1.5 ${
@@ -194,6 +205,7 @@ const AddSetDetailsModal: React.FC<AddSetDetailsModalProps> = ({
                 onSubmitEditing={Keyboard.dismiss}
                 autoFocus={true}
                 testID="weight-input"
+                {...demoHint({ 'aria-label': `Weight (${weightUnit})` })}
               />
               <Button
                 title={isSubmitting ? 'Saving...' : 'Save'}

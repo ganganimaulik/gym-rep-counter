@@ -34,6 +34,7 @@ import type { TDEEConfig, WeightLog, CalorieLog } from '../declarations'
 import { useTDEE } from '../hooks/useTDEE'
 import { DataHook } from '../hooks/useData'
 import { globalStyles } from '../utils/globalStyles'
+import { demoHint } from '../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -509,7 +510,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
 
       {/* ─── TDEE Dashboard Card ─── */}
       {isConfigured && (
-        <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+        <StyledView
+          {...demoHint({ role: 'group', 'aria-label': 'Your TDEE' })}
+          className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
           <StyledView className="flex-row items-center mb-3">
             <Zap color="#10b981" size={18} fill="#10b981" />
             <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
@@ -598,7 +601,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
 
       {/* ─── Goal & Projections Card ─── */}
       {isConfigured && (
-        <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+        <StyledView
+          {...demoHint({
+            role: 'group',
+            'aria-label': 'Weight management goal',
+          })}
+          className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
           <StyledView className="flex-row items-center mb-3">
             <Target color="#fb923c" size={18} />
             <StyledText className="text-sm font-black text-zinc-400 ml-2 tracking-wider uppercase">
@@ -614,6 +622,7 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
               <StyledTextInput
                 testID="goal-weight-input"
+                {...demoHint({ 'aria-label': `Goal weight (${weightUnit})` })}
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                 // On web 'numeric' becomes inputmode="numeric", a keypad with
                 // no decimal key on iOS Safari. Native 'numeric' has one.
@@ -633,6 +642,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
               <StyledTextInput
                 testID="goal-rate-input"
+                {...demoHint({
+                  'aria-label': `Weekly rate (${weightUnit} per week)`,
+                })}
                 className="bg-zinc-950 border border-zinc-800 text-white p-3 rounded-xl font-bold text-sm"
                 keyboardType={Platform.OS === 'web' ? 'decimal-pad' : 'numeric'}
                 value={goalRateInput}
@@ -663,7 +675,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
               </StyledText>
 
               <StyledView className="space-y-2.5">
-                <StyledView className="flex-row justify-between items-center">
+                <StyledView
+                  {...demoHint({
+                    role: 'group',
+                    'aria-label': 'Goal calories',
+                  })}
+                  className="flex-row justify-between items-center">
                   <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
                     Goal Calories
                   </StyledText>
@@ -673,7 +690,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                   </StyledText>
                 </StyledView>
 
-                <StyledView className="flex-row justify-between items-center border-t border-zinc-900/60 pt-2.5">
+                <StyledView
+                  {...demoHint({
+                    role: 'group',
+                    'aria-label': 'Daily deficit/surplus',
+                  })}
+                  className="flex-row justify-between items-center border-t border-zinc-900/60 pt-2.5">
                   <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
                     Daily Deficit/Surplus
                   </StyledText>
@@ -691,7 +713,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 </StyledView>
 
                 {tdeeData.weeksToGoal !== null && (
-                  <StyledView className="flex-row justify-between items-center border-t border-zinc-900/60 pt-2.5">
+                  <StyledView
+                    {...demoHint({
+                      role: 'group',
+                      'aria-label': 'Weeks to goal',
+                    })}
+                    className="flex-row justify-between items-center border-t border-zinc-900/60 pt-2.5">
                     <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
                       Weeks to Goal
                     </StyledText>
@@ -702,7 +729,12 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
                 )}
 
                 {tdeeData.goalDate !== null && (
-                  <StyledView className="flex-row justify-between items-center border-t border-zinc-900/60 pt-2.5">
+                  <StyledView
+                    {...demoHint({
+                      role: 'group',
+                      'aria-label': 'Estimated date',
+                    })}
+                    className="flex-row justify-between items-center border-t border-zinc-900/60 pt-2.5">
                     <StyledText className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
                       Estimated Date
                     </StyledText>
@@ -731,7 +763,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
 
       {/* ─── Interactive Trends Card ─── */}
       {isConfigured && (
-        <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+        <StyledView
+          {...demoHint({ role: 'group', 'aria-label': 'Progress trends' })}
+          className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
           <StyledView className="flex-row items-center justify-between mb-3">
             <StyledView className="flex-row items-center">
               <TrendingUp color="#10b981" size={18} />
@@ -977,7 +1011,9 @@ const TDEEScreen: React.FC<TDEEScreenProps> = ({
 
       {/* ─── History & Breakdown Card ─── */}
       {isConfigured && (
-        <StyledView className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
+        <StyledView
+          {...demoHint({ role: 'group', 'aria-label': 'History & breakdown' })}
+          className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4 shadow-xl">
           <StyledView className="flex-row items-center justify-between mb-3">
             <StyledView className="flex-row items-center">
               <Calculator color="#6366f1" size={18} />

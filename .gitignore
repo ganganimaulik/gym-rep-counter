@@ -8,6 +8,8 @@ bower_components/
 
 # Build & Output
 dist/
+# Demo build for DemoPilot (npm run demo)
+dist-demo/
 build/
 web-build/
 build/Release

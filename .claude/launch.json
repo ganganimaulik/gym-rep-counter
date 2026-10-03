@@ -15,6 +15,21 @@
         "EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true EXPO_PUBLIC_PLAYWRIGHT=1 npx expo start --web --port 8082"
       ],
       "port": 8082
+    },
+    {
+      "name": "expo-web-demo",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "EXPO_NO_DOTENV=1 EXPO_PUBLIC_DEMO_MODE=1 EXPO_PUBLIC_API_KEY=demo EXPO_PUBLIC_AUTH_DOMAIN=demo.invalid EXPO_PUBLIC_PROJECT_ID=demo npx expo start --web --port 8083"
+      ],
+      "port": 8083
+    },
+    {
+      "name": "demopilot-target",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "demo"],
+      "port": 8090
     }
   ]
 }
