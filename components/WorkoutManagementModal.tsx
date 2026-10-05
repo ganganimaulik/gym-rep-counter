@@ -33,7 +33,6 @@ import {
   routinesSharingExercise,
   syncSharedExerciseFields,
 } from '../utils/exerciseSync'
-import { demoHint } from '../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -106,9 +105,6 @@ const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
       <StyledTouchableOpacity
         onPress={() => openEditModal(workout.id, ex)}
         onLongPress={drag}
-        {...demoHint({
-          'aria-label': `Edit ${ex.name}, ${ex.sets} sets × ${ex.reps} reps`,
-        })}
         disabled={isActive}
         activeOpacity={0.7}
         className={`flex-row items-center justify-between bg-zinc-800/80 border border-zinc-800/40 p-3 rounded-xl mb-2 ${
@@ -147,9 +143,7 @@ const WorkoutItem: React.FC<WorkoutItemProps> = React.memo(
     return (
       <StyledView className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 mb-4 shadow-xl">
         <StyledView className="flex-row justify-between items-center mb-3">
-          <StyledText
-            {...demoHint({ role: 'heading' })}
-            className="text-lg font-black text-white">
+          <StyledText className="text-lg font-black text-white">
             {workout.name}
           </StyledText>
           <StyledTouchableOpacity
@@ -421,9 +415,7 @@ const WorkoutManagementModal: React.FC<WorkoutManagementModalProps> = ({
       <StyledView className="flex-1 bg-zinc-950 p-4">
         {/* Header */}
         <StyledView className="flex-row justify-between items-center pb-3 border-b border-zinc-900 mb-4">
-          <StyledText
-            {...demoHint({ role: 'heading' })}
-            className="text-2xl font-black text-white">
+          <StyledText className="text-2xl font-black text-white">
             ROUTINES
           </StyledText>
         </StyledView>

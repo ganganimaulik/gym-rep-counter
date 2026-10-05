@@ -18,7 +18,7 @@ import UserProfile from './layout/UserProfile'
 import { Settings } from '../hooks/useData'
 import type { User as FirebaseUser } from 'firebase/auth'
 import Toast from 'react-native-toast-message'
-import { DEMO_MODE, demoHint } from '../utils/demoMode'
+import { DEMO_MODE } from '../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -109,9 +109,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     <StyledView className="flex-1 bg-zinc-950 p-4">
       {/* Header */}
       <StyledView className="flex-row justify-between items-center pb-3 border-b border-zinc-900 mb-4">
-        <StyledText
-          {...demoHint({ role: 'heading' })}
-          className="text-2xl font-black text-white">
+        <StyledText className="text-2xl font-black text-white">
           SETTINGS
         </StyledText>
       </StyledView>
@@ -229,7 +227,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledTextInput
                   testID="setting-countdown"
-                  {...demoHint({ 'aria-label': 'Countdown (seconds)' })}
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -247,9 +244,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledTextInput
                   testID="setting-announcement"
-                  {...demoHint({
-                    'aria-label': 'Announcement threshold (seconds)',
-                  })}
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -270,7 +264,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledTextInput
                   testID="setting-rest"
-                  {...demoHint({ 'aria-label': 'Rest timer (seconds)' })}
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -288,7 +281,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledTextInput
                   testID="setting-max-reps"
-                  {...demoHint({ 'aria-label': 'Max reps limit' })}
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -306,7 +298,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledTextInput
                   testID="setting-max-sets"
-                  {...demoHint({ 'aria-label': 'Max sets limit' })}
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -324,7 +315,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledTextInput
                   testID="setting-concentric"
-                  {...demoHint({ 'aria-label': 'Concentric (seconds)' })}
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="decimal-pad"
                   returnKeyType="done"
@@ -342,9 +332,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledTextInput
                   testID="setting-eccentric"
-                  {...demoHint({
-                    'aria-label': 'Eccentric duration (seconds)',
-                  })}
                   className="mt-1.5 w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-sm font-bold"
                   keyboardType="decimal-pad"
                   returnKeyType="done"
@@ -362,7 +349,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </StyledText>
                 <StyledSwitch
                   testID="toggle-eccentric-voice"
-                  {...demoHint({ 'aria-label': 'Eccentric voice count' })}
                   value={localSettings.eccentricCountdownEnabled}
                   onValueChange={(value) =>
                     handleValueChange('eccentricCountdownEnabled', value)
@@ -385,7 +371,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </StyledText>
             <StyledView className="flex-row items-center space-x-4">
               <Slider
-                {...demoHint({ 'aria-label': 'Volume' })}
                 style={{ flex: 1 }}
                 minimumValue={0}
                 maximumValue={1}
@@ -422,7 +407,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </StyledView>
               <StyledSwitch
                 testID="toggle-stat-reminders"
-                {...demoHint({ 'aria-label': 'Stat update reminders' })}
                 value={localSettings.statRemindersEnabled ?? true}
                 onValueChange={(value) =>
                   handleValueChange('statRemindersEnabled', value)

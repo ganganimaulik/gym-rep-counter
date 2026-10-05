@@ -11,6 +11,7 @@ module.exports = tseslint.config(
       '**/.expo/**',
       '**/.next/**',
       '**/dist/**',
+      '**/dist-demo/**',
       '**/build/**',
       '**/coverage/**',
       '**/playwright-report/**',

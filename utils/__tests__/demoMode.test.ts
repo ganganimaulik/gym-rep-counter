@@ -17,8 +17,8 @@ describe('demoMode', () => {
     else process.env.EXPO_PUBLIC_DEMO_MODE = original
   })
 
-  it('adds nothing to a build people use', () => {
-    for (const { DEMO_MODE, demoHint } of [
+  it('is off in a build people use', () => {
+    for (const { DEMO_MODE } of [
       load('web', undefined),
       load('ios', undefined),
       load('android', undefined),
@@ -26,20 +26,10 @@ describe('demoMode', () => {
       load('ios', '1'),
     ]) {
       expect(DEMO_MODE).toBe(false)
-      expect(demoHint({ role: 'radio', 'aria-checked': true })).toEqual({})
-      expect(demoHint({ 'aria-label': 'Add a set' })).toEqual({})
     }
   })
 
-  it('names things for DemoPilot in a web demo build', () => {
-    const { DEMO_MODE, demoHint } = load('web', '1')
-    expect(DEMO_MODE).toBe(true)
-    expect(demoHint({ role: 'radio', 'aria-checked': true })).toEqual({
-      role: 'radio',
-      'aria-checked': true,
-    })
-    expect(demoHint({ 'aria-label': 'Add a set' })).toEqual({
-      'aria-label': 'Add a set',
-    })
+  it('is on in a web demo build', () => {
+    expect(load('web', '1').DEMO_MODE).toBe(true)
   })
 })

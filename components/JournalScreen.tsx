@@ -45,7 +45,6 @@ import {
   getJournalDateKey,
   journalDayKeyToDate,
 } from '../utils/supplementSchedule'
-import { demoHint } from '../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -648,9 +647,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
     <StyledView className="flex-1 bg-zinc-950 p-4">
       {/* Header */}
       <StyledView className="flex-row justify-between items-center pb-3 border-b border-zinc-900 mb-4">
-        <StyledText
-          {...demoHint({ role: 'heading' })}
-          className="text-2xl font-black text-white">
+        <StyledText className="text-2xl font-black text-white">
           JOURNAL
         </StyledText>
         <StyledView className="flex-row items-center gap-2">
@@ -663,7 +660,6 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           </StyledTouchableOpacity>
           <StyledTouchableOpacity
             testID="add-journal-note-button"
-            {...demoHint({ 'aria-label': 'Add journal entry' })}
             onPress={handleOpenAddEntry}
             activeOpacity={0.7}
             className="bg-sky-600/20 p-2 rounded-full border border-sky-500/30">
@@ -684,10 +680,6 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
           untakenSupplementsToday.length > 0 ? (
             <StyledView
               testID="supplement-status-panel"
-              {...demoHint({
-                role: 'group',
-                'aria-label': "Today's supplements",
-              })}
               className="bg-zinc-900 border border-zinc-800/85 rounded-2xl p-4 mb-4">
               <StyledView className="flex-row justify-between items-center mb-3">
                 <StyledText className="text-zinc-400 text-[10px] font-black tracking-[0.15em] uppercase">
@@ -756,9 +748,7 @@ const JournalScreen: React.FC<JournalScreenProps> = ({
 
           return (
             <StyledView className="flex-row justify-between items-center mt-5 mb-3">
-              <StyledText
-                {...demoHint({ role: 'heading' })}
-                className="text-zinc-500 text-xs font-black tracking-[0.2em] uppercase">
+              <StyledText className="text-zinc-500 text-xs font-black tracking-[0.2em] uppercase">
                 {date.toLocaleDateString(undefined, {
                   weekday: 'short',
                   year: 'numeric',

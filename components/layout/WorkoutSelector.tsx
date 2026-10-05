@@ -5,7 +5,6 @@ import Toast from 'react-native-toast-message'
 import { ChevronLeft, ChevronRight, Check, Plus } from 'lucide-react-native'
 import WorkoutPicker from '../WorkoutPicker'
 import { Workout, Settings } from '../../hooks/useData'
-import { demoHint } from '../../utils/demoMode'
 
 const StyledView = styled(View)
 const StyledText = styled(Text)
@@ -33,11 +32,6 @@ const SetTracker: React.FC<SetTrackerProps> = ({
         <StyledTouchableOpacity
           key={setNumber}
           testID={`set-tracker-button-${setNumber}`}
-          {...demoHint({
-            'aria-label': completed
-              ? `Set ${setNumber} (logged)`
-              : `Set ${setNumber}`,
-          })}
           onPress={() => onSetPress(setNumber)}
           onLongPress={() => onSetLongPress(setNumber)}
           activeOpacity={0.7}
@@ -58,7 +52,6 @@ const SetTracker: React.FC<SetTrackerProps> = ({
     })}
     <StyledTouchableOpacity
       testID="add-set-button"
-      {...demoHint({ 'aria-label': 'Add a set' })}
       onPress={onAddSetPress}
       activeOpacity={0.7}
       className="w-8 h-8 rounded-full justify-center items-center bg-zinc-900 border border-dashed border-zinc-600">
@@ -114,9 +107,7 @@ const WorkoutSelector: React.FC<WorkoutSelectorProps> = ({
         <StyledView className="border-t border-zinc-800/80 pt-3">
           <StyledView className="flex-row justify-between items-center">
             <StyledView className="flex-1 mr-2">
-              <StyledText
-                {...demoHint({ role: 'heading' })}
-                className="text-base font-black text-white leading-tight">
+              <StyledText className="text-base font-black text-white leading-tight">
                 {currentWorkout.exercises[currentExerciseIndex]?.name}
               </StyledText>
             </StyledView>

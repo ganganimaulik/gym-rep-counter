@@ -1,6 +1,7 @@
 # Ignore artifacts:
 build
 dist
+dist-demo
 node_modules
 
 # Ignore lockfiles
