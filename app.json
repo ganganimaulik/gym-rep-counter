@@ -56,7 +56,8 @@
         }
       ],
       "@bacons/apple-targets",
-      "./plugins/withDisablePushEntitlement.js"
+      "./plugins/withDisablePushEntitlement.js",
+      "./plugins/withPodfileDeploymentTarget.js"
     ]
   }
 }
